@@ -1,17 +1,10 @@
 import express, {Request, Response } from 'express';
 import { PrismaClient, User } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+
 import passport from "passport"
 require("dotenv").config();
 
 const router = express.Router();
-const prisma = new PrismaClient();
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET){
-  throw("No JWT Secret");
-}
 
 
 router.post('/login', async (req: any, res: any, next) => {
@@ -23,13 +16,19 @@ router.post('/login', async (req: any, res: any, next) => {
       return res.status(401).json({message: info.message});
     }
     req.logIn(user, (err: Error) => {
-      if (err){
-        return next(err);
-      };
+      if (err) {
+        return next(err); // Handle login errors
+      }
 
-      const { password: _, ...userWithoutPassword } = user;
-      req.cookies("")
-      return res.json(userWithoutPassword);
+      req.session.save((err: Error) => {  // Explicitly save the session
+        if (err) {
+          return next(err);  // Handle session saving errors
+        }
+
+        // Remove the password from the user object for the response
+        const { password: _, ...userWithoutPassword } = user;
+        return res.json(userWithoutPassword);  // Send the user data back
+      });
     });
   })(req, res, next);
 });

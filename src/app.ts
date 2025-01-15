@@ -1,5 +1,5 @@
 import express from "express";
-import session from "express-session";
+import expressSession from "express-session";
 import passport from "./config/passport"
 import flash from "connect-flash";
 import cors from "cors";
@@ -9,7 +9,7 @@ import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 require("dotenv").config();
 
-const SESSION_SECRET = "QWERTY"
+const SESSION_SECRET = process.env.SESSION_SECRET || "QWERTY"
 
 if (!SESSION_SECRET){
   throw("No session secret");
@@ -21,30 +21,36 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173']
+  origin: ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true
 }));
 
-app.use(session({
-  store: new PrismaSessionStore(
-    new PrismaClient(),
-    {
-      checkPeriod: 2 * 60 * 1000,  
-      dbRecordIdIsSessionId: true,
-      dbRecordIdFunction: undefined,
-    }
-  ),
-  secret: SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
+app.use(
+  expressSession({
+    cookie: {
+     maxAge: 7 * 24 * 60 * 60 * 1000 // ms
+    },
+    secret: SESSION_SECRET,
+    resave: true,
+    saveUninitialized: true,
+    store: new PrismaSessionStore(
+      new PrismaClient(),
+      {
+        checkPeriod: 2 * 60 * 1000,  //ms
+        dbRecordIdIsSessionId: true,
+        dbRecordIdFunction: undefined,
+      }
+    )
+  })
+);
 
 app.use(passport.initialize());
 app.use(passport.session());
 
+app.use((req, res, next) => {
+  console.log('Session:', req.session);
+  next();
+});
 app.use(flash());
 
 app.use((req, res, next) => {
