@@ -28,6 +28,7 @@ router.post('/login', async (req: any, res: any, next) => {
       };
 
       const { password: _, ...userWithoutPassword } = user;
+      req.cookies("")
       return res.json(userWithoutPassword);
     });
   })(req, res, next);
