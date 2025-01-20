@@ -92,7 +92,8 @@ router.post("/sync-leads", async (req, res) => {
 // Modified router endpoint with timeout and response handling
 router.post("/sync-lead/:sheetName", async (req, res): Promise<void> => {
     const { sheetName } = req.params;
-    const decodedSheetName = decodeURIComponent(sheetName);
+    const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
+    console.log("Decoded sheet name: ", decodedSheetName);
 
     // Set a longer timeout for the request
     req.setTimeout(300000); // 5 minutes
