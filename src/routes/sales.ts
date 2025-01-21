@@ -1,6 +1,8 @@
 import express from "express";
 import { prisma } from "../config/prisma";
-import { fetchSheetData, fetchAllSheets, saveLeadsToDB, SheetName, sheetConfig, SaveResult } from "../services/googlesheet";
+import { fetchSheetData, fetchAllSheets, saveLeadsToDB, SaveResult, fetchSheetNames } from "../services/googlesheet";
+import authenticate from "../services/oauth";
+import { google } from "googleapis";
 
 const router = express.Router();
 
@@ -76,6 +78,9 @@ router.post("/sync-leads", async (req, res) => {
         console.log("Syncing leads with Google Sheets...");
         const sheetsData = await fetchAllSheets();
 
+        console.log("Fetching sheets done");
+        console.log("Starting updating database");
+
         for (const sheet of sheetsData) {
             console.log(`Updating database for sheet: ${sheet.sheetName}`);
             await saveLeadsToDB(sheet.sheetName, sheet.rows);
@@ -90,23 +95,22 @@ router.post("/sync-leads", async (req, res) => {
 });
 
 // Modified router endpoint with timeout and response handling
-router.post("/sync-lead/:sheetName", async (req, res): Promise<void> => {
-    const { sheetName } = req.params;
+router.post("/sync-lead/", async (req, res): Promise<void> => {
+    const { sheetName } = req.body;
     const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
     console.log("Decoded sheet name: ", decodedSheetName);
 
     // Set a longer timeout for the request
     req.setTimeout(300000); // 5 minutes
-    res.setTimeout(300000); // 5 minutes
 
-    if (!decodedSheetName || !(decodedSheetName in sheetConfig)) {
+    if (!decodedSheetName) {
         res.status(400).json({ error: "Invalid or missing sheet name" });
         return;
     }
 
     try {
         // Fetch the data
-        const sheetData = await fetchSheetData(decodedSheetName as SheetName);
+        const sheetData = await fetchSheetData(decodedSheetName as string);
         
         // Save the data and explicitly type the result
         const result: SaveResult = await saveLeadsToDB(decodedSheetName, sheetData.rows);
@@ -126,6 +130,16 @@ router.post("/sync-lead/:sheetName", async (req, res): Promise<void> => {
             error: `Failed to fetch and save sheet ${decodedSheetName}`,
             details: errorMessage
         });
+    }
+});
+
+router.get("/sheets", async (req, res) => {
+    try {
+        const sheetNames = await fetchSheetNames();
+        res.status(200).json({sheetNames});
+    } catch (error) {
+        console.error("Error fetching sheet names:", error);
+        res.status(500).json({ error: "Failed to fetch sheet names" });
     }
 });
 
