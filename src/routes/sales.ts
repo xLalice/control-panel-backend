@@ -3,6 +3,7 @@ import { prisma } from "../config/prisma";
 import { fetchSheetData, fetchAllSheets, saveLeadsToDB, SaveResult, fetchSheetNames } from "../services/googlesheet";
 import authenticate from "../services/oauth";
 import { google } from "googleapis";
+import { Prisma } from "@prisma/client";
 
 const router = express.Router();
 
@@ -48,9 +49,10 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
 
     // Decode sheet name, handle "+" replacement, and convert to snake case
     const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
-    console.log(`[DEBUG] Transformed sheet name to snake_case: ${decodedSheetName}`);
+    console.log(`[DEBUG] Transformed sheet name to: ${decodedSheetName}`);
 
     try {
+        // Fetch leads from the database
         const leads = await prisma.lead.findMany({
             where: {
                 sheetName: decodedSheetName,
@@ -64,7 +66,14 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
             return res.status(404).json({ message: `No leads found for sheet name: ${decodedSheetName}` });
         }
 
-        const parsedLeads = leads.map((lead) => lead.data);
+        // Map leads to include both id and data
+        const parsedLeads = leads.map((lead) => {
+            const data = lead.data as Prisma.JsonObject; // Safely cast to a JSON object
+            return {
+                id: lead.id, // Include the ID
+                ...data,     // Spread the data if it's an object
+            };
+        });
 
         res.status(200).json({ sheetName: decodedSheetName, leads: parsedLeads });
     } catch (error) {
@@ -72,6 +81,7 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
         res.status(500).json({ error: "Error fetching leads" });
     }
 });
+
 
 router.post("/sync-leads", async (req, res) => {
     try {
@@ -142,6 +152,62 @@ router.get("/sheets", async (req, res) => {
         res.status(500).json({ error: "Failed to fetch sheet names" });
     }
 });
+
+router.patch("/leads/:sheetName/:id", async (req, res): Promise<void> => {
+    const { sheetName, id } = req.params;
+    const updates = req.body;
+    
+    if (!sheetName || !id || !updates) {
+      res.status(400).json({ error: "Missing required parameters" });
+      return;
+    }
+  
+    const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
+  
+    try {
+      // First, fetch the existing lead
+      const existingLead = await prisma.lead.findFirst({
+        where: {
+          id: parseInt(id),
+          sheetName: decodedSheetName
+        }
+      });
+  
+      if (!existingLead) {
+        res.status(404).json({ error: `Lead not found with id ${id} in sheet ${decodedSheetName}` });
+        return;
+      }
+  
+      // Merge the existing data with updates
+      const updatedData = {
+        ...existingLead.data as Record<string, any>,
+        ...updates
+      };
+  
+      // Update the lead
+      const updatedLead = await prisma.lead.update({
+        where: {
+          id: parseInt(id)
+        },
+        data: {
+          data: updatedData,
+          updatedAt: new Date()
+        }
+      });
+  
+      res.status(200).json({
+        message: "Lead updated successfully",
+        lead: updatedLead
+      });
+  
+    } catch (error) {
+      console.error(`Error updating lead ${id} in sheet ${decodedSheetName}:`, error);
+      res.status(500).json({
+        error: "Failed to update lead",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
 
 
 export default router;
