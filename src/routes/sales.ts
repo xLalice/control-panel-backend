@@ -1,8 +1,6 @@
 import express from "express";
 import { prisma } from "../config/prisma";
 import { fetchSheetData, fetchAllSheets, saveLeadsToDB, SaveResult, fetchSheetNames } from "../services/googlesheet";
-import authenticate from "../services/oauth";
-import { google } from "googleapis";
 import { Prisma } from "@prisma/client";
 
 const router = express.Router();
@@ -39,24 +37,53 @@ router.get("/leads", async (req, res): Promise<any> => {
 
 router.get("/leads/:sheetName", async (req, res): Promise<any> => {
     const { sheetName } = req.params;
+    const { search } = req.query;
 
     console.log(`[DEBUG] Received request to fetch leads for sheet name: ${sheetName}`);
+    console.log("Search", search);
 
     if (!sheetName || typeof sheetName !== "string") {
         console.error(`[ERROR] Invalid sheet name: ${sheetName}`);
         return res.status(400).json({ error: "Sheet name is required and must be a string" });
     }
 
-    // Decode sheet name, handle "+" replacement, and convert to snake case
     const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
-    console.log(`[DEBUG] Transformed sheet name to: ${decodedSheetName}`);
+    const searchQuery = typeof search === "string" ? search : "";
 
     try {
-        // Fetch leads from the database
         const leads = await prisma.lead.findMany({
             where: {
                 sheetName: decodedSheetName,
+                ...(searchQuery && {
+                    OR: [
+                        {
+                            data: {
+                                path: ['Company Name'],
+                                string_contains: searchQuery,
+                            },
+                        },
+                        {
+                            data: {
+                                path: ['Name'],
+                                string_contains: searchQuery,
+                            },
+                        },
+                        {
+                            data: {
+                                path: ['Name Of Firm'],
+                                string_contains: searchQuery,
+                            },
+                        },
+                        {
+                            data: {
+                                path: ['Email'],
+                                string_contains: searchQuery,
+                            },
+                        },
+                    ],
+                }),
             },
+            orderBy: [{ id: "asc" }],
         });
 
         console.log(`[DEBUG] Found ${leads.length} leads for sheet name: ${decodedSheetName}`);
@@ -66,12 +93,11 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
             return res.status(404).json({ message: `No leads found for sheet name: ${decodedSheetName}` });
         }
 
-        // Map leads to include both id and data
         const parsedLeads = leads.map((lead) => {
-            const data = lead.data as Prisma.JsonObject; // Safely cast to a JSON object
+            const data = lead.data as Prisma.JsonObject;
             return {
-                id: lead.id, // Include the ID
-                ...data,     // Spread the data if it's an object
+                id: lead.id,
+                ...data,
             };
         });
 
@@ -81,6 +107,8 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
         res.status(500).json({ error: "Error fetching leads" });
     }
 });
+
+
 
 
 router.post("/sync-leads", async (req, res) => {
