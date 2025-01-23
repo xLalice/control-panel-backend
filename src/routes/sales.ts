@@ -97,15 +97,40 @@ router.get("/leads", async (req, res): Promise<any> => {
 
 router.get("/leads/:sheetName", async (req, res): Promise<any> => {
   const { sheetName } = req.params;
-  const { search = "", status, assignedTo, startDate, endDate } = req.query;
+  const { 
+    search = "", 
+    status, 
+    assignedTo, 
+    startDate, 
+    endDate,
+    page = "1",      // Default to first page
+    limit = "20"     // Default to 20 items per page
+  } = req.query;
 
   console.log("Received Query Params:", {
     sheetName,
     status,
     search,
     startDate,
-    endDate
+    endDate,
+    page,
+    limit
   });
+
+  // Validate pagination parameters
+  const pageNumber = parseInt(page as string, 10);
+  const pageLimit = parseInt(limit as string, 10);
+
+  if (isNaN(pageNumber) || pageNumber < 1) {
+    return res.status(400).json({ error: "Invalid page number" });
+  }
+
+  if (isNaN(pageLimit) || pageLimit < 1 || pageLimit > 100) {
+    return res.status(400).json({ error: "Invalid page limit (1-100)" });
+  }
+
+  const offset = (pageNumber - 1) * pageLimit;
+
 
   if (!sheetName || typeof sheetName !== "string") {
     return res.status(400).json({ error: "Sheet name is required and must be a string" });
@@ -194,32 +219,49 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
       }
     }
 
+    const totalLeads = await prisma.lead.count({
+      where: whereConditions
+    });
 
-    console.log("Conditions: ", whereConditions);
     const leads = await prisma.lead.findMany({
       where: whereConditions,
       orderBy: { createdAt: "desc" },
+      take: pageLimit,
+      skip: offset,
     });
 
     if (leads.length === 0) {
       return res.status(404).json({
         message: `No leads found for sheet name: ${decodedSheetName}`,
+        pagination: {
+          currentPage: pageNumber,
+          totalPages: 0,
+          totalLeads: 0,
+          pageSize: pageLimit
+        }
       });
     }
 
     const parsedLeads = leads.map((lead) => {
       const data = lead.data as Prisma.JsonObject;
-      console.log('Lead Status:', lead.status);  // Log the top-level status
-      console.log('Data Status:', data.status);  // Log the status in data (if it exists)
       return { 
         id: lead.id, 
-        status: lead.status,  // Explicitly use top-level status
+        status: lead.status,
         leadOwner: lead.leadOwnerId, 
         ...data 
       };
     });
 
-    res.status(200).json({ sheetName: decodedSheetName, leads: parsedLeads });
+    res.status(200).json({ 
+      sheetName: decodedSheetName, 
+      leads: parsedLeads,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages: Math.ceil(totalLeads / pageLimit),
+        totalLeads: totalLeads,
+        pageSize: pageLimit
+      }
+    });
   } catch (error) {
     console.error("Error fetching leads:", error);
     res.status(500).json({ error: "Error fetching leads", details: error });
