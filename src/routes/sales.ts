@@ -129,6 +129,8 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
     parsedEndDate = new Date(endDate);
   }
 
+  
+
   try {
     const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
     let whereConditions: Prisma.LeadWhereInput = {
@@ -173,6 +175,24 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
       };
     }
 
+    if (assignedTo && typeof assignedTo === "string") {
+      // Find the user by name and add to the where conditions
+      const assignedUser = await prisma.user.findFirst({
+        where: { name: assignedTo },
+        select: { id: true }
+      });
+    
+      if (assignedUser) {
+        whereConditions.leadOwnerId = assignedUser.id;
+      } else {
+        // If no user found, return empty results
+        return res.status(200).json({ 
+          sheetName: decodedSheetName, 
+          leads: [],
+          message: "No leads found for the specified user" 
+        });
+      }
+    }
 
 
     console.log("Conditions: ", whereConditions);
@@ -337,5 +357,7 @@ router.patch("/leads/:sheetName/:id", async (req, res): Promise<void> => {
     });
   }
 });
+
+
 
 export default router;
