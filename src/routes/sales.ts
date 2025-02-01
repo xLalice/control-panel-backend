@@ -104,7 +104,8 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
     startDate, 
     endDate,
     page = "1",      // Default to first page
-    limit = "20"     // Default to 20 items per page
+    limit = "20",    // Default to 20 items per page
+    sortBy = "createdAt" // Default sorting by createdAt
   } = req.query;
 
   console.log("Received Query Params:", {
@@ -114,7 +115,9 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
     startDate,
     endDate,
     page,
-    limit
+    limit,
+    assignedTo,
+    sortBy
   });
 
   // Validate pagination parameters
@@ -131,14 +134,12 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
 
   const offset = (pageNumber - 1) * pageLimit;
 
-
   if (!sheetName || typeof sheetName !== "string") {
     return res.status(400).json({ error: "Sheet name is required and must be a string" });
   }
 
   let parsedStartDate: Date | null = null;
   let parsedEndDate: Date | null = null;
-
 
   if (startDate && typeof startDate === "string") {
     if (isNaN(Date.parse(startDate))) {
@@ -153,8 +154,6 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
     }
     parsedEndDate = new Date(endDate);
   }
-
-  
 
   try {
     const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
@@ -200,22 +199,27 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
       };
     }
 
+    // Handle assignedTo filter (including Unassigned logic)
     if (assignedTo && typeof assignedTo === "string") {
-      // Find the user by name and add to the where conditions
-      const assignedUser = await prisma.user.findFirst({
-        where: { name: assignedTo },
-        select: { id: true }
-      });
-    
-      if (assignedUser) {
-        whereConditions.leadOwnerId = assignedUser.id;
+      if (assignedTo === "Unassigned") {
+        whereConditions.leadOwnerId = null; // Fetch leads with no assigned user
       } else {
-        // If no user found, return empty results
-        return res.status(200).json({ 
-          sheetName: decodedSheetName, 
-          leads: [],
-          message: "No leads found for the specified user" 
+        // Find the user by name and add to the where conditions
+        const assignedUser = await prisma.user.findFirst({
+          where: { name: assignedTo },
+          select: { id: true }
         });
+    
+        if (assignedUser) {
+          whereConditions.leadOwnerId = assignedUser.id;
+        } else {
+          // If no user found, return empty results
+          return res.status(200).json({ 
+            sheetName: decodedSheetName, 
+            leads: [],
+            message: "No leads found for the specified user" 
+          });
+        }
       }
     }
 
@@ -223,12 +227,21 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
       where: whereConditions
     });
 
-    const leads = await prisma.lead.findMany({
+    // Fetch all leads matching the conditions
+    let leads = await prisma.lead.findMany({
       where: whereConditions,
-      orderBy: { createdAt: "desc" },
       take: pageLimit,
       skip: offset,
     });
+
+    // Sort the leads in memory if sortBy is specified
+    if (sortBy === "Company Name" || sortBy === "Name" || sortBy === "Name of Firm") {
+      leads.sort((a, b) => {
+        const aValue = (a.data as Record<string, any>)[sortBy]?.toLowerCase() || "";
+        const bValue = (b.data as Record<string, any>)[sortBy]?.toLowerCase() || "";
+        return aValue.localeCompare(bValue);
+      });
+    }
 
     if (leads.length === 0) {
       return res.status(404).json({
@@ -329,8 +342,15 @@ router.post("/sync-lead", async (req, res): Promise<void> => {
 
 router.get("/sheets", async (req, res) => {
   try {
-    const sheetNames = await fetchSheetNames();
-    res.status(200).json({ sheetNames });
+    const sheetNames = await prisma.lead.findMany({
+      distinct: ["sheetName"],
+      select: {
+        sheetName: true
+      }
+    })
+
+    const uniqueSheetNames = sheetNames.map((sheet) => sheet.sheetName);
+    res.status(200).json({ sheetNames: uniqueSheetNames });
   } catch (error) {
     console.error("Error fetching sheet names:", error);
     res.status(500).json({ error: "Failed to fetch sheet names" });

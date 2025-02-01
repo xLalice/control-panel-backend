@@ -1,6 +1,7 @@
 import express from 'express';
 import { User } from '@prisma/client';
 import { google } from 'googleapis';
+import axios from "axios";
 import fs from "fs";
 
 import passport from "passport"
@@ -9,7 +10,6 @@ require("dotenv").config();
 const router = express.Router();
 
 const CREDENTIALS_PATH =  "./src/credentials/credentials.json";
-
 
 router.post('/login', async (req: any, res: any, next) => {
   passport.authenticate("local", (err: Error, user: User, info: any) => {
@@ -70,4 +70,22 @@ router.get('/google/callback', async (req, res): Promise<any> => {
   }
 });
 
+
+
+router.post('/logout', (req: any, res: any) => {
+  req.logout((err: Error) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).json({ message: 'Error logging out' });
+    }
+    req.session.destroy((err: Error) => {
+      if (err) {
+        console.error('Error destroying session:', err);
+        return res.status(500).json({ message: 'Error destroying session' });
+      }
+      res.clearCookie('connect.sid'); // Clear the session cookie
+      res.json({ message: 'Logged out successfully' });
+    });
+  });
+});
 export default router;
