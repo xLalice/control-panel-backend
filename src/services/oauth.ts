@@ -1,8 +1,8 @@
 import fs from "fs";
 import { google, Auth } from "googleapis";
 
-const CREDENTIALS_PATH = "./src/credentials/credentials.json";
-const TOKEN_PATH = "./src/credentials/token.json";
+const CREDENTIALS_PATH = "./src/credentials/google-credentials.json";
+const TOKEN_PATH = "./src/credentials/google-token.json";
 
 async function authenticate(): Promise<Auth.OAuth2Client> {
     const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));

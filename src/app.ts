@@ -8,6 +8,7 @@ import { PrismaClient } from "@prisma/client";
 import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 import salesRoutes from "./routes/sales";
+import marketingRoutes from "./routes/marketing"
 require("dotenv").config();
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "QWERTY"
@@ -64,6 +65,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes)
 app.use("/api/sales", salesRoutes);
+app.use("/api/marketing", marketingRoutes)
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
