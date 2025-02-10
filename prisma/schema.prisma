@@ -15,6 +15,15 @@ enum Role {
   ACCOUNTING
 }
 
+model FacebookCreds {
+  id    Int   @id     @default(autoincrement())
+  user_access_token String  @unique
+  page_access_token String
+  page_id     String  
+  expiry_date   DateTime
+
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
