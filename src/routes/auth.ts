@@ -1,8 +1,8 @@
 import express from 'express';
 import { User } from '@prisma/client';
 import { google } from 'googleapis';
-import axios from "axios";
 import fs from "fs";
+import { info } from '../utils/logger';
 
 import passport from "passport"
 require("dotenv").config();
@@ -39,7 +39,7 @@ router.post('/login', async (req: any, res: any, next) => {
 
 router.get('/google/callback', async (req, res): Promise<any> => {
   try {
-      console.log("Entered callback");
+      info('Google callback hit');
 
       const { code } = req.query;
 
@@ -61,7 +61,7 @@ router.get('/google/callback', async (req, res): Promise<any> => {
       // Save the token to a secure location
       fs.writeFileSync('token.json', JSON.stringify(tokens));
 
-      console.log('Authentication successful! Token saved.');
+      info('Token saved');
 
       res.status(200).send('Authentication successful!');
   } catch (error) {

@@ -7,7 +7,7 @@ export const syncPagePosts = async (
   token: string
 ): Promise<void> => {
   try {
-    console.log(`Starting sync for page: ${pageId}`);
+    info(`Starting sync for page: ${pageId}`);
     const fields =
       "id,message,attachments{media},created_time,reactions.summary(total_count),comments.summary(total_count),shares.summary(total_count)";
 
@@ -21,18 +21,18 @@ export const syncPagePosts = async (
       }
     );
 
-    console.log(
+    info(
       `Fetched ${postsResponse.data.data.length} posts for page: ${pageId}`
     );
 
-    console.log(`Post Response: ${postsResponse}`);
+    info(`Post Response: ${postsResponse}`);
 
     for (const postData of postsResponse.data.data) {
-      console.log(`Processing post: ${postData.id}`);
+      info(`Processing post: ${postData.id}`);
       await processPost(postData, token);
     }
 
-    console.log(`Finished syncing posts for page: ${pageId}`);
+    info(`Finished syncing posts for page: ${pageId}`);
   } catch (error) {
     console.error("Posts sync error:", error);
     throw error;
@@ -41,9 +41,9 @@ export const syncPagePosts = async (
 
 const processPost = async (postData: any, token: string): Promise<void> => {
   try {
-    console.log(`Fetching insights for post: ${postData.id}`);
+    info(`Fetching insights for post: ${postData.id}`);
 
-    console.log(
+    info(
       `Attachments for post ${postData.id}:`,
       postData.attachments.data
     );
@@ -60,7 +60,7 @@ const processPost = async (postData: any, token: string): Promise<void> => {
       }
     );
 
-    console.log(`Received insights for post: ${postData.id}`, insights.data);
+    info(`Received insights for post: ${postData.id}`, insights.data);
 
     // Process insights data
     const metricsData = insights.data.data.reduce((acc: any, insight: any) => {
@@ -68,7 +68,7 @@ const processPost = async (postData: any, token: string): Promise<void> => {
       return acc;
     }, {});
 
-    console.log(
+    info(
       `post_reactions_by_type_total for post ${postData.id}:`,
       metricsData.post_reactions_by_type_total
     );
@@ -83,11 +83,11 @@ const processPost = async (postData: any, token: string): Promise<void> => {
       (reactions.sad || 0) +
       (reactions.angry || 0);
 
-    console.log(
+    info(
       "Post Type: ",
       getPostType(postData.attachments)
     ),
-      console.log(`Upserting post: ${postData.id}`);
+      info(`Upserting post: ${postData.id}`);
 
     const post = await prisma.post.upsert({
       where: { fbPostId: postData.id },
@@ -113,7 +113,7 @@ const processPost = async (postData: any, token: string): Promise<void> => {
       },
     });
 
-    console.log(`Successfully upserted post: ${post.id}`);
+    info(`Successfully upserted post: ${post.id}`);
 
     // Check if PostMetric already exists for this post and date
     const today = new Date();
@@ -128,7 +128,7 @@ const processPost = async (postData: any, token: string): Promise<void> => {
     });
 
     if (existingPostMetric) {
-      console.log(
+      info(
         `PostMetric already exists for post: ${
           post.id
         } and date: ${today.toISOString()}`
@@ -137,7 +137,7 @@ const processPost = async (postData: any, token: string): Promise<void> => {
     }
 
     // Store historical metrics
-    console.log(`Creating post metric for post: ${post.id}`);
+    info(`Creating post metric for post: ${post.id}`);
     await prisma.postMetric.create({
       data: {
         postId: post.id,
@@ -149,7 +149,7 @@ const processPost = async (postData: any, token: string): Promise<void> => {
       },
     });
 
-    console.log(`Successfully stored metrics for post: ${post.id}`);
+    info(`Successfully stored metrics for post: ${post.id}`);
   } catch (error) {
     console.error(`Post processing error for post: ${postData.id}`, error);
   }

@@ -50,7 +50,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use((req, res, next) => {
-  console.log('Session:', req.session);
+  info("Session: ", req.session);
+  
   next();
 });
 app.use(flash());
@@ -68,4 +69,4 @@ app.use("/api/sales", salesRoutes);
 app.use("/api/marketing", marketingRoutes)
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => info(`Server running on port ${PORT}`));

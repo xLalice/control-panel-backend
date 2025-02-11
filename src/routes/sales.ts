@@ -8,6 +8,7 @@ import {
   fetchSheetNames,
 } from "../services/googlesheet";
 import { Prisma, LeadStatus } from "@prisma/client";
+import { info } from "../utils/logger";
 
 const JsonMultiCaseQuery = (
   path: string[],
@@ -58,7 +59,7 @@ const createMultiFieldSearch = (search: string): Prisma.LeadWhereInput => {
 function isValidLeadStatus(status: string): boolean {
   const validStatuses = ['New', 'InProgress', 'Converted', 'Closed'];
   const isValid = validStatuses.includes(status);
-  console.log(`Checking status validity: ${status} => ${isValid}`);
+  info(`Checking status validity: ${status} => ${isValid}`);
   return isValid;
 }
 
@@ -108,7 +109,7 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
     sortBy = "createdAt" // Default sorting by createdAt
   } = req.query;
 
-  console.log("Received Query Params:", {
+  info("Received Query Params:", {
     sheetName,
     status,
     search,
@@ -175,9 +176,9 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
 
     // Add status filter
     if (status && typeof status === "string") {
-      console.log("Received Status: ", status);
+      info("Received Status: ", status);
       const isValid = isValidLeadStatus(status);
-      console.log("Status Validation Result: ", isValid);
+      info("Status Validation Result: ", isValid);
   
       if (!isValid) {
         return res.status(400).json({ 
@@ -284,18 +285,18 @@ router.get("/leads/:sheetName", async (req, res): Promise<any> => {
 
 router.post("/sync-leads", async (req, res) => {
   try {
-    console.log("Syncing leads with Google Sheets...");
+    info("Syncing leads with Google Sheets...");
     const sheetsData = await fetchAllSheets();
 
-    console.log("Fetching sheets done");
-    console.log("Starting updating database");
+    info("Fetching sheets done");
+    info("Starting updating database");
 
     for (const sheet of sheetsData) {
-      console.log(`Updating database for sheet: ${sheet.sheetName}`);
+      info(`Updating database for sheet: ${sheet.sheetName}`);
       await saveLeadsToDB(sheet.sheetName, sheet.rows);
     }
 
-    console.log("Leads sync completed successfully.");
+    info("Leads sync completed successfully.");
     res.status(200).json({ message: "Leads synced successfully!" });
   } catch (error) {
     console.error("Error syncing leads:", error);
@@ -306,7 +307,7 @@ router.post("/sync-leads", async (req, res) => {
 router.post("/sync-lead", async (req, res): Promise<void> => {
   const { sheetName } = req.body;
   const decodedSheetName = decodeURIComponent(sheetName).replace(/\-/g, " ");
-  console.log("Decoded sheet name: ", decodedSheetName);
+  info("Decoded sheet name: ", decodedSheetName);
 
   req.setTimeout(300000); // 5 minutes
 
