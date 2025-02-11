@@ -2,6 +2,7 @@ import express from "express";
 import { prisma } from "../config/prisma";
 import bcrypt from "bcryptjs";
 import { isAuthenticated } from "../middlewares/isAuthenticated";
+import { error, info} from "../utils/logger";
 
 const router = express.Router();
 
@@ -9,8 +10,8 @@ router.get("/users",  isAuthenticated, async (req, res): Promise<any> => {
     try{
         const users = await prisma.user.findMany();
         res.status(200).json(users);
-    } catch(error){
-        console.error(error);
+    } catch(err){
+        error("Error during authentication", error);  
         res.status(500).json("Error fetching users");
     }
 })
@@ -37,8 +38,8 @@ router.post("/users",  async (req, res): Promise<any> => {
     });
 
     res.status(201).json({ newUser, message: "Successfully created the user" });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    error(error);
     res.status(500).json({ error: "Error creating user." });
   }
 });
@@ -66,8 +67,8 @@ router.put("/users/:id",  async (req, res): Promise<any> => {
     res
       .status(200)
       .json({ updatedUser, message: "User updated successfully." });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    error(error);
     res.status(500).json({ error: "Error updating user." });
   }
 });
@@ -90,8 +91,8 @@ router.delete("/users/:id",  async (req, res): Promise<any> => {
     });
 
     res.status(200).json({ message: "User deleted successfully." });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    error(err);
     res.status(500).json({ error: "Error deleting user." });
   }
 });

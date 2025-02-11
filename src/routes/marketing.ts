@@ -1,6 +1,11 @@
 import express, { Request, Response } from "express";
-import { FacebookService } from "../services/facebook";
 import { prisma } from "../config/prisma";
+import { getValidToken } from "../services/FacebookService/token-management";
+import { getAuthUrl, handleCallback, getCurrentCredentials } from "../services/FacebookService/auth";
+import { syncPagePosts } from "../services/FacebookService/posts";
+import { syncPageMetrics, getHistoricalData } from "../services/FacebookService/metrics";
+import { info } from "../utils/logger";
+
 
 
 const router = express.Router();
@@ -8,12 +13,12 @@ const router = express.Router();
 
 router.get("/auth/facebook", async (req: Request, res: Response): Promise<any> => {
   try {
-    const token = await FacebookService.getValidToken();
+    const token = await getValidToken();
     if (token) {
       return res.json({ authenticated: true, token });
     }
     
-    res.redirect(FacebookService.getAuthUrl());
+    res.redirect(getAuthUrl());
   } catch (error) {
     console.error("Auth init error:", error);
     res.status(500).json({ error: "Authentication failed" });
@@ -25,7 +30,7 @@ router.get("/auth/facebook/callback", async (req: Request, res: Response) => {
     const { code } = req.query;
     if (!code) throw new Error("Missing authorization code");
     
-    await FacebookService.handleCallback(code as string);
+    await handleCallback(code as string);
     res.redirect("/dashboard"); // Redirect to frontend dashboard
   } catch (error) {
     console.error("Callback error:", error);
@@ -36,18 +41,18 @@ router.get("/auth/facebook/callback", async (req: Request, res: Response) => {
 router.post("/sync/all", async (req, res): Promise<any> => {
   try {
     // Get credentials first
-    const credentials = FacebookService.getCurrentCredentials();
+    const credentials = await getCurrentCredentials();
     if (!credentials) {
       return res.status(401).json({ error: "Not authenticated with Facebook" });
     }
 
     // Run sync operations sequentially
-    await FacebookService.syncPagePosts(
+    await syncPagePosts(
       credentials.page_id,
       credentials.page_access_token
     );
     
-    await FacebookService.syncPageMetrics(
+    await syncPageMetrics(
       credentials.page_id,
       credentials.page_access_token
     );
@@ -92,7 +97,7 @@ router.get('/facebook/overview', async (req, res) => {
         },
         orderBy: { fetchedAt: 'asc' },
       }),
-      FacebookService.getHistoricalData(Number(days))
+      getHistoricalData(Number(days))
     ]);
 
     const response = {
@@ -112,7 +117,7 @@ router.get('/facebook/overview', async (req, res) => {
       }))
     };
 
-    console.log("Facebook overview: ", response)
+    info('Fetched overview data');
 
     res.json(response);
   } catch (error) {

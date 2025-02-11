@@ -1,15 +1,16 @@
 import { prisma } from "../../config/prisma";
 import axios from "axios";
 import { getCurrentCredentials } from "./auth";
+import { info } from "../../utils/logger";
 
 export const syncPageMetrics = async (
   pageId: string,
   token: string
 ): Promise<void> => {
   try {
-    console.log("Fetching page metrics");
+    info("Fetching page metrics");
     const now = new Date();
-    console.log("Current server time:", now.toISOString());
+    info("Current server time:", now.toISOString());
 
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
@@ -26,7 +27,7 @@ export const syncPageMetrics = async (
       .toISOString()
       .split("T")[0];
 
-    console.log(
+    info(
       "Using date range:",
       dayBeforeYesterdayDate,
       "to",
@@ -46,7 +47,7 @@ export const syncPageMetrics = async (
     });
 
     if (existingMetric) {
-      console.log("Metrics already exist for date:", yesterdayDate);
+      info("Metrics already exist for date:", yesterdayDate);
       return; // Skip saving if metrics already exist
     }
 
@@ -107,7 +108,7 @@ export const syncPageMetrics = async (
       },
     });
 
-    console.log("Successfully saved metrics for date:", yesterdayDate);
+    info("Successfully saved metrics for date:", yesterdayDate);
   } catch (error) {
     console.error("Page metrics sync error:", error);
     throw error;
@@ -148,7 +149,7 @@ export const fetchDailyMetrics = async (pageId: string, token: string) => {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayDate = yesterday.toISOString().split("T")[0];
 
-    console.log("Fetching metrics for:", yesterdayDate);
+    info("Fetching metrics for:", yesterdayDate);
 
     if (yesterday > new Date()) {
       throw new Error("Invalid date parameters - cannot use future dates");
