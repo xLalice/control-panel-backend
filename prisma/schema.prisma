@@ -59,6 +59,11 @@ model Lead {
   updatedAt   DateTime      @updatedAt
 }
 
+model Task {
+  id    Int     @id @default(autoincrement())
+  
+}
+
 model Post {
   id               String    @id @default(uuid())
   fbPostId         String    @unique

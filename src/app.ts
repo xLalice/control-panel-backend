@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 import salesRoutes from "./routes/sales";
 import marketingRoutes from "./routes/marketing"
+import { info } from "./utils/logger";
 require("dotenv").config();
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "QWERTY"
