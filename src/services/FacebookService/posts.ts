@@ -1,6 +1,7 @@
 import axios from "axios";
 import { prisma } from "../../config/prisma";
 import { getPostType } from "./utils/getPostType";
+import { info } from "../../utils/logger";
 
 export const syncPagePosts = async (
   pageId: string,

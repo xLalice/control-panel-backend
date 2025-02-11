@@ -1,5 +1,6 @@
 import { google, Auth } from "googleapis";
 import { prisma } from "../config/prisma";
+import { info } from "../utils/logger";
 
 
 const SPREADSHEET_ID = "14po4OtRqWuyY4SrMv1e-WNO_06QQld1QDtsJRRgrI44";
