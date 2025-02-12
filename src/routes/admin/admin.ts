@@ -1,12 +1,12 @@
 import express from "express";
-import { prisma } from "../config/prisma";
+import { prisma } from "../../config/prisma";
 import bcrypt from "bcryptjs";
-import { isAuthenticated } from "../middlewares/isAuthenticated";
-import { error, info} from "../utils/logger";
+import { isAuthenticated } from "../../middlewares/isAuthenticated";
+import { error, info} from "../../utils/logger";
 
 const router = express.Router();
 
-router.get("/users",  isAuthenticated, async (req, res): Promise<any> => {
+router.get("/users" , async (req, res): Promise<any> => {
     try{
         const users = await prisma.user.findMany();
         res.status(200).json(users);

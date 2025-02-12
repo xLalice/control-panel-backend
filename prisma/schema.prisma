@@ -44,9 +44,22 @@ model User {
   role      Role
   name      String
   leads     Lead[]
+  reports   Report[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Report {
+  id           String   @id @default(uuid())
+  date         DateTime
+  reportedById String
+  reportedBy   User     @relation(fields: [reportedById], references: [id])
+  location     String   @default("Remote")
+  department   Role   
+  taskDetails  String
+  createdAt    DateTime @default(now())
+}
+
 
 model Lead {
   id          Int          @id @default(autoincrement())
@@ -61,7 +74,7 @@ model Lead {
 
 model Task {
   id    Int     @id @default(autoincrement())
-  
+
 }
 
 model Post {
