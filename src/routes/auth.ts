@@ -11,6 +11,16 @@ const router = express.Router();
 
 const CREDENTIALS_PATH =  "./src/credentials/credentials.json";
 
+router.get("/verify", (req, res, next) => {
+  passport.authenticate("local", { session: false }, (err: Error, user: User) => {
+    if (err || !user) {
+      return res.status(401).json({ authenticated: false });
+    }
+
+    res.status(200).json({ authenticated: true });
+  })(req, res, next);
+});
+
 router.post('/login', async (req: any, res: any, next) => {
   passport.authenticate("local", (err: Error, user: User, info: any) => {
     if (err){
