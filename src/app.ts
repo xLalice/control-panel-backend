@@ -6,9 +6,10 @@ import cors from "cors";
 import { PrismaSessionStore } from "@quixo3/prisma-session-store";
 import { PrismaClient } from "@prisma/client";
 import authRoutes from "./routes/auth";
-import adminRoutes from "./routes/admin";
+import adminRoutes from "./routes/admin/admin";
 import salesRoutes from "./routes/sales";
 import marketingRoutes from "./routes/marketing"
+import reportRoutes from "./routes/reports"
 import { info } from "./utils/logger";
 require("dotenv").config();
 
@@ -22,9 +23,11 @@ const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+console.log("Allowed Origin:", process.env.FRONTEND_URL);
+
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'],
+  origin: [`${process.env.FRONTEND_URL}`, "http://127.0.0.1:5173/"],
   credentials: true
 }));
 
@@ -68,6 +71,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes)
 app.use("/api/sales", salesRoutes);
 app.use("/api/marketing", marketingRoutes)
+app.use("/api/reports", reportRoutes)
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => info(`Server running on port ${PORT}`));
