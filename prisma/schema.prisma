@@ -146,4 +146,47 @@ enum LeadStatus {
   Closed
 }
 
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  products  Product[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  category  Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId String
+  size      String?
+  grade     String?
+  type      String?
+  pricing   Pricing?
+  priceHistory PriceHistory[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pricing {
+  id         String   @id @default(uuid())
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId  String  @unique
+  price      Decimal
+  unit       String  
+  updatedBy  String  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model PriceHistory {
+  id         String   @id @default(uuid())
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId  String
+  oldPrice   Decimal
+  newPrice   Decimal
+  changedBy  String  // Admin user who changed the price
+  changedAt  DateTime @default(now())
+}
+
 
