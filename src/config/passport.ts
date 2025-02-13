@@ -24,40 +24,43 @@ passport.use(
         try {
             const user = await prisma.user.findUnique({ where: { email } });
             if (!user) {
+                console.log("No user found with the email:", email);
                 return done(null, false, { message: "Email does not exist." });
             }
 
             const isMatch = await bcrypt.compare(password, user.password);
-
             if (!isMatch) {
+                console.log("Incorrect password attempt for user:", email);
                 return done(null, false, { message: "Incorrect password" });
             }
-
             return done(null, user);
         } catch (error) {
+            console.error("Error during authentication:", error);
             return done(error);
         }
     })
 );
 
+
+
 passport.serializeUser((user, done) => {
-    done(null, user.id);
-});
+    done(null, user.id); // Serialize user by id
+  });
+  
 
 passport.deserializeUser(async (id: string, done) => {
     try {
-        const user = await prisma.user.findUnique({
-            where: { id: id }
-        });
-        
-        if (!user) {
-            return done(null, false);
-        }
-        
-        return done(null, user);
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) {
+        console.log("User not found during deserialization.");
+        return done(null, false); 
+      }
+      done(null, user);
     } catch (error) {
-        return done(error, null);
+      console.log("Error deserializing user:", error);
+      done(error, null); 
     }
-});
+  });
+  
 
 export default passport;
