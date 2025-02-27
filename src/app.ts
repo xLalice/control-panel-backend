@@ -7,7 +7,7 @@ import { PrismaSessionStore } from "@quixo3/prisma-session-store";
 import { PrismaClient } from "@prisma/client";
 import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin/admin";
-import salesRoutes from "./routes/sales";
+import leadRoutes from "./modules/leads/lead.router"
 import marketingRoutes from "./routes/marketing";
 import reportRoutes from "./routes/reports";
 import priceRoutes from "./routes/pricing";
@@ -20,7 +20,7 @@ if (!SESSION_SECRET) {
   throw "No session secret";
 }
 
-const app = express();
+export const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -70,7 +70,7 @@ app.use((req, res, next) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/sales", salesRoutes);
+app.use("/api/leads", leadRoutes)
 app.use("/api/marketing", marketingRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/prices", priceRoutes);
