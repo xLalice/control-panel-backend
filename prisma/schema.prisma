@@ -23,27 +23,15 @@ model FacebookCreds {
   expiry_date       DateTime
 }
 
-model GoogleAuth {
-  id           Int       @id @default(autoincrement())
-  type         String
-  clientId     String
-  clientSecret String
-  redirectUris String
-  refreshToken String?
-  accessToken  String?
-  tokenType    String?
-  expiryDate   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-}
-
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
   role      Role
   name      String
-  leads     Lead[]
+  assignedleads     Lead[] @relation("assignedLeads")
+  createdLeads      Lead[]  @relation("createdLeads")
+  createdLogs ActivityLog[]
   reports   Report[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -60,15 +48,96 @@ model Report {
   createdAt    DateTime @default(now())
 }
 
+enum LeadStatus {
+  New
+  Contacted
+  Qualified
+  Proposal
+  Negotiation 
+  Converted
+  FollowUp 
+  Lost
+}
+
+
+model Company {
+  id          String  @id @default(uuid())
+  name        String
+  industry    String?
+  region      String?
+  email       String? @unique
+  phone       String? @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  leads       Lead[]
+}
+
 model Lead {
-  id          Int        @id @default(autoincrement())
-  sheetName   String
-  data        Json
-  status      LeadStatus @default(New)
-  leadOwnerId String?    @unique
-  leadOwner   User?      @relation(fields: [leadOwnerId], references: [id])
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id              String       @id @default(uuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  contactPerson   String?      
+  email           String? @unique
+  phone           String? @unique
+  status          LeadStatus   @default(New)
+  source          String
+  subSource       String?
+  campaign        String?
+  assignedToId    String?
+  assignedTo      User?         @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
+  createdById     String
+  createdBy       User @relation(fields: [createdById], references: [id], name: "createdLeads")  // New
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  lastContactDate DateTime?
+  estimatedValue  Float?
+  leadScore       Float?
+  contactHistory  ContactHistory[]
+  industry        String?      
+  region          String?
+  referredBy      String?
+  followUpDate    DateTime?
+  activityLog     ActivityLog[]
+
+  @@index([email]) 
+  @@index([phone])
+  @@index([createdById])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  leadId      String
+  userId      String
+  createdById String
+  action      String
+  description String
+  metadata    Json?
+  oldStatus   LeadStatus?
+  newStatus   LeadStatus?
+
+  createdAt   DateTime @default(now())
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  createdBy   User     @relation(fields: [createdById], references: [id]) 
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model ContactHistory {
+  id          String   @id @default(uuid())
+  leadId      String
+  method      String   
+  summary     String
+  outcome     String?
+  timestamp   DateTime @default(now())
+
+  lead        Lead     @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@index([timestamp])
 }
 
 model Task {
@@ -81,10 +150,9 @@ model Post {
   postType  String
   content   String?
   mediaUrl  String?
-  createdAt DateTime // Post creation time on Facebook
+  createdAt DateTime 
   updatedAt DateTime @updatedAt
 
-  // Current metrics
   likes       Int @default(0)
   comments    Int @default(0)
   shares      Int @default(0)
@@ -136,12 +204,7 @@ model Session {
   expiresAt DateTime
 }
 
-enum LeadStatus {
-  New
-  InProgress
-  Converted
-  Closed
-}
+
 
 model Equipment {
   id                  String                  @id @default(uuid())
