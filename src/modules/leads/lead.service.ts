@@ -17,7 +17,6 @@ import {
 import { Prisma } from "@prisma/client";
 import { JsonObject } from "@prisma/client/runtime/library";
 import { getSortingConfig } from "./lead.utils";
-import { date } from "zod";
 
 export class LeadService {
   constructor(private prisma: PrismaClient) {}
@@ -242,9 +241,19 @@ export class LeadService {
     const leads = await this.prisma.lead.findMany({
       where,
       orderBy,
-      include: {
-        company: true,
-        assignedTo: true,
+      select: {
+        id: true,
+        company: { select: { name: true, email: true, phone: true } },
+        contactPerson: true,
+        email: true,
+        status: true,
+        assignedTo: { select: { name: true } },
+        createdAt: true,
+        lastContactDate: true,
+        followUpDate: true,
+        leadScore: true,
+        industry: true,
+        region: true,
       },
       skip: (page - 1) * pageSize,
       take: pageSize,

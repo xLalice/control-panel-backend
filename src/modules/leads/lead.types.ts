@@ -43,9 +43,25 @@ export interface SearchLeadsParams {
 }
 
 export interface PaginatedLeadsResponse {
-  leads: Lead[];
+  leads: {
+    id: string;
+    company: {
+      name: string;
+      email: string | null;
+      phone: string | null;
+    };
+    contactPerson: string | null;
+    status: LeadStatus; 
+    assignedTo?: { name: string } | null;
+    lastContactDate: Date | null;
+    followUpDate: Date | null;
+    leadScore: number | null;
+    industry: string | null;
+    region: string | null;
+  }[];
   total: number;
 }
+
 
 export interface ActivityLogDto {
   id: string;
