@@ -21,7 +21,7 @@ import { getSortingConfig } from "./lead.utils";
 export class LeadService {
   constructor(private prisma: PrismaClient) {}
 
-  async createLead(data: CreateLeadDto): Promise<Lead> {
+  async createLead(data: CreateLeadDto, userId: string): Promise<Lead> {
     const {
       companyId,
       companyName,
@@ -93,6 +93,7 @@ export class LeadService {
         source,
         status,
         assignedTo,
+        createdBy: { connect: { id: userId } },
       },
     });
 
@@ -105,6 +106,7 @@ export class LeadService {
         oldStatus: lead.status,
         newStatus: status,
         metadata: { notes: lead.notes },
+        createdById: userId,
       },
     });
 
@@ -113,26 +115,27 @@ export class LeadService {
   }
 
   async updateLead(id: string, data: UpdateLeadDto): Promise<Lead> {
-    const { companyId, assignedToId, companyName, ...leadData } = data; 
+    const { companyId, assignedToId, companyName, ...leadData } = data;
 
     console.log("Updating lead with data:", data);
 
     return this.prisma.lead.update({
-        where: { id },
-        data: {
-            ...leadData,
-            company: companyId ? { connect: { id: companyId } } : undefined, 
-            assignedTo: assignedToId && assignedToId.trim() !== "" 
-                ? { connect: { id: assignedToId } } 
-                : { disconnect: true }, 
-        },
+      where: { id },
+      data: {
+        ...leadData,
+        company: companyId ? { connect: { id: companyId } } : undefined,
+        assignedTo:
+          assignedToId && assignedToId.trim() !== ""
+            ? { connect: { id: assignedToId } }
+            : { disconnect: true },
+      },
     });
-}
-
+  }
 
   async updateLeadStatus(
     id: string,
-    { status, notes, method }: UpdateLeadStatusDto
+    { status, notes, method }: UpdateLeadStatusDto,
+    userId: string
   ): Promise<Lead> {
     const lead = await this.prisma.lead.findUnique({
       where: { id },
@@ -164,6 +167,7 @@ export class LeadService {
         oldStatus: lead.status,
         newStatus: status,
         metadata: { notes },
+        createdById: userId,
       },
     });
 
@@ -295,18 +299,21 @@ export class LeadService {
       }
     }
 
-    await this.createActivityLog({
-      leadId: id,
-      userId,
-      action: assignedToId ? "Reassignment" : "Unassignment",
-      description: assignedToId
-        ? `Lead reassigned to a new owner`
-        : `Lead unassigned`,
-      metadata: {
-        previousAssignee: lead.assignedToId,
-        newAssignee: assignedToId,
+    await this.createActivityLog(
+      {
+        leadId: id,
+        userId,
+        action: assignedToId ? "Reassignment" : "Unassignment",
+        description: assignedToId
+          ? `Lead reassigned to a new owner`
+          : `Lead unassigned`,
+        metadata: {
+          previousAssignee: lead.assignedToId,
+          newAssignee: assignedToId,
+        },
       },
-    });
+      userId
+    );
 
     return this.prisma.lead.update({
       where: { id },
@@ -317,20 +324,24 @@ export class LeadService {
     });
   }
 
-  async createActivityLog(data: {
-    leadId: string;
-    userId: string;
-    createdById?: string;
-    action: string;
-    description: string;
-    method?: string;
-    metadata?: JsonObject;
-    oldStatus?: LeadStatus;
-    newStatus?: LeadStatus;
-  }): Promise<void> {
+  async createActivityLog(
+    data: {
+      leadId: string;
+      userId: string;
+      createdById?: string;
+      action: string;
+      description: string;
+      method?: string;
+      metadata?: JsonObject;
+      oldStatus?: LeadStatus;
+      newStatus?: LeadStatus;
+    },
+    userId: string
+  ): Promise<void> {
     await this.prisma.activityLog.create({
       data: {
         ...data,
+        createdById: userId,
       },
     });
   }
