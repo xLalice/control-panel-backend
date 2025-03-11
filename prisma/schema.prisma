@@ -24,18 +24,34 @@ model FacebookCreds {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  role      Role
-  name      String
-  assignedleads     Lead[] @relation("assignedLeads")
-  createdLeads      Lead[]  @relation("createdLeads")
-  createdLogs ActivityLog[]
-  reports   Report[]
-  inquiries Inquiry[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String            @id @default(cuid())
+  email             String            @unique
+  password          String
+  role              Role
+  name              String
+  // New field to distinguish OJTs
+  isOJT             Boolean           @default(false)
+  // OJT-specific fields (optional)
+  ojtStartDate      DateTime?         // When the OJT started
+  ojtEndDate        DateTime?         // When the OJT is expected to end
+  ojtSupervisorId   String?           // Optional reference to another User as supervisor
+  ojtSupervisor     User?             @relation("OJTsSupervised", fields: [ojtSupervisorId], references: [id])
+  supervisedOJTs    User[]            @relation("OJTsSupervised") // For supervisors
+
+  // Existing relationships
+  assignedLeads     Lead[]            @relation("assignedLeads")
+  createdLeads      Lead[]            @relation("createdLeads")
+  createdLogs       ActivityLog[]
+  reports           Report[]
+  inquiries         Inquiry[]
+  documents         Document[]
+
+  // OJT-specific relationship (previously in OJT model)
+  attendanceRecords Attendance[]      // Updated to reference User instead of OJT
+  allowedIPs        AllowedIP[]       // Optional IP restrictions for OJTs
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }
 
 model Report {
@@ -311,4 +327,89 @@ enum InquiryStatus {
   Scheduled
   Fulfilled
   Cancelled
+}
+
+model DocumentCategory {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  documents   Document[]
+}
+
+model Document {
+  id           Int              @id @default(autoincrement())
+  title        String
+  filename     String
+  fileType     String
+  fileSize     Int
+  filePath     String
+  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
+  uploadedById String
+  category     DocumentCategory @relation(fields: [categoryId], references: [id])
+  categoryId   Int
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ON_BREAK
+  LOGGED_OUT
+}
+
+model Attendance {
+  id          String            @id @default(uuid())
+  userId      String            
+  user        User              @relation(fields: [userId], references: [id]) 
+  date        DateTime          @default(now())
+  timeIn      DateTime          @default(now())
+  timeOut     DateTime?
+  status      String  
+  totalHours  Float?
+  ipAddress   String?
+  device      String?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  breakLogs   BreakLog[]
+
+  @@index([userId])
+  @@index([date])
+  @@index([status])
+}
+
+model AllowedIP {
+  id           String    @id @default(uuid())
+  userId       String    // Changed from ojtId to userId
+  user         User      @relation(fields: [userId], references: [id]) // Changed from ojt to user
+  ipAddress    String
+  description  String?
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, ipAddress])
+}
+
+model BreakLog {
+  id           String     @id @default(uuid())
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id])
+  startTime    DateTime   @default(now())
+  endTime      DateTime?
+  duration     Float?
+  reason       String?
+
+  @@index([attendanceId])
+}
+
+model DTRSettings {
+  id                  String    @id @default(cuid())
+  workStartTime       String    @default("08:00")
+  lateThreshold       Int       @default(15)
+  allowRemoteLogin    Boolean   @default(false)
+  autoRemindersActive Boolean   @default(true)
+  updatedById         String
+  updatedAt           DateTime  @updatedAt
 }
