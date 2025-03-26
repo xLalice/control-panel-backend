@@ -5,11 +5,9 @@ import flash from "connect-flash";
 import cors from "cors";
 import { PrismaSessionStore } from "@quixo3/prisma-session-store";
 import { PrismaClient } from "@prisma/client";
-import authRoutes from "./routes/auth";
-import adminRoutes from "./routes/admin/admin";
+import authRoutes from "./modules/auth/auth.routes";
 import leadRoutes from "./modules/leads/lead.router"
-import marketingRoutes from "./routes/marketing";
-import reportRoutes from "./routes/reports";
+import reportRoutes from "./modules/reports/reports.router";
 import productRoutes from "./modules/products/product.routes"
 import inquiryRoutes from "./modules/inquiries/inquiry.routes"
 import documentRoutes from "./modules/documents/documents.routes"
@@ -72,14 +70,13 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/leads", leadRoutes)
-app.use("/api/marketing", marketingRoutes);
+app.use("/api/leads", leadRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/inquiries", inquiryRoutes);
 app.use('/api/documents', documentRoutes);
-app.use("/api/attendance", attendanceRoutes)
+app.use("/api/attendance", attendanceRoutes);
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => info(`Server running on port ${PORT}`));
