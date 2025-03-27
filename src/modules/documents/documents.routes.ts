@@ -4,13 +4,34 @@ import multer from "multer";
 import { middlewares } from "../../middlewares/rbac";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
 
 // Document Category routes
-router.post("/categories", middlewares.categoryManagement, documentsController.createCategory);
-router.get("/categories", middlewares.documentAccess, documentsController.getCategories);
-router.put("/categories/:id", middlewares.categoryManagement, documentsController.updateCategory);
-router.delete("/categories/:id", middlewares.categoryManagement, documentsController.deleteCategory);
+router.post(
+  "/categories",
+  middlewares.categoryManagement,
+  documentsController.createCategory
+);
+router.get(
+  "/categories",
+  middlewares.documentAccess,
+  documentsController.getCategories
+);
+router.put(
+  "/categories/:id",
+  middlewares.categoryManagement,
+  documentsController.updateCategory
+);
+router.delete(
+  "/categories/:id",
+  middlewares.categoryManagement,
+  documentsController.deleteCategory
+);
 
 // Document routes
 router.post(
@@ -20,9 +41,25 @@ router.post(
   documentsController.uploadDocument
 );
 router.get("/", middlewares.documentAccess, documentsController.getDocuments);
-router.get("/:id", middlewares.documentAccess, documentsController.getDocumentById);
-router.get("/:id/download", middlewares.documentAccess, documentsController.downloadDocument);
-router.get("/:id/preview", middlewares.documentAccess, documentsController.previewDocument);
-router.delete("/:id", middlewares.documentDelete, documentsController.deleteDocument);
+router.get(
+  "/:id",
+  middlewares.documentAccess,
+  documentsController.getDocumentById
+);
+router.get(
+  "/:id/download",
+  middlewares.documentAccess,
+  documentsController.downloadDocument
+);
+router.get(
+  "/:id/preview",
+  middlewares.documentAccess,
+  documentsController.previewDocument
+);
+router.delete(
+  "/:id",
+  middlewares.documentDelete,
+  documentsController.deleteDocument
+);
 
 export default router;
