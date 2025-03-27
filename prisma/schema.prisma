@@ -8,27 +8,50 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Role {
-  ADMIN
-  MARKETING
-  SALES
-  LOGISTICS
-  ACCOUNTING
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  permissions Permission[]
+  users       User[]    @relation("RoleUsers")
 }
 
-model FacebookCreds {
-  id                Int      @id @default(autoincrement())
-  user_access_token String   @unique
-  page_access_token String
-  page_id           String
-  expiry_date       DateTime
+enum Permission {
+  READ_ALL
+  WRITE_ALL
+  DELETE_ALL
+  MANAGE_USERS
+  MANAGE_SYSTEM_SETTINGS
+  MANAGE_DOCUMENT_CATEGORIES
+  WRITE_DOCUMENTS
+  READ_DOCUMENTS
+  DELETE_DOCUMENTS
+  READ_INQUIRIES
+  WRITE_INQUIRIES
+  UPDATE_INQUIRIES
+  DELETE_INQUIRIES
+  READ_LEADS
+  WRITE_LEADS
+  UPDATE_LEADS
+  DELETE_LEADS
+  READ_PRODUCTS
+  WRITE_PRODUCTS
+  UPDATE_PRODUCTS
+  DELETE_PRODUCTS
+  READ_POSTS
+  WRITE_POSTS
+  READ_REPORTS
+  UPDATE_LEAD_STATUS
+  READ_DELIVERY_INFO
+  READ_INVOICES
 }
+
 
 model User {
   id       String @id @default(cuid())
   email    String @unique
   password String
-  role     Role
+  roleId   Int    @default(1)
+  role     Role   @relation(fields: [roleId], references: [id], name: "RoleUsers")
   name     String
 
   isOJT        Boolean   @default(false)
@@ -56,7 +79,6 @@ model Report {
   reportedById String
   reportedBy   User     @relation(fields: [reportedById], references: [id])
   location     String   @default("Remote")
-  department   Role
   taskDetails  String
   createdAt    DateTime @default(now())
 }

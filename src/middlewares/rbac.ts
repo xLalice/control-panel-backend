@@ -1,7 +1,22 @@
 import { Request, Response, NextFunction } from "express";
 import { Role, User } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
-const ROLE_PERMISSIONS: Record<Role, string[]> = {
+let ROLE_PERMISSIONS: Record<string, string[]> = {};
+
+async function loadPermissions() {
+  const roles = await prisma.role.findMany({
+    select: { name: true, permissions: true },
+  });
+
+  roles.forEach((role) => {
+    ROLE_PERMISSIONS[role.name] = role.permissions.map((p) => p.toLowerCase());
+  });
+}
+
+loadPermissions().then(() => console.log("Permissions loaded"));
+
+/* const ROLE_PERMISSIONS: Record<Role, string[]> = {
   ADMIN: [
     "read:all",
     "write:all",
@@ -67,10 +82,10 @@ const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "read:leads",    
     "read:products"
   ],
-};
+}; */
 
 function hasPermission(userRole: Role, requiredPermission: string): boolean {
-  return ROLE_PERMISSIONS[userRole].includes(requiredPermission);
+  return ROLE_PERMISSIONS[userRole.name].includes(requiredPermission);
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -85,6 +100,7 @@ export function createRoleMiddleware(
     res: Response,
     next: NextFunction
   ) => {
+
     if (!req.user) {
       return res.status(401).json({
         error: "Authentication required",
@@ -92,8 +108,10 @@ export function createRoleMiddleware(
       });
     }
 
-    const userRole = req.user.role as Role;
 
+    const userRole = await prisma.role.findUnique({
+      where: { id: req.user.roleId },
+    });
     if (!userRole) {
       return res.status(403).json({
         error: "Role not assigned",
@@ -130,27 +148,27 @@ export const middlewares = {
   logisticsAccess: createRoleMiddleware("update:inquiry_status"),
   accountingAccess: createRoleMiddleware("generate:financial_reports"),
 
-  categoryManagement: createRoleMiddleware("manage:document_categories"), 
-  documentUpload: createRoleMiddleware("write:documents"), 
-  documentAccess: createRoleMiddleware("read:documents"), 
-  documentDelete: createRoleMiddleware("delete:documents"), 
+  categoryManagement: createRoleMiddleware("manage:document_categories"),
+  documentUpload: createRoleMiddleware("write:documents"),
+  documentAccess: createRoleMiddleware("read:documents"),
+  documentDelete: createRoleMiddleware("delete:documents"),
 
-  inquiryRead: createRoleMiddleware("read:inquiries"), 
-  inquiryWrite: createRoleMiddleware("write:inquiries"), 
-  inquiryUpdate: createRoleMiddleware("update:inquiries"), 
-  inquiryDelete: createRoleMiddleware("delete:inquiries"), 
+  inquiryRead: createRoleMiddleware("read:inquiries"),
+  inquiryWrite: createRoleMiddleware("write:inquiries"),
+  inquiryUpdate: createRoleMiddleware("update:inquiries"),
+  inquiryDelete: createRoleMiddleware("delete:inquiries"),
 
-  leadRead: createRoleMiddleware("read:leads"), 
-  leadWrite: createRoleMiddleware("write:leads"), 
-  leadUpdate: createRoleMiddleware("update:leads"), 
+  leadRead: createRoleMiddleware("read:leads"),
+  leadWrite: createRoleMiddleware("write:leads"),
+  leadUpdate: createRoleMiddleware("update:leads"),
   leadDelete: createRoleMiddleware("delete:leads"),
 
-  productRead: createRoleMiddleware("read:products"), 
-  productWrite: createRoleMiddleware("write:products"), 
-  productUpdate: createRoleMiddleware("update:products"), 
+  productRead: createRoleMiddleware("read:products"),
+  productWrite: createRoleMiddleware("write:products"),
+  productUpdate: createRoleMiddleware("update:products"),
   productDelete: createRoleMiddleware("delete:products"),
 };
 
 export function getRolePermissions(role: Role): string[] {
-  return ROLE_PERMISSIONS[role] || [];
+  return ROLE_PERMISSIONS[role.name] || [];
 }
