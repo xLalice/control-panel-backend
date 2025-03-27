@@ -15,7 +15,7 @@ declare global {
 passport.use(
     new LocalStrategy({ usernameField: "email" }, async (email: string, password: string, done) => {
         try {
-            const user = await prisma.user.findUnique({ where: { email } });
+            const user = await prisma.user.findUnique({ where: { email }, include: {role: true} });
             if (!user) {
                 console.log("No user found with the email:", email);
                 return done(null, false, { message: "Email does not exist." });
@@ -43,7 +43,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = await prisma.user.findUnique({ where: { id } });
+      const user = await prisma.user.findUnique({ where: { id }, include: {role: true} });
       if (!user) {
         console.log("User not found during deserialization.");
         return done(null, false); 
