@@ -59,7 +59,7 @@ router.get("/verify", (req: any, res: any) => {
     });
   }
 
-  return res.status(401).json({ authenticated: false });
+  return res.status(401).json({ authenticated: false, user: req.user });
 });
 
 export default router;
