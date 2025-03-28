@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 import { info, error } from "../../utils/logger";
+import { createRoleMiddleware } from "../../middlewares/rbac";
 
 const router = Router();
 const prisma = new PrismaClient();
 
-router.get("/", async (req, res) => {
+router.get("/", createRoleMiddleware("READ_REPORTS"), async (req, res) => {
   try {
     const reports = await prisma.report.findMany({
       include: {
@@ -35,7 +36,7 @@ router.get("/", async (req, res) => {
 });
 
 
-router.post("/", async (req, res): Promise<any> => {
+router.post("/", createRoleMiddleware("WRITE_REPORTS"), async (req, res): Promise<any> => {
   let { date, department, taskDetails } = req.body;
   const reportedBy = req.user?.id;
 
@@ -62,7 +63,7 @@ router.post("/", async (req, res): Promise<any> => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", createRoleMiddleware("UPDATE_REPORTS"), async (req, res) => {
   const { id } = req.params;
   const { date, department, taskDetails } = req.body;
   try {
@@ -77,7 +78,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", createRoleMiddleware("DELETE_REPORTS"), async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.report.delete({ where: { id } });
