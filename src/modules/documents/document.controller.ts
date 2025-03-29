@@ -2,6 +2,8 @@
 import { Request, Response } from 'express';
 import * as fs from 'fs';
 import * as documentService from "./document.service"
+import { file } from 'googleapis/build/src/apis/file';
+
 
 // Document Category Controllers
 export const createCategory = async (req: Request, res: Response): Promise<void> => {
@@ -133,17 +135,26 @@ export const previewDocument = async (req: Request, res: Response): Promise<void
       res.status(400).json({ error: 'Invalid document ID' });
       return;
     }
+   
+    const { mimeType, filename, buffer } = await documentService.previewDocument(id);
     
-    const { filename, fileType, buffer } = await documentService.downloadDocument(id);
-    
-    // Set content type for preview
-    res.setHeader('Content-Type', fileType);
-    
-    // Send the file buffer
-    res.send(Buffer.from(buffer));
+    if (req.headers.accept === 'application/json') {
+      res.json({
+        mimeType,
+        filename,
+        buffer: Buffer.from(buffer).toString('base64')
+      });
+    } else {
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      res.send(Buffer.from(buffer));
+    }
   } catch (error) {
     console.error('Error previewing document:', error);
-    res.status(500).json({ error: 'Failed to preview document' });
+    res.status(500).json({ 
+      error: 'Failed to preview document',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
