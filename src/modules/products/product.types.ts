@@ -1,24 +1,37 @@
-export type ProductCategory = 'Aggregates' | 'HeavyEquipment' | 'Steel';
+import { Category, PricingUnit } from "@prisma/client";
+
 export type SourceLocation = 'Batangas' | 'Montalban' | 'Other';
 export type PricingModel = 'PerHour' | 'PerDay' | 'PerUnit';
 export type UserRole = 'admin' | 'staff';
 
-export interface ProductCreateInput {
-  category: ProductCategory;
+export type ProductCreateInput = {
+  category: Category;
   name: string;
   description: string;
-  pricingModel: PricingModel;
+  basePrice: number;
+  pricingUnit: PricingUnit;
+  pricingDetails?: Record<string, any>;
   unit?: string;
   pickUpPrice?: number;
   deliveryPrice?: number;
   
-  // Extended properties
-  source?: SourceLocation;
+  // Aggregate specific
+  source?: string;
+  weightPerUnit?: number;
+  
+  // Heavy Equipment specific
   equipmentType?: string;
+  
+  // Steel specific
   grade?: string;
   length?: string;
-}
+  type?: string;
+  color?: string;
+  size?: string;
+  additionalAttributes?: Record<string, any>;
+};
 
-export interface ProductUpdateInput extends Partial<ProductCreateInput> {
-  id: string;
-}
+export type ProductUpdateInput = Partial<ProductCreateInput>;
+
+export type ProductCategory = Category;
+
