@@ -32,7 +32,6 @@ router.delete(
   documentsController.deleteCategory
 );
 
-// Document routes
 router.post(
   "/upload",
   createRoleMiddleware("WRITE_DOCUMENTS"),
@@ -60,5 +59,7 @@ router.delete(
   createRoleMiddleware("DELETE_DOCUMENTS"),
   documentsController.deleteDocument
 );
+
+
 
 export default router;

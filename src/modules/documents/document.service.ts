@@ -8,6 +8,7 @@ import {
 } from "./documents.types";
 import dotenv from "dotenv";
 import { supabase } from "../../config/supabase";
+import mime from "mime-types";
 
 dotenv.config();
 
@@ -16,6 +17,18 @@ const BUCKET_NAME = process.env.SUPABASE_BUCKET_NAME;
 if (!BUCKET_NAME) {
   throw new Error("Missing Supabase bucket name");
 }
+
+const PREVIEW_MAX_SIZE = 10 * 1024 * 1024;
+const SUPPORTED_PREVIEW_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "application/json",
+];
 
 export const createCategory = async (
   data: CreateCategoryDto
@@ -65,7 +78,7 @@ export const uploadDocument = async (
   uploadedData: UploadDocumentDto
 ): Promise<Document> => {
   const { file, title, categoryId, uploadedById } = uploadedData;
-  
+
   const category = await prisma.documentCategory.findUnique({
     where: { id: categoryId },
   });
@@ -93,7 +106,7 @@ export const uploadDocument = async (
       filename: file.originalname,
       fileType: file.mimetype,
       fileSize: file.size,
-      filePath: uploadData.fullPath, 
+      filePath: uploadData.path,
       categoryId,
       uploadedById,
     },
@@ -127,7 +140,79 @@ export const getDocumentById = async (id: number): Promise<Document | null> => {
   });
 };
 
-export const downloadDocument = async (id: number): Promise<{
+export const previewDocument = async (
+  id: number
+): Promise<{ mimeType: string; filename: string; buffer: ArrayBuffer }> => {
+  const document = await prisma.document.findUnique({
+    where: { id },
+    select: {
+      filePath: true,
+      filename: true,
+      fileType: true,
+      fileSize: true,
+    },
+  });
+  
+  if (!document) {
+    throw new Error("Document not found");
+  }
+  
+  const cleanFilePath = document.filePath.replace(/^documents\//, '');
+  
+  if (document.fileSize > PREVIEW_MAX_SIZE) {
+    throw new Error("File too large for preview");
+  }
+  
+  let detectedMimeType = mime.lookup(document.filename) || document.fileType;
+  
+  if (!detectedMimeType && document.filename.toLowerCase().endsWith('.pdf')) {
+    detectedMimeType = 'application/pdf';
+  }
+  
+  if (!detectedMimeType) {
+    throw new Error("Could not determine file type");
+  }
+  
+  if (!SUPPORTED_PREVIEW_TYPES.includes(detectedMimeType)) {
+    throw new Error("Unsupported file type for preview");
+  }
+  
+  try {
+    
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .download(cleanFilePath);
+      
+    if (error) {
+      console.error("Supabase download error:", error);
+      throw new Error(
+        `Failed to download document: ${error.message || "Unknown error"}`
+      );
+    }
+    
+    if (!data) {
+      throw new Error("No data returned from Supabase storage");
+    }
+    
+    return {
+      mimeType: detectedMimeType,
+      filename: document.filename,
+      buffer: await data.arrayBuffer(),
+    };
+  } catch (err) {
+    console.error("Unexpected error in previewDocument:", err);
+    throw new Error(
+      `Document preview failed: ${
+        err instanceof Error ? err.message : "Unknown error"
+      }`
+    );
+  }
+};
+
+
+export const downloadDocument = async (
+  id: number
+): Promise<{
   filename: string;
   fileType: string;
   buffer: ArrayBuffer;
