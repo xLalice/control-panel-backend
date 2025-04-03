@@ -1,31 +1,28 @@
 import express from "express";
 import { prisma } from "../../config/prisma";
 import bcrypt from "bcryptjs";
-import { isAuthenticated } from "../../middlewares/isAuthenticated";
-import { error, info} from "../../utils/logger";
+import { error, info } from "../../utils/logger";
 
 const router = express.Router();
 
-router.get("/users" , async (req, res): Promise<any> => {
-    try{
-        const users = await prisma.user.findMany();
-        res.status(200).json(users);
-    } catch(err){
-        error("Error during authentication", error);  
-        res.status(500).json("Error fetching users");
-    }
-})
+router.get("/users", async (req, res): Promise<any> => {
+  try {
+    const users = await prisma.user.findMany();
+    res.status(200).json(users);
+  } catch (err) {
+    error("Error during authentication", error);
+    res.status(500).json("Error fetching users");
+  }
+});
 
-router.post("/users",  async (req, res): Promise<any> => {
+router.post("/users", async (req, res): Promise<any> => {
   try {
     const { name, email, password, role } = req.body;
 
-    // Ensure password and other required fields are provided
     if (!password || !name || !email || !role) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
@@ -45,7 +42,7 @@ router.post("/users",  async (req, res): Promise<any> => {
 });
 
 // Edit User route
-router.put("/users/:id",  async (req, res): Promise<any> => {
+router.put("/users/:id", async (req, res): Promise<any> => {
   const userId = req.params.id;
   const { name, email, role } = req.body;
 
@@ -73,7 +70,7 @@ router.put("/users/:id",  async (req, res): Promise<any> => {
   }
 });
 
-router.delete("/users/:id",  async (req, res): Promise<any> => {
+router.delete("/users/:id", async (req, res): Promise<any> => {
   const userId = req.params.id;
 
   try {
