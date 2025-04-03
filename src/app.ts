@@ -26,11 +26,10 @@ export const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-console.log("Allowed Origin:", process.env.FRONTEND_URL);
 
 app.use(
   cors({
-    origin: [`${process.env.FRONTEND_URL}`, "http://127.0.0.1:5173/"],
+    origin: [`${process.env.FRONTEND_URL}`],
     credentials: true,
   })
 );
