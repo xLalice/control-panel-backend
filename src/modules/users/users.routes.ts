@@ -2,15 +2,20 @@ import express from "express";
 import { prisma } from "../../config/prisma";
 import bcrypt from "bcryptjs";
 import { error, info } from "../../utils/logger";
+import { isAuthenticated } from "../../middlewares/isAuthenticated";
 
 const router = express.Router();
 
 router.get("/", async (req, res): Promise<any> => {
   try {
-    const users = await prisma.user.findMany();
+    const users = await prisma.user.findMany({
+      include: {
+        role: true,
+      },
+    });
     res.status(200).json(users);
   } catch (err) {
-    error("Error during authentication", error);
+    error("Error during authentication", err);
     res.status(500).json("Error fetching users");
   }
 });
@@ -30,13 +35,17 @@ router.post("/", async (req, res): Promise<any> => {
         name,
         email,
         password: hashedPassword,
-        role,
+        role: {
+          connect: {
+            name: role,
+          },
+        },
       },
     });
 
     res.status(201).json({ newUser, message: "Successfully created the user" });
   } catch (err) {
-    error(error);
+    error("Error", err);
     res.status(500).json({ error: "Error creating user." });
   }
 });
@@ -65,7 +74,7 @@ router.put("/:id", async (req, res): Promise<any> => {
       .status(200)
       .json({ updatedUser, message: "User updated successfully." });
   } catch (err) {
-    error(error);
+    error(err);
     res.status(500).json({ error: "Error updating user." });
   }
 });
@@ -91,6 +100,28 @@ router.delete("/:id", async (req, res): Promise<any> => {
   } catch (err) {
     error(err);
     res.status(500).json({ error: "Error deleting user." });
+  }
+});
+
+router.get("/permissions", isAuthenticated, async (req, res): Promise<any> => {
+  try {
+    
+    const user = await prisma.user.findUnique({
+      where: { id: req.user?.id },
+      include: {
+        role: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    
+    res.status(200).json(user.role.permissions);
+  } catch (err) {
+    error(err);
+    res.status(500).json({ error: "Error fetching permissions." });
   }
 });
 

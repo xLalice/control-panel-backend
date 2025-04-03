@@ -1,7 +1,8 @@
 import express from "express";
 import { attendanceController } from "./attendanceControllers";
-import { middlewares } from "../../middlewares/rbac";
 import { isAuthenticated } from "../../middlewares/isAuthenticated";
+import { createRoleMiddleware } from "../../middlewares/rbac";
+import { create } from "domain";
 const router = express.Router();
 
 // Employee routes
@@ -14,9 +15,9 @@ router.get("/my-attendance", isAuthenticated,(req, res) => {
 });
 
 // Admin routes
-router.get("/all", middlewares.adminOnly , attendanceController.getAllAttendance);
-router.get("/user/:userId", middlewares.adminOnly, attendanceController.getUserAttendance);
-router.put("/settings", middlewares.adminOnly, attendanceController.updateSettings);
-router.post("/allowed-ips", middlewares.adminOnly, attendanceController.manageAllowedIPs);
+router.get("/all", createRoleMiddleware("READ_ALL") , attendanceController.getAllAttendance);
+router.get("/user/:userId", createRoleMiddleware("READ_ALL"), attendanceController.getUserAttendance);
+router.put("/settings", createRoleMiddleware("WRITE_ALL"), attendanceController.updateSettings);
+router.post("/allowed-ips", createRoleMiddleware("WRITE_ALL"), attendanceController.manageAllowedIPs);
 
 export default router;
