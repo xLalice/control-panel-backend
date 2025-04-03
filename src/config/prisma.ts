@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, LeadStatus } from "@prisma/client";
 
 export const prisma = new PrismaClient();
-
