@@ -8,10 +8,10 @@ async function loadPermissions() {
   const roles = await prisma.role.findMany({
     select: { name: true, permissions: true },
   });
-  
+
   roles.forEach((role) => {
     // Normalize permissions to uppercase
-    ROLE_PERMISSIONS[role.name] = role.permissions.map(p => p.toUpperCase());
+    ROLE_PERMISSIONS[role.name] = role.permissions.map((p) => p.toUpperCase());
   });
 }
 
@@ -19,7 +19,9 @@ loadPermissions().then(() => console.log("Permissions loaded"));
 
 function hasPermission(userRole: Role, requiredPermission: string): boolean {
   const normalizedPermission = requiredPermission.toUpperCase();
-  return ROLE_PERMISSIONS[userRole.name]?.includes(normalizedPermission) || false;
+  return (
+    ROLE_PERMISSIONS[userRole.name]?.includes(normalizedPermission) || false
+  );
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -56,13 +58,9 @@ export function createRoleMiddleware(
       ? requiredPermissions
       : [requiredPermissions];
 
-    console.log("Permissions to check", permissionsToCheck);
-
     const hasRequiredPermission = permissionsToCheck.some((permission) =>
       hasPermission(userRole, permission)
     );
-
-    console.log("Has required permission", hasRequiredPermission);
 
     if (hasRequiredPermission) {
       return next();
