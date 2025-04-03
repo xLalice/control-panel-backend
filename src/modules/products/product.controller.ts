@@ -1,14 +1,9 @@
 import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
-import {
-  ProductCreateInput,
-  ProductUpdateInput,
-  ProductCategory,
-} from "./product.types";
+import { ProductCreateInput, ProductUpdateInput } from "./product.types";
+import { Category, Prisma } from "@prisma/client";
 
 export class ProductController {
- 
-
   async getAllProducts(req: Request, res: Response): Promise<any> {
     try {
       const products = await prisma.product.findMany({
@@ -19,23 +14,29 @@ export class ProductController {
         },
       });
 
-      // Transform the data for the frontend
       const transformedProducts = products.map((product) => {
         let extendedData = {};
 
-        if (product.category === "Aggregates" && product.aggregate) {
-          extendedData = { source: product.aggregate.source };
+        if (product.category === Category.AGGREGATE && product.aggregate) {
+          extendedData = {
+            source: product.aggregate.source,
+            weightPerUnit: product.aggregate.weightPerUnit,
+          };
         } else if (
-          product.category === "HeavyEquipment" &&
+          product.category === Category.HEAVY_EQUIPMENT &&
           product.heavyEquipment
         ) {
           extendedData = {
             equipmentType: product.heavyEquipment.equipmentType,
           };
-        } else if (product.category === "Steel" && product.steel) {
+        } else if (product.category === Category.STEEL && product.steel) {
           extendedData = {
             grade: product.steel.grade,
             length: product.steel.length,
+            type: product.steel.type,
+            color: product.steel.color,
+            size: product.steel.size,
+            additionalAttributes: product.steel.additionalAttributes,
           };
         }
 
@@ -44,7 +45,9 @@ export class ProductController {
           category: product.category,
           name: product.name,
           description: product.description,
-          pricingModel: product.pricingModel,
+          basePrice: product.basePrice,
+          pricingUnit: product.pricingUnit,
+          pricingDetails: product.pricingDetails,
           unit: product.unit,
           pickUpPrice: product.pickUpPrice,
           deliveryPrice: product.deliveryPrice,
@@ -79,20 +82,28 @@ export class ProductController {
         return res.status(404).json({ error: "Product not found" });
       }
 
-      // Transform the data for the frontend
       let extendedData = {};
 
-      if (product.category === "Aggregates" && product.aggregate) {
-        extendedData = { source: product.aggregate.source };
+      if (product.category === Category.AGGREGATE && product.aggregate) {
+        extendedData = {
+          source: product.aggregate.source,
+          weightPerUnit: product.aggregate.weightPerUnit,
+        };
       } else if (
-        product.category === "HeavyEquipment" &&
+        product.category === Category.HEAVY_EQUIPMENT &&
         product.heavyEquipment
       ) {
-        extendedData = { equipmentType: product.heavyEquipment.equipmentType };
-      } else if (product.category === "Steel" && product.steel) {
+        extendedData = {
+          equipmentType: product.heavyEquipment.equipmentType,
+        };
+      } else if (product.category === Category.STEEL && product.steel) {
         extendedData = {
           grade: product.steel.grade,
           length: product.steel.length,
+          type: product.steel.type,
+          color: product.steel.color,
+          size: product.steel.size,
+          additionalAttributes: product.steel.additionalAttributes,
         };
       }
 
@@ -101,7 +112,9 @@ export class ProductController {
         category: product.category,
         name: product.name,
         description: product.description,
-        pricingModel: product.pricingModel,
+        basePrice: product.basePrice,
+        pricingUnit: product.pricingUnit,
+        pricingDetails: product.pricingDetails,
         unit: product.unit,
         pickUpPrice: product.pickUpPrice,
         deliveryPrice: product.deliveryPrice,
@@ -128,32 +141,40 @@ export class ProductController {
             category: productData.category,
             name: productData.name,
             description: productData.description,
-            pricingModel: productData.pricingModel,
+            basePrice: productData.basePrice,
+            pricingUnit: productData.pricingUnit,
+            pricingDetails: productData.pricingDetails as Prisma.InputJsonValue,
             unit: productData.unit,
             pickUpPrice: productData.pickUpPrice,
             deliveryPrice: productData.deliveryPrice,
           },
         });
 
-        if (productData.category === "Aggregates" && productData.source) {
+        if (productData.category === Category.AGGREGATE) {
           await tx.aggregate.create({
             data: {
-              source: productData.source,
+              source: productData.source || "", // Fix for error #1 - providing default value
+              weightPerUnit: productData.weightPerUnit,
               product: { connect: { id: newProduct.id } },
             },
           });
-        } else if (productData.category === "HeavyEquipment") {
+        } else if (productData.category === Category.HEAVY_EQUIPMENT) {
           await tx.heavyEquipment.create({
             data: {
               equipmentType: productData.equipmentType,
               product: { connect: { id: newProduct.id } },
             },
           });
-        } else if (productData.category === "Steel") {
+        } else if (productData.category === Category.STEEL) {
           await tx.steel.create({
             data: {
               grade: productData.grade,
               length: productData.length,
+              type: productData.type,
+              color: productData.color,
+              size: productData.size,
+              additionalAttributes:
+                productData.additionalAttributes as Prisma.InputJsonValue,
               product: { connect: { id: newProduct.id } },
             },
           });
@@ -192,16 +213,17 @@ export class ProductController {
         return res.status(404).json({ error: "Product not found" });
       }
 
-      // Start a transaction
       await prisma.$transaction(async (tx) => {
-        // Update the base product
         await tx.product.update({
           where: { id },
           data: {
             name: productData.name ?? existingProduct.name,
             description: productData.description ?? existingProduct.description,
-            pricingModel:
-              productData.pricingModel ?? existingProduct.pricingModel,
+            basePrice: productData.basePrice ?? existingProduct.basePrice,
+            pricingUnit: productData.pricingUnit ?? existingProduct.pricingUnit,
+            pricingDetails: productData.pricingDetails
+              ? (productData.pricingDetails as Prisma.InputJsonValue)
+              : (existingProduct.pricingDetails as Prisma.InputJsonValue),
             unit: productData.unit ?? existingProduct.unit,
             pickUpPrice: productData.pickUpPrice ?? existingProduct.pickUpPrice,
             deliveryPrice:
@@ -209,29 +231,33 @@ export class ProductController {
           },
         });
 
-        // Handle category-specific data
         if (
-          existingProduct.category === "Aggregates" &&
+          existingProduct.category === Category.AGGREGATE &&
           existingProduct.aggregate
         ) {
-          if (productData.source) {
-            await tx.aggregate.update({
-              where: { productId: id },
-              data: { source: productData.source },
-            });
-          }
+          await tx.aggregate.update({
+            where: { productId: id },
+            data: {
+              source: productData.source ?? existingProduct.aggregate.source,
+              weightPerUnit:
+                productData.weightPerUnit ??
+                existingProduct.aggregate.weightPerUnit,
+            },
+          });
         } else if (
-          existingProduct.category === "HeavyEquipment" &&
+          existingProduct.category === Category.HEAVY_EQUIPMENT &&
           existingProduct.heavyEquipment
         ) {
-          if (productData.equipmentType) {
-            await tx.heavyEquipment.update({
-              where: { productId: id },
-              data: { equipmentType: productData.equipmentType },
-            });
-          }
+          await tx.heavyEquipment.update({
+            where: { productId: id },
+            data: {
+              equipmentType:
+                productData.equipmentType ??
+                existingProduct.heavyEquipment.equipmentType,
+            },
+          });
         } else if (
-          existingProduct.category === "Steel" &&
+          existingProduct.category === Category.STEEL &&
           existingProduct.steel
         ) {
           await tx.steel.update({
@@ -239,6 +265,13 @@ export class ProductController {
             data: {
               grade: productData.grade ?? existingProduct.steel.grade,
               length: productData.length ?? existingProduct.steel.length,
+              type: productData.type ?? existingProduct.steel.type,
+              color: productData.color ?? existingProduct.steel.color,
+              size: productData.size ?? existingProduct.steel.size,
+              additionalAttributes: productData.additionalAttributes
+                ? (productData.additionalAttributes as Prisma.InputJsonValue)
+                : (existingProduct.steel
+                    .additionalAttributes as Prisma.InputJsonValue),
             },
           });
         }
@@ -285,17 +318,22 @@ export class ProductController {
   async getProductsByCategory(req: Request, res: Response): Promise<any> {
     try {
       const { category } = req.params;
+      const validCategories = [
+        Category.AGGREGATE,
+        Category.HEAVY_EQUIPMENT,
+        Category.STEEL,
+      ];
 
-      if (!["Aggregates", "HeavyEquipment", "Steel"].includes(category)) {
+      if (!validCategories.includes(category as Category)) {
         return res.status(400).json({ error: "Invalid category" });
       }
 
       const products = await prisma.product.findMany({
-        where: { category: category as ProductCategory },
+        where: { category: category as Category },
         include: {
-          aggregate: category === "Aggregates",
-          heavyEquipment: category === "HeavyEquipment",
-          steel: category === "Steel",
+          aggregate: category === Category.AGGREGATE,
+          heavyEquipment: category === Category.HEAVY_EQUIPMENT,
+          steel: category === Category.STEEL,
         },
       });
 
@@ -303,19 +341,26 @@ export class ProductController {
       const transformedProducts = products.map((product) => {
         let extendedData = {};
 
-        if (product.category === "Aggregates" && product.aggregate) {
-          extendedData = { source: product.aggregate.source };
+        if (product.category === Category.AGGREGATE && product.aggregate) {
+          extendedData = {
+            source: product.aggregate.source,
+            weightPerUnit: product.aggregate.weightPerUnit,
+          };
         } else if (
-          product.category === "HeavyEquipment" &&
+          product.category === Category.HEAVY_EQUIPMENT &&
           product.heavyEquipment
         ) {
           extendedData = {
             equipmentType: product.heavyEquipment.equipmentType,
           };
-        } else if (product.category === "Steel" && product.steel) {
+        } else if (product.category === Category.STEEL && product.steel) {
           extendedData = {
             grade: product.steel.grade,
             length: product.steel.length,
+            type: product.steel.type,
+            color: product.steel.color,
+            size: product.steel.size,
+            additionalAttributes: product.steel.additionalAttributes,
           };
         }
 
@@ -324,7 +369,9 @@ export class ProductController {
           category: product.category,
           name: product.name,
           description: product.description,
-          pricingModel: product.pricingModel,
+          basePrice: product.basePrice,
+          pricingUnit: product.pricingUnit,
+          pricingDetails: product.pricingDetails,
           unit: product.unit,
           pickUpPrice: product.pickUpPrice,
           deliveryPrice: product.deliveryPrice,
@@ -368,19 +415,26 @@ export class ProductController {
       const transformedProducts = products.map((product) => {
         let extendedData = {};
 
-        if (product.category === "Aggregates" && product.aggregate) {
-          extendedData = { source: product.aggregate.source };
+        if (product.category === Category.AGGREGATE && product.aggregate) {
+          extendedData = {
+            source: product.aggregate.source,
+            weightPerUnit: product.aggregate.weightPerUnit,
+          };
         } else if (
-          product.category === "HeavyEquipment" &&
+          product.category === Category.HEAVY_EQUIPMENT &&
           product.heavyEquipment
         ) {
           extendedData = {
             equipmentType: product.heavyEquipment.equipmentType,
           };
-        } else if (product.category === "Steel" && product.steel) {
+        } else if (product.category === Category.STEEL && product.steel) {
           extendedData = {
             grade: product.steel.grade,
             length: product.steel.length,
+            type: product.steel.type,
+            color: product.steel.color,
+            size: product.steel.size,
+            additionalAttributes: product.steel.additionalAttributes,
           };
         }
 
@@ -389,7 +443,9 @@ export class ProductController {
           category: product.category,
           name: product.name,
           description: product.description,
-          pricingModel: product.pricingModel,
+          basePrice: product.basePrice,
+          pricingUnit: product.pricingUnit,
+          pricingDetails: product.pricingDetails,
           unit: product.unit,
           pickUpPrice: product.pickUpPrice,
           deliveryPrice: product.deliveryPrice,
