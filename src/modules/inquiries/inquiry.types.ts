@@ -1,4 +1,4 @@
-import { DeliveryMethod, ReferenceSource, LeadStatus } from "@prisma/client";
+import {ReferenceSource, LeadStatus, InquiryType, Priority } from "@prisma/client";
 
 export enum InquiryStatus {
   New = "New",
@@ -7,49 +7,22 @@ export enum InquiryStatus {
   Closed = "Closed"
 }
 
+export enum InquiryTypeEnum {
+  PricingRequest = "PricingRequest",
+  ProductAvailability = "ProductAvailability",
+  TechnicalQuestion = "TechnicalQuestion",
+  DeliveryInquiry = "DeliveryInquiry",
+  Other = "Other"
+}
 
 export enum ProductType {
-  TypeA = "TypeA",
-  TypeB = "TypeB",
-  TypeC = "TypeC"
+  AGGREGATE = "AGGREGATE",
+  HEAVY_EQUIPMENT = "HEAVY_EQUIPMENT",
+  STEEL = "STEEL"
 }
 
 export type InquirySortField = "id" | "customerName" | "status" | "createdAt" | "updatedAt";
 
-
-
-export interface Inquiry {
-  id: string;
-  customerName: string;
-  phoneNumber: string;
-  email: string;
-  isCompany: boolean;
-  companyName?: string;
-  companyAddress?: string;
-  productType: string;
-  quantity: number;
-  deliveryMethod: DeliveryMethod;
-  deliveryLocation: string;
-  preferredDate: Date;
-  referenceSource: ReferenceSource;
-  remarks?: string;
-  status: string;
-  createdById: string;
-  createdBy: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  createdAt: Date;
-  updatedAt: Date;
-  
-  quotedPrice?: number;
-  quotedBy?: string;
-  quotedAt?: Date;
-  
-  relatedLeadId?: string;
-  relatedLead?: any;
-}
 
 export interface CreateInquiryDto {
   customerName: string;
@@ -58,13 +31,16 @@ export interface CreateInquiryDto {
   isCompany: boolean;
   companyName?: string;
   companyAddress?: string;
-  productType: string;
+  productType: ProductType;
   quantity: number;
   deliveryMethod: string;
   deliveryLocation?: string;
   preferredDate: string | Date;
   referenceSource: string;
   remarks?: string;
+  inquiryType?: InquiryType;
+  priority?: Priority;
+  dueDate?: Date;
 }
 
 export interface UpdateInquiryDto {
@@ -74,7 +50,7 @@ export interface UpdateInquiryDto {
   isCompany?: boolean;
   companyName?: string;
   companyAddress?: string;
-  productType?: string;
+  productType?: ProductType;
   quantity?: number;
   deliveryMethod?: string;
   deliveryLocation?: string;
@@ -91,12 +67,16 @@ export interface InquiryFilterParams {
   limit?: number;
   status?: string;
   source?: ReferenceSource;
-  productType?: string;
+  productType?: ProductType | "all" | undefined;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   search?: string;
   startDate?: string;
   endDate?: string;
+  inquiryType?: InquiryType
+  priority?: Priority
+  dueDate?: Date
+  assignedToId?: string
 }
 
 
@@ -110,26 +90,19 @@ export interface PaginatedResponse<T> {
   };
 }
 
-export interface InquiryStatistics {
-  totalInquiries: number;
-  byStatus: Array<{
-    status: string;
-    count: number;
-  }>;
-  bySource: Array<{
-    source: string;
-    count: number;
-  }>;
-  byProductType: Array<{
-    productType: string;
-    count: number;
-  }>;
-  monthlyTrends: Array<{
-    month: Date;
-    count: number;
-  }>;
+export interface  InquiryStatistics {
+  totalInquiries: number; 
+  byStatus: Array<{ status: string | null; count: number }>; 
+  bySource: Array<{ source: string | null; count: number }>; 
+  byProductType: Array<{ productType: string | null; count: number }>; 
+  monthlyTrends: Array<{ month: Date; count: number }>; 
   conversionRate: number;
 }
+
+export type MonthlyDataRaw = {
+  month: Date;
+  count: bigint; 
+};
 
 export interface ConversionResult {
   lead: {

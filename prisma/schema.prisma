@@ -12,7 +12,7 @@ model Role {
   id          Int          @id @default(autoincrement())
   name        String       @unique
   permissions Permission[]
-  users       User[]    @relation("RoleUsers")
+  users       User[]       @relation("RoleUsers")
 }
 
 enum Permission {
@@ -45,7 +45,6 @@ enum Permission {
   READ_INVOICES
 }
 
-
 model User {
   id       String @id @default(cuid())
   email    String @unique
@@ -59,6 +58,7 @@ model User {
   ojtStartDate DateTime?
   ojtEndDate   DateTime?
 
+  assignedInquiryies Inquiry[]    @relation("assignedInquiries")
   assignedLeads Lead[]        @relation("assignedLeads")
   createdLeads  Lead[]        @relation("createdLeads")
   createdLogs   ActivityLog[]
@@ -175,7 +175,6 @@ model ContactHistory {
   @@index([timestamp])
 }
 
-
 model SystemSettings {
   id          String   @id @default(cuid())
   key         String   @unique
@@ -207,13 +206,13 @@ enum PricingUnit {
 
 model Product {
   id             String      @id @default(uuid())
-  category       Category    // e.g., "Aggregate", "Heavy Equipment", "Steel"
+  category       Category // e.g., "Aggregate", "Heavy Equipment", "Steel"
   name           String
   description    String
-  basePrice      Float       // e.g., 5500.00
+  basePrice      Float // e.g., 5500.00
   pricingUnit    PricingUnit // e.g., "day", "meter", "kilogram"
-  pricingDetails Json?       // e.g., { "hoursPerDay": 8 }
-  unit           String?     // e.g., "piece", "bundle"
+  pricingDetails Json? // e.g., { "hoursPerDay": 8 }
+  unit           String? // e.g., "piece", "bundle"
   pickUpPrice    Float?
   deliveryPrice  Float?
   createdAt      DateTime    @default(now())
@@ -225,33 +224,33 @@ model Product {
 }
 
 model Aggregate {
-  id            String  @id @default(uuid())
-  source        String  // e.g., "Quarry A"
-  weightPerUnit Float?  // e.g., weight per cubic meter
+  id            String @id @default(uuid())
+  source        String
+  weightPerUnit Float?
 
-  productId     String  @unique
-  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model HeavyEquipment {
   id            String  @id @default(uuid())
   equipmentType String? // e.g., "Crane", "Bulldozer"
 
-  productId     String  @unique
-  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Steel {
-  id                  String  @id @default(uuid())
-  grade              String? // e.g., "Grade 60"
-  length             String? // e.g., "6m"
-  type               String? // e.g., "Angle Bar", "GI Pipe"
-  color              String? // e.g., "Silver"
-  size               String? // e.g., "2x2"
-  additionalAttributes Json?   // e.g., { "thickness": "2mm" }
+  id                   String  @id @default(uuid())
+  grade                String? // e.g., "Grade 60"
+  length               String? // e.g., "6m"
+  type                 String? // e.g., "Angle Bar", "GI Pipe"
+  color                String? // e.g., "Silver"
+  size                 String? // e.g., "2x2"
+  additionalAttributes Json? // e.g., { "thickness": "2mm" }
 
-  productId          String  @unique
-  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 // Inquiry
@@ -270,6 +269,21 @@ enum ReferenceSource {
   Other
 }
 
+enum Priority {
+  Low
+  Medium
+  High
+  Urgent
+}
+
+enum InquiryType {
+  PricingRequest
+  ProductAvailability
+  TechnicalQuestion
+  DeliveryInquiry
+  Other
+}
+
 model Inquiry {
   id               String          @id @default(uuid())
   customerName     String
@@ -278,7 +292,8 @@ model Inquiry {
   isCompany        Boolean         @default(false)
   companyName      String?
   companyAddress   String?
-  productType      String
+  productType      String          // e.g., "GI Pipe", "Steel"
+  inquiryType      InquiryType
   quantity         Int
   deliveryMethod   DeliveryMethod
   deliveryLocation String
@@ -286,6 +301,8 @@ model Inquiry {
   referenceSource  ReferenceSource
   remarks          String?
   status           InquiryStatus   @default(New)
+  priority         Priority?
+  dueDate          DateTime?
 
   quotedPrice Float?
   quotedBy    String?
@@ -297,13 +314,23 @@ model Inquiry {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
+  assignedToId     String?
+  assignedTo       User?  @relation(fields: [assignedToId], references: [id], name: "assignedInquiries")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([createdById])
+  @@index([assignedToId])
   @@index([status])
   @@index([createdAt])
+  @@index([dueDate])
+  @@index([priority])
   @@index([relatedLeadId])
+  @@index([customerName])
+  @@index([phoneNumber])
+  @@index([email])
+  @@index([inquiryType])
 }
 
 enum InquiryStatus {
