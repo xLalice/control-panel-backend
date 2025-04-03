@@ -22,7 +22,6 @@ router.get("/", async (req, res) => {
       id: report.id,
       date: report.date,
       location: report.location,
-      department: report.department,
       taskDetails: report.taskDetails,
       reportedBy: report.reportedBy?.name || "Unknown", 
       createdAt: report.createdAt,
@@ -50,7 +49,6 @@ router.post("/", async (req, res): Promise<any> => {
     const newReport = await prisma.report.create({
       data: {
         date: new Date(date),
-        department,
         taskDetails,
         reportedBy: {
           connect: { id: reportedBy },
@@ -70,7 +68,7 @@ router.put("/:id", async (req, res) => {
   try {
     const updatedReport = await prisma.report.update({
       where: { id },
-      data: { date: new Date(date), department, taskDetails },
+      data: { date: new Date(date), taskDetails },
     });
     res.json(updatedReport);
   } catch (err) {
