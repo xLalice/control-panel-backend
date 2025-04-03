@@ -33,6 +33,7 @@ model User {
   createdLeads      Lead[]  @relation("createdLeads")
   createdLogs ActivityLog[]
   reports   Report[]
+  inquiries Inquiry[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -62,7 +63,7 @@ enum LeadStatus {
 
 model Company {
   id          String  @id @default(uuid())
-  name        String
+  name        String @unique
   industry    String?
   region      String?
   email       String? @unique
@@ -86,7 +87,7 @@ model Lead {
   assignedToId    String?
   assignedTo      User?         @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
   createdById     String
-  createdBy       User @relation(fields: [createdById], references: [id], name: "createdLeads")  // New
+  createdBy       User @relation(fields: [createdById], references: [id], name: "createdLeads")  
   notes           String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -94,6 +95,7 @@ model Lead {
   estimatedValue  Float?
   leadScore       Float?
   contactHistory  ContactHistory[]
+  inquiries        Inquiry[]
   industry        String?      
   region          String?
   referredBy      String?
@@ -206,232 +208,107 @@ model Session {
 
 
 
-model Equipment {
-  id                  String                  @id @default(uuid())
-  name                String
-  type                String
-  model               String?
-  manufacturer        String?
-  status              EquipmentStatus         @default(Available)
-  hourlyRate          Decimal
-  dailyRate           Decimal
-  weeklyRate          Decimal?
-  imageUrl            String?
-  maintenanceSchedule DateTime?
-  lastMaintenance     DateTime?
-  purchaseDate        DateTime?
-  priceHistory        EquipmentPriceHistory[]
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-}
+model Product {
+  id          String   @id @default(uuid())
+  category    String   
+  name        String
+  description String
+  pricingModel String  
+  unit        String?
+  pickUpPrice Float?
+  deliveryPrice Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-enum EquipmentStatus {
-  Available
-  InUse
-  Maintenance
-  Repairs
-}
-
-model EquipmentPriceHistory {
-  id            String    @id @default(uuid())
-  equipment     Equipment @relation(fields: [equipmentId], references: [id])
-  equipmentId   String
-  oldHourlyRate Decimal
-  newHourlyRate Decimal
-  oldDailyRate  Decimal
-  newDailyRate  Decimal
-  changedBy     String
-  changedAt     DateTime  @default(now())
+  
+  aggregate      Aggregate?
+  heavyEquipment HeavyEquipment?
+  steel          Steel?
 }
 
 model Aggregate {
-  id            String                  @id @default(uuid())
-  name          String
-  type          String // e.g., Sand, Gravel, etc.
-  source        Source // Batangas or Montalban
-  pickupPrice   Decimal
-  deliveryPrice Decimal
-  unit          String // e.g., cu.m
-  stockLevel    Int?
-  minStock      Int? // For alerts
-  priceHistory  AggregatePriceHistory[]
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
+  id        String   @id @default(uuid())
+  source    String  
+  
+  
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-enum Source {
-  Batangas
-  Montalban
-}
-
-model AggregatePriceHistory {
-  id               String    @id @default(uuid())
-  aggregate        Aggregate @relation(fields: [aggregateId], references: [id])
-  aggregateId      String
-  oldPickupPrice   Decimal
-  newPickupPrice   Decimal
-  oldDeliveryPrice Decimal
-  newDeliveryPrice Decimal
-  changedBy        String
-  changedAt        DateTime  @default(now())
+model HeavyEquipment {
+  id        String   @id @default(uuid())
+  equipmentType String? 
+  
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Steel {
-  id           String              @id @default(uuid())
-  size         String
-  grade        Grade
-  length       Float               @default(6)
-  price        Decimal
-  unit         String              @default("length")
-  stockLevel   Int?
-  priceHistory SteelPriceHistory[]
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-
-  @@unique([size, grade])
-}
-
-enum Grade {
-  Grade33
-  Grade40
-  Grade60
-}
-
-model SteelPriceHistory {
   id        String   @id @default(uuid())
-  steel     Steel    @relation(fields: [steelId], references: [id])
-  steelId   String
-  oldPrice  Decimal
-  newPrice  Decimal
-  changedBy String
-  changedAt DateTime @default(now())
+  grade     String?
+  length    String?
+  
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-model AngleBar {
-  id           String                 @id @default(uuid())
-  size         String // e.g., "1/8 X 1"
-  thickness    Decimal // mm
-  weight       Decimal // kg
-  color        String? // e.g., Blue, Red, etc.
-  price        Decimal
-  priceHistory AngleBarPriceHistory[]
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+// Inquiry
+enum DeliveryMethod {
+  Delivery
+  Pickup
+  ThirdParty
 }
 
-model ChannelBar {
-  id           String                   @id @default(uuid())
-  size         String // e.g., "3" X 20"
-  type         String? // e.g., "L"
-  weight       Decimal // kg
-  price        Decimal
-  priceHistory ChannelBarPriceHistory[]
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
+enum ReferenceSource {
+  Facebook
+  Instagram
+  TikTok
+  Referral
+  Flyers
+  Other
 }
 
-model GICPurlin {
-  id           String                  @id @default(uuid())
-  size         String // e.g., "2 X 3"
-  thickness    Decimal // mm
-  weight       Decimal // kg
-  price        Decimal
-  priceHistory GICPurlinPriceHistory[]
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
+model Inquiry {
+  id               String          @id @default(uuid())
+  customerName     String
+  phoneNumber      String
+  email            String
+  isCompany        Boolean         @default(false)
+  companyName      String?
+  companyAddress   String?
+  productType      String
+  quantity         Int
+  deliveryMethod   DeliveryMethod
+  deliveryLocation String
+  preferredDate    DateTime
+  referenceSource  ReferenceSource
+  remarks          String?
+  status           InquiryStatus          @default(New) 
+  
+  quotedPrice      Float?
+  quotedBy         String?
+  quotedAt         DateTime?
+  
+  relatedLeadId    String?
+  relatedLead      Lead?           @relation(fields: [relatedLeadId], references: [id])
+  
+  createdById      String
+  createdBy        User            @relation(fields: [createdById], references: [id])
+  
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+  @@index([relatedLeadId])
 }
 
-model GISheet {
-  id           String                @id @default(uuid())
-  gauge        String // e.g., "#22"
-  thickness    Decimal // mm
-  dimensions   String // e.g., "4 x 8"
-  weight       Decimal // kg
-  price        Decimal
-  priceHistory GISheetPriceHistory[]
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-}
-
-model GITubular {
-  id           String                  @id @default(uuid())
-  size         String // e.g., "3/4 X 3/4"
-  thickness    Decimal // mm
-  weight       Decimal // kg
-  price        Decimal
-  priceHistory GITubularPriceHistory[]
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
-}
-
-model MSPlate {
-  id           String                @id @default(uuid())
-  thickness    Decimal // mm
-  dimensions   String // e.g., "4 x 8"
-  weight       Decimal // kg
-  price        Decimal
-  priceHistory MSPlatePriceHistory[]
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-}
-
-// Price history models for each type
-model AngleBarPriceHistory {
-  id         String   @id @default(uuid())
-  angleBar   AngleBar @relation(fields: [angleBarId], references: [id])
-  angleBarId String
-  oldPrice   Decimal
-  newPrice   Decimal
-  changedBy  String
-  changedAt  DateTime @default(now())
-}
-
-model ChannelBarPriceHistory {
-  id           String     @id @default(uuid())
-  channelBar   ChannelBar @relation(fields: [channelBarId], references: [id])
-  channelBarId String
-  oldPrice     Decimal
-  newPrice     Decimal
-  changedBy    String
-  changedAt    DateTime   @default(now())
-}
-
-model GICPurlinPriceHistory {
-  id          String    @id @default(uuid())
-  giCPurlin   GICPurlin @relation(fields: [giCPurlinId], references: [id])
-  giCPurlinId String
-  oldPrice    Decimal
-  newPrice    Decimal
-  changedBy   String
-  changedAt   DateTime  @default(now())
-}
-
-model GISheetPriceHistory {
-  id        String   @id @default(uuid())
-  giSheet   GISheet  @relation(fields: [giSheetId], references: [id])
-  giSheetId String
-  oldPrice  Decimal
-  newPrice  Decimal
-  changedBy String
-  changedAt DateTime @default(now())
-}
-
-model GITubularPriceHistory {
-  id          String    @id @default(uuid())
-  giTubular   GITubular @relation(fields: [giTubularId], references: [id])
-  giTubularId String
-  oldPrice    Decimal
-  newPrice    Decimal
-  changedBy   String
-  changedAt   DateTime  @default(now())
-}
-
-model MSPlatePriceHistory {
-  id        String   @id @default(uuid())
-  msPlate   MSPlate  @relation(fields: [msPlateId], references: [id])
-  msPlateId String
-  oldPrice  Decimal
-  newPrice  Decimal
-  changedBy String
-  changedAt DateTime @default(now())
+enum InquiryStatus {
+  New
+  Quoted 
+  Approved
+  Scheduled
+  Fulfilled
+  Cancelled
 }
