@@ -55,8 +55,6 @@ passport.deserializeUser(async (obj: { id: string; roleId: number }, done) => {
       return done(null, false); 
     }
 
-    console.log("Deserialized user:", user);
-
     done(null, user);
   } catch (error) {
     console.log("Error deserializing user:", error);

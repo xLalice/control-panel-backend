@@ -175,49 +175,6 @@ model ContactHistory {
   @@index([timestamp])
 }
 
-model Post {
-  id        String   @id @default(uuid())
-  fbPostId  String   @unique
-  postType  String
-  content   String?
-  mediaUrl  String?
-  createdAt DateTime
-  updatedAt DateTime @updatedAt
-
-  likes       Int @default(0)
-  comments    Int @default(0)
-  shares      Int @default(0)
-  reach       Int @default(0)
-  impressions Int @default(0)
-
-  // Historical metrics (time-series data)
-  metrics PostMetric[]
-}
-
-model PostMetric {
-  id          String   @id @default(uuid())
-  post        Post     @relation(fields: [postId], references: [id])
-  postId      String
-  likes       Int
-  comments    Int
-  shares      Int
-  reach       Int
-  impressions Int
-  fetchedAt   DateTime @default(now())
-}
-
-model PageMetric {
-  id              String   @id @default(uuid())
-  followerCount   Int
-  pageViews       Int
-  pageImpressions Int
-  pageReach       Int
-  engagement      Int // Total engagements (likes + comments + shares)
-  date            DateTime // Date of the metrics (YYYY-MM-DD format)
-  fetchedAt       DateTime @default(now())
-
-  @@unique([date]) // Ensure no duplicate metrics for the same date
-}
 
 model SystemSettings {
   id          String   @id @default(cuid())
@@ -235,17 +192,32 @@ model Session {
   expiresAt DateTime
 }
 
+enum Category {
+  AGGREGATE
+  HEAVY_EQUIPMENT
+  STEEL
+}
+
+enum PricingUnit {
+  DAY
+  METER
+  KILOGRAM
+  TON
+}
+
 model Product {
-  id            String   @id @default(uuid())
-  category      String
-  name          String
-  description   String
-  pricingModel  String
-  unit          String?
-  pickUpPrice   Float?
-  deliveryPrice Float?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String      @id @default(uuid())
+  category       Category    // e.g., "Aggregate", "Heavy Equipment", "Steel"
+  name           String
+  description    String
+  basePrice      Float       // e.g., 5500.00
+  pricingUnit    PricingUnit // e.g., "day", "meter", "kilogram"
+  pricingDetails Json?       // e.g., { "hoursPerDay": 8 }
+  unit           String?     // e.g., "piece", "bundle"
+  pickUpPrice    Float?
+  deliveryPrice  Float?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   aggregate      Aggregate?
   heavyEquipment HeavyEquipment?
@@ -253,28 +225,33 @@ model Product {
 }
 
 model Aggregate {
-  id     String @id @default(uuid())
-  source String
+  id            String  @id @default(uuid())
+  source        String  // e.g., "Quarry A"
+  weightPerUnit Float?  // e.g., weight per cubic meter
 
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId     String  @unique
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model HeavyEquipment {
   id            String  @id @default(uuid())
-  equipmentType String?
+  equipmentType String? // e.g., "Crane", "Bulldozer"
 
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId     String  @unique
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Steel {
-  id     String  @id @default(uuid())
-  grade  String?
-  length String?
+  id                  String  @id @default(uuid())
+  grade              String? // e.g., "Grade 60"
+  length             String? // e.g., "6m"
+  type               String? // e.g., "Angle Bar", "GI Pipe"
+  color              String? // e.g., "Silver"
+  size               String? // e.g., "2x2"
+  additionalAttributes Json?   // e.g., { "thickness": "2mm" }
 
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId          String  @unique
+  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 // Inquiry
