@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as documentsController from "./document.controller";
 import multer from "multer";
-import { middlewares } from "../../middlewares/rbac";
+import { createRoleMiddleware } from "../../middlewares/rbac";
 
 const router = Router();
 const upload = multer({
@@ -11,54 +11,53 @@ const upload = multer({
   },
 });
 
-// Document Category routes
 router.post(
   "/categories",
-  middlewares.categoryManagement,
+  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
   documentsController.createCategory
 );
 router.get(
   "/categories",
-  middlewares.documentAccess,
+  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
   documentsController.getCategories
 );
 router.put(
   "/categories/:id",
-  middlewares.categoryManagement,
+  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
   documentsController.updateCategory
 );
 router.delete(
   "/categories/:id",
-  middlewares.categoryManagement,
+  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
   documentsController.deleteCategory
 );
 
 // Document routes
 router.post(
   "/upload",
-  middlewares.documentUpload,
+  createRoleMiddleware("WRITE_DOCUMENTS"),
   upload.single("file"),
   documentsController.uploadDocument
 );
-router.get("/", middlewares.documentAccess, documentsController.getDocuments);
+router.get("/", createRoleMiddleware("READ_DOCUMENTS"), documentsController.getDocuments);
 router.get(
   "/:id",
-  middlewares.documentAccess,
+  createRoleMiddleware("READ_DOCUMENTS"),
   documentsController.getDocumentById
 );
 router.get(
   "/:id/download",
-  middlewares.documentAccess,
+  createRoleMiddleware("READ_DOCUMENTS"),
   documentsController.downloadDocument
 );
 router.get(
   "/:id/preview",
-  middlewares.documentAccess,
+  createRoleMiddleware("READ_DOCUMENTS"),
   documentsController.previewDocument
 );
 router.delete(
   "/:id",
-  middlewares.documentDelete,
+  createRoleMiddleware("DELETE_DOCUMENTS"),
   documentsController.deleteDocument
 );
 
