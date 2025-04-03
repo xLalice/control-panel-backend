@@ -49,11 +49,10 @@ export class LeadService {
       throw new Error("Source is required to create a lead");
     }
 
-    // 🚀 Allow unassigned leads by setting assignedToId to null if empty
     const assignedTo =
       assignedToId && assignedToId.trim() !== ""
         ? { connect: { id: assignedToId } }
-        : undefined; // Do not include `connect` if it's empty
+        : undefined;
 
     let company;
 
