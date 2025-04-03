@@ -55,7 +55,7 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
       return;
     }
     
-    await documentService.deleteCategory(id);
+    await documentService.deleteCategory(id);  
     res.status(204).end();
   } catch (error: any) {
     console.error('Error deleting category:', error);

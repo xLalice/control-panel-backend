@@ -1,22 +1,15 @@
 import passport from "passport";
 import {Strategy as LocalStrategy} from "passport-local";
 import bcrypt from "bcryptjs";
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, User as PrismaUser} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+
 declare global {
-    namespace Express {
-        interface User {
-            id: string;
-            email: string;
-            name: string;
-            password: string;
-            role: Role | null;
-            createdAt: Date;
-            updatedAt: Date;
-        }
-    }
+  namespace Express {
+    interface User extends PrismaUser {}
+  }
 }
 
 passport.use(
@@ -44,7 +37,7 @@ passport.use(
 
 
 passport.serializeUser((user, done) => {
-    done(null, user.id); // Serialize user by id
+    done(null, user.id); 
   });
   
 

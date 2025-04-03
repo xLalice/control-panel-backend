@@ -12,11 +12,6 @@ interface PrismaUser {
   updatedAt: Date;
 }
 
-// Extend Express's Request type
-interface RequestWithUser extends Request {
-  user?: PrismaUser;
-}
-
 export const isAuthenticated = (
   req: Request,
   res: Response,

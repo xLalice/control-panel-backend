@@ -29,16 +29,13 @@ model User {
   password          String
   role              Role
   name              String
-  // New field to distinguish OJTs
+  
   isOJT             Boolean           @default(false)
   // OJT-specific fields (optional)
-  ojtStartDate      DateTime?         // When the OJT started
-  ojtEndDate        DateTime?         // When the OJT is expected to end
-  ojtSupervisorId   String?           // Optional reference to another User as supervisor
-  ojtSupervisor     User?             @relation("OJTsSupervised", fields: [ojtSupervisorId], references: [id])
-  supervisedOJTs    User[]            @relation("OJTsSupervised") // For supervisors
+  ojtStartDate      DateTime?         
+  ojtEndDate        DateTime?         
+  
 
-  // Existing relationships
   assignedLeads     Lead[]            @relation("assignedLeads")
   createdLeads      Lead[]            @relation("createdLeads")
   createdLogs       ActivityLog[]
@@ -46,9 +43,11 @@ model User {
   inquiries         Inquiry[]
   documents         Document[]
 
-  // OJT-specific relationship (previously in OJT model)
-  attendanceRecords Attendance[]      // Updated to reference User instead of OJT
-  allowedIPs        AllowedIP[]       // Optional IP restrictions for OJTs
+  
+  attendanceRecords Attendance[]      
+  allowedIPs        AllowedIP[]    
+
+ 
 
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -156,10 +155,6 @@ model ContactHistory {
 
   @@index([leadId])
   @@index([timestamp])
-}
-
-model Task {
-  id Int @id @default(autoincrement())
 }
 
 model Post {

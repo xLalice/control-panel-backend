@@ -2,8 +2,7 @@ import express from "express";
 import { User } from "@prisma/client";
 import { google } from "googleapis";
 import fs from "fs";
-import { info } from "../utils/logger";
-
+import { info } from "../../utils/logger";
 import passport from "passport";
 require("dotenv").config();
 

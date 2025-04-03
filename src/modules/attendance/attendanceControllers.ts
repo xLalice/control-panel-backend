@@ -8,13 +8,11 @@ import {
 } from "date-fns";
 
 export const attendanceController = {
-  // Clock in - record time in
   async clockIn(req: Request, res: Response): Promise<any> {
     try {
       const userId = req.user?.id;
       const { device } = req.body;
 
-      // Get IP address from request object
       const ipAddress =
         (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() ||
         req.socket.remoteAddress ||
@@ -24,7 +22,6 @@ export const attendanceController = {
         return res.status(400).json({ error: "User ID is required" });
       }
 
-      // Check if user exists
       const user = await prisma.user.findUnique({
         where: { id: userId },
       });
@@ -33,13 +30,11 @@ export const attendanceController = {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // If user is OJT and IP restrictions are enabled, check IP address
+      
       if (user.isOJT) {
-        // Get DTR settings
         const dtrSettings = await prisma.dTRSettings.findFirst();
 
         if (dtrSettings && !dtrSettings.allowRemoteLogin) {
-          // Check if IP is allowed for this user
           const allowedIP = await prisma.allowedIP.findFirst({
             where: {
               userId,
@@ -59,13 +54,12 @@ export const attendanceController = {
       const now = new Date();
       const today = startOfDay(now);
 
-      // Check if there's already a record for today
       const existingRecord = await prisma.attendance.findFirst({
         where: {
           userId,
           date: {
             gte: today,
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // Next day
+            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), 
           },
         },
       });
@@ -74,38 +68,33 @@ export const attendanceController = {
         return res.status(400).json({ error: "Already clocked in today" });
       }
 
-      // Get DTR settings
       const settings = await prisma.dTRSettings.findFirst();
 
       if (!settings) {
         return res.status(500).json({ error: "DTR settings not configured" });
       }
 
-      // Determine if late
       const [hours, minutes] = settings.workStartTime.split(":").map(Number);
 
-      // Set work start time for today
+      
       const todayWorkStart = new Date(today);
       todayWorkStart.setHours(hours);
       todayWorkStart.setMinutes(minutes);
 
-      // Calculate minutes late
       const minutesLate = differenceInMinutes(now, todayWorkStart);
 
-      // Determine attendance status
       let status = "PRESENT";
       if (minutesLate > settings.lateThreshold) {
         status = "LATE";
       }
 
-      // Create attendance record
       const attendanceRecord = await prisma.attendance.create({
         data: {
           userId,
           date: today,
           timeIn: now,
           status,
-          ipAddress, // Use automatically detected IP
+          ipAddress, 
           device: device || null,
         },
       });
@@ -120,7 +109,6 @@ export const attendanceController = {
     }
   },
 
-  // Clock out - record time out
   async clockOut(req: Request, res: Response): Promise<any> {
     try {
       const userId = req.user?.id;
@@ -133,15 +121,14 @@ export const attendanceController = {
       const now = new Date();
       const today = startOfDay(now);
 
-      // Find today's attendance record
       const attendanceRecord = await prisma.attendance.findFirst({
         where: {
           userId,
           date: {
             gte: today,
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // Next day
+            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), 
           },
-          timeOut: null, // Ensure not already clocked out
+          timeOut: null, 
         },
       });
 
@@ -151,7 +138,6 @@ export const attendanceController = {
           .json({ error: "No active clock-in record found for today" });
       }
 
-      // Calculate total hours worked, accounting for breaks
       const breaks = await prisma.breakLog.findMany({
         where: {
           attendanceId: attendanceRecord.id,
@@ -163,7 +149,6 @@ export const attendanceController = {
         if (breakLog.duration) {
           breakDuration += breakLog.duration;
         } else if (breakLog.startTime && !breakLog.endTime) {
-          // If there's an ongoing break, end it now
           await prisma.breakLog.update({
             where: { id: breakLog.id },
             data: {
@@ -186,7 +171,6 @@ export const attendanceController = {
         parseFloat((grossHours - breakDuration).toFixed(2))
       );
 
-      // Update the record with clock-out time
       const updatedRecord = await prisma.attendance.update({
         where: {
           id: attendanceRecord.id,
@@ -210,7 +194,6 @@ export const attendanceController = {
     }
   },
 
-  // Start a break
   async startBreak(req: Request, res: Response): Promise<any> {
     try {
       const userId = req.user?.id;
@@ -223,15 +206,14 @@ export const attendanceController = {
       const now = new Date();
       const today = startOfDay(now);
 
-      // Find today's attendance record
       const attendanceRecord = await prisma.attendance.findFirst({
         where: {
           userId,
           date: {
             gte: today,
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // Next day
+            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), 
           },
-          timeOut: null, // Ensure not already clocked out
+          timeOut: null, 
         },
       });
 
@@ -241,7 +223,6 @@ export const attendanceController = {
           .json({ error: "No active clock-in record found for today" });
       }
 
-      // Check if there's already an active break
       const activeBreak = await prisma.breakLog.findFirst({
         where: {
           attendanceId: attendanceRecord.id,
@@ -253,13 +234,11 @@ export const attendanceController = {
         return res.status(400).json({ error: "Already on break" });
       }
 
-      // Update attendance status
       await prisma.attendance.update({
         where: { id: attendanceRecord.id },
         data: { status: "ON_BREAK" },
       });
 
-      // Create break log
       const breakLog = await prisma.breakLog.create({
         data: {
           attendanceId: attendanceRecord.id,
@@ -278,7 +257,6 @@ export const attendanceController = {
     }
   },
 
-  // End a break
   async endBreak(req: Request, res: Response): Promise<any> {
     try {
       const userId = req.user?.id;
@@ -290,13 +268,12 @@ export const attendanceController = {
       const now = new Date();
       const today = startOfDay(now);
 
-      // Find today's attendance record
       const attendanceRecord = await prisma.attendance.findFirst({
         where: {
           userId,
           date: {
             gte: today,
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // Next day
+            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), 
           },
           status: "ON_BREAK",
         },
@@ -306,7 +283,6 @@ export const attendanceController = {
         return res.status(404).json({ error: "No active break found" });
       }
 
-      // Find the active break
       const activeBreak = await prisma.breakLog.findFirst({
         where: {
           attendanceId: attendanceRecord.id,
@@ -318,12 +294,10 @@ export const attendanceController = {
         return res.status(404).json({ error: "No active break found" });
       }
 
-      // Calculate break duration
       const breakDuration = parseFloat(
         (differenceInMinutes(now, activeBreak.startTime) / 60).toFixed(2)
       );
 
-      // Update break record
       const updatedBreak = await prisma.breakLog.update({
         where: { id: activeBreak.id },
         data: {
@@ -332,7 +306,6 @@ export const attendanceController = {
         },
       });
 
-      // Update attendance status back to PRESENT
       await prisma.attendance.update({
         where: { id: attendanceRecord.id },
         data: { status: "PRESENT" },
@@ -348,7 +321,6 @@ export const attendanceController = {
     }
   },
 
-  // Get attendance records for a user
   async getUserAttendance(req: Request, res: Response): Promise<any> {
     try {
       const userId = req.user?.id;
@@ -358,18 +330,16 @@ export const attendanceController = {
         return res.status(400).json({ error: "User ID is required" });
       }
 
-      // Set up date filter
       const dateFilter: any = {};
       if (startDate) {
         dateFilter.gte = new Date(startDate as string);
       }
       if (endDate) {
         const endDateObj = new Date(endDate as string);
-        endDateObj.setHours(23, 59, 59, 999); // End of the day
+        endDateObj.setHours(23, 59, 59, 999); 
         dateFilter.lte = endDateObj;
       }
 
-      // Query attendance records
       const attendanceRecords = await prisma.attendance.findMany({
         where: {
           userId,
@@ -392,12 +362,10 @@ export const attendanceController = {
     }
   },
 
-  // Get all attendance records (for admin)
   async getAllAttendance(req: Request, res: Response): Promise<any> {
     try {
       const { date, department, status } = req.query;
 
-      // Set up filters
       const whereClause: any = {};
 
       if (date) {
@@ -418,7 +386,6 @@ export const attendanceController = {
         whereClause.status = status as string;
       }
 
-      // Query attendance records with user details
       const attendanceRecords = await prisma.attendance.findMany({
         where: whereClause,
         include: {
@@ -445,7 +412,6 @@ export const attendanceController = {
     }
   },
 
-  // Update DTR settings
   async updateSettings(req: Request, res: Response): Promise<any> {
     try {
       const updatedById = req.user?.id;
@@ -468,7 +434,6 @@ export const attendanceController = {
           .json({ error: "All settings fields are required" });
       }
 
-      // Find existing settings or create new ones
       const settings = await prisma.dTRSettings.findFirst();
 
       const updatedSettings = await prisma.dTRSettings.upsert({
@@ -503,13 +468,11 @@ export const attendanceController = {
     }
   },
 
-  // Manage allowed IPs for OJTs
   async manageAllowedIPs(req: Request, res: Response): Promise<any> {
     try {
       const userId = req.user?.id;
       const { ipAddress, description, action } = req.body;
 
-      // Get current IP address if not provided
       const currentIpAddress =
         ipAddress ||
         (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() ||
@@ -522,7 +485,6 @@ export const attendanceController = {
           .json({ error: "User ID and action are required" });
       }
 
-      // Check if user exists and is an OJT
       const user = await prisma.user.findUnique({
         where: { id: userId },
       });
@@ -538,7 +500,6 @@ export const attendanceController = {
       }
 
       if (action === "add") {
-        // Check if already exists
         const existing = await prisma.allowedIP.findFirst({
           where: {
             userId,
@@ -566,7 +527,6 @@ export const attendanceController = {
           data: allowedIP,
         });
       } else if (action === "remove") {
-        // Delete the IP
         await prisma.allowedIP.deleteMany({
           where: {
             userId,
