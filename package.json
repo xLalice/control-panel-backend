@@ -37,10 +37,12 @@
   },
   "name": "control-panel",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/app.js",
   "scripts": {
     "test": "vitest",
-    "dev": "nodemon ./src/app.ts"
+    "dev": "nodemon ./src/app.ts",
+    "build": "npx prisma generate && tsc", 
+    "start": "node dist/app.js"
   },
   "author": "",
   "license": "ISC",
