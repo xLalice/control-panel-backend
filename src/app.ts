@@ -12,6 +12,7 @@ import productRoutes from "./modules/products/product.routes"
 import inquiryRoutes from "./modules/inquiries/inquiry.routes"
 import documentRoutes from "./modules/documents/documents.routes"
 import attendanceRoutes from "./modules/attendance/attendance.routes"
+import userRoutes from "./modules/users/users.routes"
 import { info } from "./utils/logger";
 require("dotenv").config();
 
@@ -54,12 +55,6 @@ app.use(
 
 app.use(passport.initialize());
 app.use(passport.session());
-
-app.use((req, res, next) => {
-  info("Session: ", req.session);
-
-  next();
-});
 app.use(flash());
 
 app.use((req, res, next) => {
@@ -69,6 +64,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/reports", reportRoutes);

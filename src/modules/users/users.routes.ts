@@ -5,7 +5,7 @@ import { error, info } from "../../utils/logger";
 
 const router = express.Router();
 
-router.get("/users", async (req, res): Promise<any> => {
+router.get("/", async (req, res): Promise<any> => {
   try {
     const users = await prisma.user.findMany();
     res.status(200).json(users);
@@ -15,7 +15,7 @@ router.get("/users", async (req, res): Promise<any> => {
   }
 });
 
-router.post("/users", async (req, res): Promise<any> => {
+router.post("/", async (req, res): Promise<any> => {
   try {
     const { name, email, password, role } = req.body;
 
@@ -42,7 +42,7 @@ router.post("/users", async (req, res): Promise<any> => {
 });
 
 // Edit User route
-router.put("/users/:id", async (req, res): Promise<any> => {
+router.put("/:id", async (req, res): Promise<any> => {
   const userId = req.params.id;
   const { name, email, role } = req.body;
 
@@ -70,7 +70,7 @@ router.put("/users/:id", async (req, res): Promise<any> => {
   }
 });
 
-router.delete("/users/:id", async (req, res): Promise<any> => {
+router.delete("/:id", async (req, res): Promise<any> => {
   const userId = req.params.id;
 
   try {
