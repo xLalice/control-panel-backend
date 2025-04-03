@@ -29,8 +29,8 @@ router.get("/", async (req, res) => {
     }));
 
     res.json(result);
-  } catch (error) {
-    console.error("Error fetching reports:", error);
+  } catch (err) {
+    error("Error fetching reports:", error);
     res.status(500).json({ error: "Failed to fetch reports" });
   }
 });
