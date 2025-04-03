@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -24,33 +25,29 @@ model FacebookCreds {
 }
 
 model User {
-  id                String            @id @default(cuid())
-  email             String            @unique
-  password          String
-  role              Role
-  name              String
-  
-  isOJT             Boolean           @default(false)
+  id       String @id @default(cuid())
+  email    String @unique
+  password String
+  role     Role
+  name     String
+
+  isOJT        Boolean   @default(false)
   // OJT-specific fields (optional)
-  ojtStartDate      DateTime?         
-  ojtEndDate        DateTime?         
-  
+  ojtStartDate DateTime?
+  ojtEndDate   DateTime?
 
-  assignedLeads     Lead[]            @relation("assignedLeads")
-  createdLeads      Lead[]            @relation("createdLeads")
-  createdLogs       ActivityLog[]
-  reports           Report[]
-  inquiries         Inquiry[]
-  documents         Document[]
+  assignedLeads Lead[]        @relation("assignedLeads")
+  createdLeads  Lead[]        @relation("createdLeads")
+  createdLogs   ActivityLog[]
+  reports       Report[]
+  inquiries     Inquiry[]
+  documents     Document[]
 
-  
-  attendanceRecords Attendance[]      
-  allowedIPs        AllowedIP[]    
+  attendanceRecords Attendance[]
+  allowedIPs        AllowedIP[]
 
- 
-
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Report {
@@ -69,61 +66,60 @@ enum LeadStatus {
   Contacted
   Qualified
   Proposal
-  Negotiation 
+  Negotiation
   Converted
-  FollowUp 
+  FollowUp
   Lost
 }
 
-
 model Company {
-  id          String  @id @default(uuid())
-  name        String @unique
-  industry    String?
-  region      String?
-  email       String? @unique
-  phone       String? @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  leads       Lead[]
+  id        String   @id @default(uuid())
+  name      String   @unique
+  industry  String?
+  region    String?
+  email     String?  @unique
+  phone     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  leads     Lead[]
 }
 
 model Lead {
-  id              String       @id @default(uuid())
+  id              String           @id @default(uuid())
   companyId       String
-  company         Company  @relation(fields: [companyId], references: [id])
-  contactPerson   String?      
-  email           String? @unique
-  phone           String? @unique
-  status          LeadStatus   @default(New)
+  company         Company          @relation(fields: [companyId], references: [id])
+  contactPerson   String?
+  email           String?          @unique
+  phone           String?          @unique
+  status          LeadStatus       @default(New)
   source          String
   subSource       String?
   campaign        String?
   assignedToId    String?
-  assignedTo      User?         @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
+  assignedTo      User?            @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
   createdById     String
-  createdBy       User @relation(fields: [createdById], references: [id], name: "createdLeads")  
+  createdBy       User             @relation(fields: [createdById], references: [id], name: "createdLeads")
   notes           String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   lastContactDate DateTime?
   estimatedValue  Float?
   leadScore       Float?
   contactHistory  ContactHistory[]
-  inquiries        Inquiry[]
-  industry        String?      
+  inquiries       Inquiry[]
+  industry        String?
   region          String?
   referredBy      String?
   followUpDate    DateTime?
   activityLog     ActivityLog[]
 
-  @@index([email]) 
+  @@index([email])
   @@index([phone])
   @@index([createdById])
 }
 
 model ActivityLog {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   leadId      String
   userId      String
   createdById String
@@ -133,9 +129,9 @@ model ActivityLog {
   oldStatus   LeadStatus?
   newStatus   LeadStatus?
 
-  createdAt   DateTime @default(now())
-  lead        Lead     @relation(fields: [leadId], references: [id])
-  createdBy   User     @relation(fields: [createdById], references: [id]) 
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
 
   @@index([leadId])
   @@index([userId])
@@ -144,14 +140,14 @@ model ActivityLog {
 }
 
 model ContactHistory {
-  id          String   @id @default(uuid())
-  leadId      String
-  method      String   
-  summary     String
-  outcome     String?
-  timestamp   DateTime @default(now())
+  id        String   @id @default(uuid())
+  leadId    String
+  method    String
+  summary   String
+  outcome   String?
+  timestamp DateTime @default(now())
 
-  lead        Lead     @relation(fields: [leadId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
 
   @@index([leadId])
   @@index([timestamp])
@@ -163,7 +159,7 @@ model Post {
   postType  String
   content   String?
   mediaUrl  String?
-  createdAt DateTime 
+  createdAt DateTime
   updatedAt DateTime @updatedAt
 
   likes       Int @default(0)
@@ -217,50 +213,46 @@ model Session {
   expiresAt DateTime
 }
 
-
-
 model Product {
-  id          String   @id @default(uuid())
-  category    String   
-  name        String
-  description String
-  pricingModel String  
-  unit        String?
-  pickUpPrice Float?
+  id            String   @id @default(uuid())
+  category      String
+  name          String
+  description   String
+  pricingModel  String
+  unit          String?
+  pickUpPrice   Float?
   deliveryPrice Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  
   aggregate      Aggregate?
   heavyEquipment HeavyEquipment?
   steel          Steel?
 }
 
 model Aggregate {
-  id        String   @id @default(uuid())
-  source    String  
-  
-  
-  productId String   @unique
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  source String
+
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model HeavyEquipment {
-  id        String   @id @default(uuid())
-  equipmentType String? 
-  
-  productId String   @unique
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id            String  @id @default(uuid())
+  equipmentType String?
+
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Steel {
-  id        String   @id @default(uuid())
-  grade     String?
-  length    String?
-  
-  productId String   @unique
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id     String  @id @default(uuid())
+  grade  String?
+  length String?
+
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 // Inquiry
@@ -294,21 +286,21 @@ model Inquiry {
   preferredDate    DateTime
   referenceSource  ReferenceSource
   remarks          String?
-  status           InquiryStatus          @default(New) 
-  
-  quotedPrice      Float?
-  quotedBy         String?
-  quotedAt         DateTime?
-  
-  relatedLeadId    String?
-  relatedLead      Lead?           @relation(fields: [relatedLeadId], references: [id])
-  
-  createdById      String
-  createdBy        User            @relation(fields: [createdById], references: [id])
-  
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  
+  status           InquiryStatus   @default(New)
+
+  quotedPrice Float?
+  quotedBy    String?
+  quotedAt    DateTime?
+
+  relatedLeadId String?
+  relatedLead   Lead?   @relation(fields: [relatedLeadId], references: [id])
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([createdById])
   @@index([status])
   @@index([createdAt])
@@ -317,7 +309,7 @@ model Inquiry {
 
 enum InquiryStatus {
   New
-  Quoted 
+  Quoted
   Approved
   Scheduled
   Fulfilled
@@ -325,11 +317,11 @@ enum InquiryStatus {
 }
 
 model DocumentCategory {
-  id          Int         @id @default(autoincrement())
-  name        String      @unique
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
   description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   documents   Document[]
 }
 
@@ -356,20 +348,20 @@ enum AttendanceStatus {
 }
 
 model Attendance {
-  id          String            @id @default(uuid())
-  userId      String            
-  user        User              @relation(fields: [userId], references: [id]) 
-  date        DateTime          @default(now())
-  timeIn      DateTime          @default(now())
-  timeOut     DateTime?
-  status      String  
-  totalHours  Float?
-  ipAddress   String?
-  device      String?
-  notes       String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  breakLogs   BreakLog[]
+  id         String     @id @default(uuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id])
+  date       DateTime   @default(now())
+  timeIn     DateTime   @default(now())
+  timeOut    DateTime?
+  status     String
+  totalHours Float?
+  ipAddress  String?
+  device     String?
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  breakLogs  BreakLog[]
 
   @@index([userId])
   @@index([date])
@@ -377,12 +369,12 @@ model Attendance {
 }
 
 model AllowedIP {
-  id           String    @id @default(uuid())
-  userId       String    // Changed from ojtId to userId
-  user         User      @relation(fields: [userId], references: [id]) // Changed from ojt to user
-  ipAddress    String
-  description  String?
-  createdAt    DateTime  @default(now())
+  id          String   @id @default(uuid())
+  userId      String // Changed from ojtId to userId
+  user        User     @relation(fields: [userId], references: [id]) // Changed from ojt to user
+  ipAddress   String
+  description String?
+  createdAt   DateTime @default(now())
 
   @@unique([userId, ipAddress])
 }
@@ -400,11 +392,11 @@ model BreakLog {
 }
 
 model DTRSettings {
-  id                  String    @id @default(cuid())
-  workStartTime       String    @default("08:00")
-  lateThreshold       Int       @default(15)
-  allowRemoteLogin    Boolean   @default(false)
-  autoRemindersActive Boolean   @default(true)
+  id                  String   @id @default(cuid())
+  workStartTime       String   @default("08:00")
+  lateThreshold       Int      @default(15)
+  allowRemoteLogin    Boolean  @default(false)
+  autoRemindersActive Boolean  @default(true)
   updatedById         String
-  updatedAt           DateTime  @updatedAt
+  updatedAt           DateTime @updatedAt
 }
