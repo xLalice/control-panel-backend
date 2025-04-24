@@ -18,7 +18,7 @@ passport.use(
       try {
         const user = await prisma.user.findUnique({
           where: { email },
-          include: { role: true },
+          include: { role: { include: { permissions: true } } },
         });
         if (!user) {
           console.log("No user found with the email:", email);
@@ -45,14 +45,14 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (obj: { id: string; roleId: number }, done) => {
   try {
-    const user = await prisma.user.findUnique({ 
+    const user = await prisma.user.findUnique({
       where: { id: obj.id },
-      include: { role: true } 
+      include: { role: true },
     });
 
     if (!user) {
       console.log("User not found during deserialization.");
-      return done(null, false); 
+      return done(null, false);
     }
 
     done(null, user);
@@ -61,6 +61,5 @@ passport.deserializeUser(async (obj: { id: string; roleId: number }, done) => {
     done(error, null);
   }
 });
-
 
 export default passport;

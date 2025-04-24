@@ -6,7 +6,7 @@ import { isAuthenticated } from "../../middlewares/isAuthenticated";
 
 const router = express.Router();
 
-router.get("/", isAuthenticated, async (req, res): Promise<any> => {
+router.get("/", async (req, res): Promise<any> => {
   try {
     const users = await prisma.user.findMany({
       include: {
@@ -20,7 +20,7 @@ router.get("/", isAuthenticated, async (req, res): Promise<any> => {
   }
 });
 
-router.get("/roles", isAuthenticated, async (req, res): Promise<any> => {
+router.get("/roles", async (req, res): Promise<any> => {
   try {
     const roles = await prisma.role.findMany({select: { id: true, name: true }});
     res.status(200).json(roles);
