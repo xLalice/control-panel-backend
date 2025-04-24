@@ -1,9 +1,7 @@
 import express from "express";
 import { User } from "@prisma/client";
-import { google } from "googleapis";
-import fs from "fs";
-import { info } from "../../utils/logger";
 import passport from "passport";
+import { getCurrentUser } from "./auth.controller";
 require("dotenv").config();
 
 const router = express.Router();
@@ -32,8 +30,6 @@ router.post("/login", async (req: any, res: any, next) => {
   })(req, res, next);
 });
 
-
-
 router.post("/logout", (req: any, res: any) => {
   req.logout((err: Error) => {
     if (err) {
@@ -51,15 +47,6 @@ router.post("/logout", (req: any, res: any) => {
   });
 });
 
-router.get("/verify", (req: any, res: any) => {
-  if (req.isAuthenticated()) {
-    return res.status(200).json({
-      authenticated: true,
-      user: req.user,
-    });
-  }
-
-  return res.status(401).json({ authenticated: false, user: req.user });
-});
+router.get("/me", getCurrentUser);
 
 export default router;

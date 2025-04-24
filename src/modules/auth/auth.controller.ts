@@ -1,23 +1,64 @@
 import { Request, Response, NextFunction } from "express";
-import { User } from "@prisma/client/wasm";
+import { prisma } from "../../config/prisma";
 import passport from "../../config/passport";
+import { Prisma } from "@prisma/client";
+
+type UserWithRole = Prisma.UserGetPayload<{
+  include: { role: { include: { permissions: true } } };
+}>;
+
+export const getCurrentUser = async (req: Request, res: Response): Promise <any> => {
+  try {
+    const userId = req.user?.id; 
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 export const loginUser = (req: Request, res: Response, next: NextFunction) => {
-  passport.authenticate("local", (err: Error, user: User, info: any) => {
-    if (err) return next(err);
-    if (!user) return res.status(401).json({ message: info.message });
-
-    req.logIn(user, (err: Error) => {
+  passport.authenticate(
+    "local",
+    (err: Error, user: UserWithRole, info: any) => {
       if (err) return next(err);
+      if (!user) return res.status(401).json({ message: info.message });
 
-      req.session.save((err: Error) => {
+      req.logIn(user, (err: Error) => {
         if (err) return next(err);
 
-        const { password: _, ...userWithoutPassword } = user;
-        return res.json(userWithoutPassword);
+        req.session.save((err: Error) => {
+          if (err) return next(err);
+
+          const { password: _, ...userWithoutPassword } = user;
+          return res.json({
+            user: userWithoutPassword,
+            role: user.role.name,
+            permissions: user.role.permissions,
+          });
+        });
       });
-    });
-  })(req, res, next);
+    }
+  )(req, res, next);
 };
 
 // User Logout
