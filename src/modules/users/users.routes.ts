@@ -6,7 +6,7 @@ import { isAuthenticated } from "../../middlewares/isAuthenticated";
 
 const router = express.Router();
 
-router.get("/", async (req, res): Promise<any> => {
+router.get("/", isAuthenticated, async (req, res): Promise<any> => {
   try {
     const users = await prisma.user.findMany({
       include: {
@@ -17,6 +17,17 @@ router.get("/", async (req, res): Promise<any> => {
   } catch (err) {
     error("Error during authentication", err);
     res.status(500).json("Error fetching users");
+  }
+});
+
+router.get("/roles", isAuthenticated, async (req, res): Promise<any> => {
+  try {
+    const roles = await prisma.role.findMany({select: { id: true, name: true }});
+    res.status(200).json(roles);
+
+  } catch (err){
+    error("Error during authentication", err);
+    res.status(500).json("Error fetching roles");
   }
 });
 
@@ -109,7 +120,15 @@ router.get("/permissions", isAuthenticated, async (req, res): Promise<any> => {
     const user = await prisma.user.findUnique({
       where: { id: req.user?.id },
       include: {
-        role: true,
+        role: {
+          include: {
+            permissions: {
+              select: {
+                name: true,
+              },
+            },
+          }
+        },
       },
     });
 

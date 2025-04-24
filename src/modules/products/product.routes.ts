@@ -1,17 +1,17 @@
 import { Router } from 'express';
 import { ProductController } from './product.controller';
-import { createRoleMiddleware } from '../../middlewares/rbac';
+import { checkPermission } from '../../middlewares/authorization';
 
 const router = Router();
 const productController = new ProductController();
 
-router.get("/", createRoleMiddleware("READ_PRODUCTS"), productController.getAllProducts);
-router.get("/:id", createRoleMiddleware("READ_PRODUCTS"), productController.getProductById);
-router.get("/category/:category", createRoleMiddleware("READ_PRODUCTS"), productController.getProductsByCategory);
-router.get("/search", createRoleMiddleware("READ_PRODUCTS"), productController.searchProducts);
+router.get("/", checkPermission("read:products"), productController.getAllProducts);
+router.get("/:id", checkPermission("read:products"), productController.getProductById);
+router.get("/category/:category", checkPermission("read:products"), productController.getProductsByCategory);
+router.get("/search", checkPermission("read:products"), productController.searchProducts);
 
-router.post("/", createRoleMiddleware("WRITE_PRODUCTS"), productController.createProduct);
-router.put("/:id", createRoleMiddleware("UPDATE_PRODUCTS"), productController.updateProduct);
-router.delete("/:id", createRoleMiddleware("DELETE_PRODUCTS"), productController.deleteProduct);
+router.post("/", checkPermission("manage:products"), productController.createProduct);
+router.put("/:id", checkPermission("manage:products"), productController.updateProduct);
+router.delete("/:id", checkPermission("manage:products"), productController.deleteProduct);
 
 export default router;

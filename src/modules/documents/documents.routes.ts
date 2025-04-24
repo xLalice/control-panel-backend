@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as documentsController from "./document.controller";
 import multer from "multer";
-import { createRoleMiddleware } from "../../middlewares/rbac";
+import { checkPermission } from "../../middlewares/authorization";
 
 const router = Router();
 const upload = multer({
@@ -13,53 +13,55 @@ const upload = multer({
 
 router.post(
   "/categories",
-  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
+  checkPermission("manage:documents"),
   documentsController.createCategory
 );
 router.get(
   "/categories",
-  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
+  checkPermission("manage:documents"),
   documentsController.getCategories
 );
 router.put(
   "/categories/:id",
-  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
+  checkPermission("manage:documents"),
   documentsController.updateCategory
 );
 router.delete(
   "/categories/:id",
-  createRoleMiddleware("MANAGE_DOCUMENT_CATEGORIES"),
+  checkPermission("manage:documents"),
   documentsController.deleteCategory
 );
 
 router.post(
   "/upload",
-  createRoleMiddleware("WRITE_DOCUMENTS"),
+  checkPermission("upload:document"),
   upload.single("file"),
   documentsController.uploadDocument
 );
-router.get("/", createRoleMiddleware("READ_DOCUMENTS"), documentsController.getDocuments);
+router.get(
+  "/",
+  checkPermission("read:documents"),
+  documentsController.getDocuments
+);
 router.get(
   "/:id",
-  createRoleMiddleware("READ_DOCUMENTS"),
+  checkPermission("read:documents"),
   documentsController.getDocumentById
 );
 router.get(
   "/:id/download",
-  createRoleMiddleware("READ_DOCUMENTS"),
+  checkPermission("read:documents"),
   documentsController.downloadDocument
 );
 router.get(
   "/:id/preview",
-  createRoleMiddleware("READ_DOCUMENTS"),
+  checkPermission("read:documents"),
   documentsController.previewDocument
 );
 router.delete(
   "/:id",
-  createRoleMiddleware("DELETE_DOCUMENTS"),
+  checkPermission("manage:documents"),
   documentsController.deleteDocument
 );
-
-
 
 export default router;
