@@ -3,10 +3,11 @@ import { prisma } from "../../config/prisma";
 import bcrypt from "bcryptjs";
 import { error, info } from "../../utils/logger";
 import { isAuthenticated } from "../../middlewares/isAuthenticated";
+import { checkPermission } from "../../middlewares/authorization";
 
 const router = express.Router();
 
-router.get("/", async (req, res): Promise<any> => {
+router.get("/", checkPermission("read:users"), async (req, res): Promise<any> => {
   try {
     const users = await prisma.user.findMany({
       include: {
@@ -20,7 +21,7 @@ router.get("/", async (req, res): Promise<any> => {
   }
 });
 
-router.get("/roles", async (req, res): Promise<any> => {
+router.get("/roles", checkPermission("read:users"), async (req, res): Promise<any> => {
   try {
     const roles = await prisma.role.findMany({select: { id: true, name: true }});
     res.status(200).json(roles);
@@ -31,7 +32,7 @@ router.get("/roles", async (req, res): Promise<any> => {
   }
 });
 
-router.post("/", async (req, res): Promise<any> => {
+router.post("/", checkPermission("manage:users"), async (req, res): Promise<any> => {
   try {
     const { name, email, password, role } = req.body;
 
@@ -62,7 +63,7 @@ router.post("/", async (req, res): Promise<any> => {
 });
 
 // Edit User route
-router.put("/:id", async (req, res): Promise<any> => {
+router.put("/:id", checkPermission("manage:users"), async (req, res): Promise<any> => {
   const userId = req.params.id;
   const { name, email, role } = req.body;
 
@@ -90,7 +91,7 @@ router.put("/:id", async (req, res): Promise<any> => {
   }
 });
 
-router.delete("/:id", async (req, res): Promise<any> => {
+router.delete("/:id", checkPermission("manage:users"), async (req, res): Promise<any> => {
   const userId = req.params.id;
 
   try {
@@ -114,7 +115,7 @@ router.delete("/:id", async (req, res): Promise<any> => {
   }
 });
 
-router.get("/permissions", isAuthenticated, async (req, res): Promise<any> => {
+router.get("/permissions", checkPermission("manage:users"), isAuthenticated, async (req, res): Promise<any> => {
   try {
     
     const user = await prisma.user.findUnique({
