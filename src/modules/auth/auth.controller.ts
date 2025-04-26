@@ -52,8 +52,6 @@ export const loginUser = (req: Request, res: Response, next: NextFunction) => {
           const { password: _, ...userWithoutPassword } = user;
           return res.json({
             user: userWithoutPassword,
-            role: user.role.name,
-            permissions: user.role.permissions,
           });
         });
       });
