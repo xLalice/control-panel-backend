@@ -68,7 +68,6 @@ router.put("/:id", checkPermission("manage:users"), async (req, res): Promise<an
   const { name, email, role } = req.body;
 
   try {
-    // Ensure required fields are provided
     if (!name && !email && !role) {
       return res.status(400).json({ error: "No fields provided to update." });
     }
@@ -78,7 +77,11 @@ router.put("/:id", checkPermission("manage:users"), async (req, res): Promise<an
       data: {
         name,
         email,
-        role,
+        role: {
+          connect: {
+            id: role.id,
+          }
+        }
       },
     });
 
