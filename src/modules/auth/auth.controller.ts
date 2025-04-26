@@ -21,7 +21,13 @@ export const getCurrentUser = async (req: Request, res: Response): Promise <any>
         id: true,
         name: true,
         email: true,
-        role: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true,
+          },
+        },
       },
     });
 
@@ -29,7 +35,15 @@ export const getCurrentUser = async (req: Request, res: Response): Promise <any>
       return res.status(404).json({ message: "User not found" });
     }
 
-    return res.json(user);
+    const transformedUser = {
+      ...user,
+      role: {
+        name: user.role.name,
+        permissions: user.role.permissions.map((p) => p.name),
+      },
+    };
+
+    return res.json(transformedUser);
   } catch (error) {
     console.error("Error fetching user:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -50,9 +64,14 @@ export const loginUser = (req: Request, res: Response, next: NextFunction) => {
           if (err) return next(err);
 
           const { password: _, ...userWithoutPassword } = user;
-          return res.json({
-            user: userWithoutPassword,
-          });
+          const transformedUser = {
+            ...userWithoutPassword,
+            role: {
+              name: user.role.name,
+              permissions: user.role.permissions.map((p) => p.name),
+            },
+          };
+          return res.json({ user: transformedUser });
         });
       });
     }
