@@ -18,6 +18,7 @@ model Role {
 model Permission {
   id         Int          @id @default(autoincrement())
   name        String       @unique
+  module    String
   roles       Role[]       @relation("RolePermissions")
 }
 
@@ -185,14 +186,16 @@ enum PricingUnit {
 model Product {
   id             String      @id @default(uuid())
   category       Category // e.g., "Aggregate", "Heavy Equipment", "Steel"
+  sku         String   @unique 
   name           String
   description    String
-  basePrice      Float // e.g., 5500.00
+  basePrice      Decimal // e.g., 5500.00
   pricingUnit    PricingUnit // e.g., "day", "meter", "kilogram"
   pricingDetails Json? // e.g., { "hoursPerDay": 8 }
   unit           String? // e.g., "piece", "bundle"
-  pickUpPrice    Float?
-  deliveryPrice  Float?
+  pickUpPrice    Decimal?
+  deliveryPrice  Decimal?
+  isActive       Boolean @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 

@@ -9,75 +9,77 @@ async function main() {
   // --- Define Permissions ---
   const permissions = [
     // User Management
-    { name: 'read:users' },
-    { name: 'manage:users' }, // create, update, delete users
+    { name: 'read:users', module: 'User Management' },
+    { name: 'manage:users', module: 'User Management' }, // create, update, delete users
 
     // Role & Permission Management
-    { name: 'read:roles' },
-    { name: 'manage:roles' }, // create, update, delete roles + assign permissions
+    { name: 'read:roles', module: 'Role Management' },
+    { name: 'manage:roles', module: 'Role Management' }, // create, update, delete roles + assign permissions
 
     // Lead Management
-    { name: 'create:lead' },
-    { name: 'read:own_leads' },
-    { name: 'read:assigned_leads' },
-    { name: 'read:all_leads' },
-    { name: 'update:own_leads' },
-    { name: 'update:assigned_leads' },
-    { name: 'update:all_leads' },
-    { name: 'delete:all_leads' },
-    { name: 'assign:leads' },
+    { name: 'create:lead', module: 'Lead Management' },
+    { name: 'read:own_leads', module: 'Lead Management' },
+    { name: 'read:assigned_leads', module: 'Lead Management' },
+    { name: 'read:all_leads', module: 'Lead Management' },
+    { name: 'update:own_leads', module: 'Lead Management' },
+    { name: 'update:assigned_leads', module: 'Lead Management' },
+    { name: 'update:all_leads', module: 'Lead Management' },
+    { name: 'delete:all_leads', module: 'Lead Management' },
+    { name: 'assign:leads', module: 'Lead Management' },
 
     // Inquiry Management
-    { name: 'create:inquiry' },
-    { name: 'read:own_inquiries' },
-    { name: 'read:assigned_inquiries' },
-    { name: 'read:all_inquiries' },
-    { name: 'update:own_inquiries' },
-    { name: 'update:assigned_inquiries' },
-    { name: 'update:all_inquiries' },
-    { name: 'delete:all_inquiries' },
-    { name: 'assign:inquiries' },
-    { name: 'quote:inquiry' },
+    { name: 'create:inquiry', module: 'Inquiry Management' },
+    { name: 'read:own_inquiries', module: 'Inquiry Management' },
+    { name: 'read:assigned_inquiries', module: 'Inquiry Management' },
+    { name: 'read:all_inquiries', module: 'Inquiry Management' },
+    { name: 'update:own_inquiries', module: 'Inquiry Management' },
+    { name: 'update:assigned_inquiries', module: 'Inquiry Management' },
+    { name: 'update:all_inquiries', module: 'Inquiry Management' },
+    { name: 'delete:all_inquiries', module: 'Inquiry Management' },
+    { name: 'assign:inquiries', module: 'Inquiry Management' },
+    { name: 'quote:inquiry', module: 'Inquiry Management' },
 
     // Report Management
-    { name: 'create:report' },
-    { name: 'read:own_reports' },
-    { name: 'read:all_reports' },
-    { name: 'update:own_reports' },
-    { name: 'update:all_reports' },
-    { name: 'delete:all_reports' },
+    { name: 'create:report', module: 'Report Management' },
+    { name: 'read:own_reports', module: 'Report Management' },
+    { name: 'read:all_reports', module: 'Report Management' },
+    { name: 'update:own_reports', module: 'Report Management' },
+    { name: 'update:all_reports', module: 'Report Management' },
+    { name: 'delete:all_reports', module: 'Report Management' },
 
     // Product Management
-    { name: 'read:products' },
-    { name: 'manage:products' }, // create, update, delete products
+    { name: 'read:products', module: 'Product Management' },
+    { name: 'manage:products', module: 'Product Management' }, // create, update, delete products
 
     // Document Management
-    { name: 'upload:document' },
-    { name: 'read:documents' },
-    { name: 'manage:documents' }, // update, delete documents
+    { name: 'upload:document', module: 'Document Management' },
+    { name: 'read:documents', module: 'Document Management' },
+    { name: 'manage:documents', module: 'Document Management' }, // update, delete documents
 
     // Attendance & DTR
-    { name: 'log:attendance' }, // User logs their own
-    { name: 'read:own_attendance' },
-    { name: 'read:all_attendance' },
-    { name: 'manage:attendance' }, // Correct/edit entries
-    { name: 'manage:dtr_settings' },
-    { name: 'manage:allowed_ips' },
+    { name: 'log:attendance', module: 'Attendance Management' }, // User logs their own
+    { name: 'read:own_attendance', module: 'Attendance Management' },
+    { name: 'read:all_attendance', module: 'Attendance Management' },
+    { name: 'manage:attendance', module: 'Attendance Management' }, // Correct/edit entries
+    { name: 'manage:dtr_settings', module: 'Attendance Management' },
+    { name: 'manage:allowed_ips', module: 'Attendance Management' },
 
     // System Settings
-    { name: 'manage:system_settings' },
+    { name: 'manage:system_settings', module: 'System Settings' },
 
     // Company Management
-    { name: 'read:companies' },
-    { name: 'manage:companies' },
-
+    { name: 'read:companies', module: 'Company Management' },
+    { name: 'manage:companies', module: 'Company Management' },
   ];
 
   for (const p of permissions) {
     await prisma.permission.upsert({
       where: { name: p.name },
-      update: {},
-      create: p,
+      update: { module: p.module }, // Also update module if permission exists
+      create: {
+        name: p.name,
+        module: p.module,
+      },
     });
   }
   console.log('Permissions seeded.');
@@ -204,15 +206,12 @@ async function main() {
       update: {},
       create: {
           email: 'admin@example.com',
-          
           password: 'hashed_password_here', 
           name: 'Admin User',
           roleId: adminRole.id,
       }
   });
   console.log('Admin user created/updated.');
-
-
 
   console.log('Seeding finished.');
 }

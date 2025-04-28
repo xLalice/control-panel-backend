@@ -14,6 +14,7 @@ export type ProductCreateInput = {
   unit?: string;
   pickUpPrice?: number;
   deliveryPrice?: number;
+  sku: string;
   
   // Aggregate specific
   source?: string;
