@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import { ProductCreateInput, ProductUpdateInput } from "./product.types";
 import { Category, Prisma } from "@prisma/client";
+import { generateSKU } from "./product.utils";
+import { subWeeks } from "date-fns";
 
 export class ProductController {
   async getAllProducts(req: Request, res: Response): Promise<any> {
@@ -44,6 +46,7 @@ export class ProductController {
           id: product.id,
           category: product.category,
           name: product.name,
+          sku: product.sku,
           description: product.description,
           basePrice: product.basePrice,
           pricingUnit: product.pricingUnit,
@@ -111,6 +114,7 @@ export class ProductController {
         id: product.id,
         category: product.category,
         name: product.name,
+        sku: product.sku,
         description: product.description,
         basePrice: product.basePrice,
         pricingUnit: product.pricingUnit,
@@ -135,11 +139,14 @@ export class ProductController {
     try {
       const productData: ProductCreateInput = req.body;
 
+      const sku = generateSKU(productData.category);
+
       const result = await prisma.$transaction(async (tx) => {
         const newProduct = await tx.product.create({
           data: {
             category: productData.category,
             name: productData.name,
+            sku: sku,
             description: productData.description,
             basePrice: productData.basePrice,
             pricingUnit: productData.pricingUnit,
@@ -402,6 +409,7 @@ export class ProductController {
           OR: [
             { name: { contains: query, mode: "insensitive" } },
             { description: { contains: query, mode: "insensitive" } },
+            { sku: { contains: query, mode: "insensitive" } },
           ],
         },
         include: {
@@ -442,6 +450,7 @@ export class ProductController {
           id: product.id,
           category: product.category,
           name: product.name,
+          sku: product.sku,
           description: product.description,
           basePrice: product.basePrice,
           pricingUnit: product.pricingUnit,
