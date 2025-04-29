@@ -49,19 +49,16 @@ export interface PaginatedLeadsResponse {
       name: string;
       email: string | null;
       phone: string | null;
-    };
+    } | null;
     contactPerson: string | null;
-    status: LeadStatus; 
+    status: LeadStatus;
     assignedTo?: { name: string } | null;
     lastContactDate: Date | null;
     followUpDate: Date | null;
     leadScore: number | null;
-    industry: string | null;
-    region: string | null;
   }[];
   total: number;
 }
-
 
 export interface ActivityLogDto {
   id: string;

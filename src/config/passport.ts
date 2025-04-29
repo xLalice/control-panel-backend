@@ -27,9 +27,13 @@ passport.use(
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-          console.log("Incorrect password attempt for user:", email);
+          console.log("Password entered:", password);
+          console.log("Stored hash:", user.password);
+          const test = await bcrypt.compare(password, user.password);
+          console.log("Compare result:", test);
           return done(null, false, { message: "Incorrect password" });
         }
+        
         return done(null, user);
       } catch (error) {
         console.error("Error during authentication:", error);

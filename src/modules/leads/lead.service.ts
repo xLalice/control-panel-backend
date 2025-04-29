@@ -103,10 +103,7 @@ export class LeadService {
         userId: lead.assignedToId || "Unassigned",
         action: "Created",
         description: `Lead created at ${new Date().toISOString()}`,
-        oldStatus: lead.status,
-        newStatus: status,
         metadata: { notes: lead.notes },
-        createdById: userId,
       },
     });
 
@@ -164,10 +161,7 @@ export class LeadService {
         userId: lead.assignedToId || "system",
         action: "Status Change",
         description: `Lead status changed from ${lead.status} to ${status}`,
-        oldStatus: lead.status,
-        newStatus: status,
         metadata: { notes },
-        createdById: userId,
       },
     });
 
@@ -255,8 +249,6 @@ export class LeadService {
         lastContactDate: true,
         followUpDate: true,
         leadScore: true,
-        industry: true,
-        region: true,
       },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -341,7 +333,6 @@ export class LeadService {
     await this.prisma.activityLog.create({
       data: {
         ...data,
-        createdById: userId,
       },
     });
   }
