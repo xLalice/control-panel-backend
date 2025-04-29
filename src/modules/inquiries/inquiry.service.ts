@@ -224,11 +224,8 @@ export class InquiryService {
             data: {
               leadId: customerCheck.lead.id,
               userId,
-              createdById: userId,
               action: "STATUS_CHANGE",
               description: `Lead status updated due to new inquiry`,
-              oldStatus,
-              newStatus,
               metadata: { inquiryId: newInquiry.id },
             },
           });
@@ -237,6 +234,7 @@ export class InquiryService {
         await tx.contactHistory.create({
           data: {
             leadId: customerCheck.lead.id,
+            user: { connect: { id: userId } },
             method: "Inquiry Form",
             summary: `New inquiry for ${data.productType}, quantity: ${data.quantity}`,
             outcome: "New inquiry created",
@@ -307,11 +305,8 @@ export class InquiryService {
             data: {
               leadId: currentInquiry.relatedLead.id,
               userId,
-              createdById: userId,
               action: "STATUS_CHANGE",
               description: `Lead status updated due to inquiry status change to ${data.status}`,
-              oldStatus: oldLeadStatus,
-              newStatus: newLeadStatus,
               metadata: { inquiryId: id },
             },
           });
@@ -319,6 +314,7 @@ export class InquiryService {
           await tx.contactHistory.create({
             data: {
               leadId: currentInquiry.relatedLead.id,
+              userId,
               method: "System Update",
               summary: `Inquiry status changed to ${data.status}`,
               outcome: `Lead status updated to ${newLeadStatus}`,
@@ -378,11 +374,8 @@ export class InquiryService {
           data: {
             leadId: inquiry.relatedLead.id,
             userId,
-            createdById: userId,
             action: "QUOTE_CREATED",
             description: `Quote created for ${inquiry.productType}, amount: ${quoteDetails.totalPrice}`,
-            oldStatus,
-            newStatus,
             metadata: { inquiryId: id, ...quoteDetails },
           },
         });
@@ -391,6 +384,7 @@ export class InquiryService {
           data: {
             leadId: inquiry.relatedLead.id,
             method: "Quote",
+            userId,
             summary: `Quote of ${quoteDetails.totalPrice} sent for ${inquiry.productType}`,
             outcome: "Awaiting customer response",
           },
@@ -454,13 +448,10 @@ export class InquiryService {
           data: {
             leadId: inquiry.relatedLead.id,
             userId,
-            createdById: userId,
             action: "DELIVERY_SCHEDULED",
             description: `Delivery scheduled for ${
               scheduledDate.toISOString().split("T")[0]
             }`,
-            oldStatus,
-            newStatus: oldStatus,
             metadata: { inquiryId: id, scheduledDate },
           },
         });
@@ -468,6 +459,7 @@ export class InquiryService {
         await tx.contactHistory.create({
           data: {
             leadId: inquiry.relatedLead.id,
+            userId,
             method: "System Update",
             summary: `Delivery scheduled for ${
               scheduledDate.toISOString().split("T")[0]
@@ -485,7 +477,7 @@ export class InquiryService {
     return this.updateInquiryStatus(
       id,
       "Fulfilled",
-      "Converted",
+      "Won",
       "Order successfully fulfilled",
       userId
     );
@@ -533,11 +525,8 @@ export class InquiryService {
           data: {
             leadId: inquiry.relatedLead.id,
             userId,
-            createdById: userId,
             action: "STATUS_CHANGE",
             description: `Lead status updated due to inquiry status change to ${inquiryStatus}`,
-            oldStatus,
-            newStatus: leadStatus,
             metadata: { inquiryId: id },
           },
         });
@@ -545,6 +534,7 @@ export class InquiryService {
         await tx.contactHistory.create({
           data: {
             leadId: inquiry.relatedLead.id,
+            userId, 
             method: "System Update",
             summary: `Inquiry status changed to ${inquiryStatus}`,
             outcome,
@@ -725,16 +715,13 @@ export class InquiryService {
           leadStatus = "New";
           break;
         case "Quoted":
-          leadStatus = "Proposal";
+          leadStatus = "ProposalSent";
           break;
         case "Approved":
           leadStatus = "Negotiation";
           break;
         case "Scheduled":
           leadStatus = "Qualified";
-          break;
-        case "Fulfilled":
-          leadStatus = "Converted";
           break;
         default:
           leadStatus = "New";
@@ -765,6 +752,7 @@ export class InquiryService {
       await tx.contactHistory.create({
         data: {
           leadId: lead.id,
+          userId,
           method: "Inquiry Form",
           summary: "Initial inquiry submitted through inquiry form",
           outcome: "Converted to lead",
@@ -962,7 +950,7 @@ export class InquiryService {
       case "Quoted":
         // Move to proposal stage when quoted, but don't downgrade
         return currentLeadStatus === "New" || currentLeadStatus === "Contacted"
-          ? "Proposal"
+          ? "ProposalSent"
           : currentLeadStatus;
       case "Approved":
         // Move to negotiation when approved
@@ -974,7 +962,7 @@ export class InquiryService {
           : "Negotiation";
       case "Fulfilled":
         // When fulfilled, move to converted
-        return "Converted";
+        return "Converted" as LeadStatus;
       default:
         return currentLeadStatus;
     }
