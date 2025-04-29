@@ -186,14 +186,12 @@ async function main() {
   console.log('Manager Role created/updated.');
 
 
-  // Role: Admin (Full Access)
   const adminRole = await prisma.role.upsert({
     where: { name: 'Admin' },
     update: {},
     create: {
       name: 'Admin',
       permissions: {
-        // Connect all defined permissions for Admin
         connect: permissions.map(p => ({ name: p.name })),
       },
     },
@@ -206,7 +204,7 @@ async function main() {
       update: {},
       create: {
           email: 'admin@example.com',
-          password: 'hashed_password_here', 
+          password: '12345678', 
           name: 'Admin User',
           roleId: adminRole.id,
       }
