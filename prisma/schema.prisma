@@ -11,18 +11,16 @@ datasource db {
 model Role {
   id          Int          @id @default(autoincrement())
   name        String       @unique
-  permissions Permission[]  @relation("RolePermissions")
+  permissions Permission[] @relation("RolePermissions")
   users       User[]       @relation("RoleUsers")
 }
 
 model Permission {
-  id         Int          @id @default(autoincrement())
-  name        String       @unique
-  module    String
-  roles       Role[]       @relation("RolePermissions")
+  id     Int    @id @default(autoincrement())
+  name   String @unique
+  module String
+  roles  Role[] @relation("RolePermissions")
 }
-
-
 
 model User {
   id       String @id @default(cuid())
@@ -33,20 +31,21 @@ model User {
   name     String
 
   isOJT        Boolean   @default(false)
-  // OJT-specific fields (optional)
   ojtStartDate DateTime?
   ojtEndDate   DateTime?
 
-  assignedInquiryies Inquiry[]    @relation("assignedInquiries")
-  assignedLeads Lead[]        @relation("assignedLeads")
-  createdLeads  Lead[]        @relation("createdLeads")
-  createdLogs   ActivityLog[]
-  reports       Report[]
-  inquiries     Inquiry[]
-  documents     Document[]
+  assignedInquiryies Inquiry[]     @relation("assignedInquiries")
+  assignedLeads      Lead[]        @relation("assignedLeads")
+  createdLeads       Lead[]        @relation("createdLeads")
+  reports            Report[]
+  inquiries          Inquiry[]
+  documents          Document[]
 
   attendanceRecords Attendance[]
   allowedIPs        AllowedIP[]
+
+  activityLog    ActivityLog[] 
+  contactHistory ContactHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -66,92 +65,192 @@ enum LeadStatus {
   New
   Contacted
   Qualified
-  Proposal
+  ProposalSent
   Negotiation
-  Converted
-  FollowUp
+  Won
   Lost
+  Archived
 }
-
 model Company {
   id        String   @id @default(uuid())
-  name      String   @unique
+  name      String   @unique 
   industry  String?
   region    String?
-  email     String?  @unique
-  phone     String?  @unique
+  email     String? 
+  phone     String? 
+  website   String?
+  notes     String?
+  isActive  Boolean  @default(true) 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  leads     Lead[]
+
+  leads     Lead[] 
+  customers Customer[] 
+
+  @@index([name])
+  @@index([email])
+  @@index([phone])
+  @@index([isActive])
 }
 
 model Lead {
-  id              String           @id @default(uuid())
-  companyId       String
-  company         Company          @relation(fields: [companyId], references: [id])
-  contactPerson   String?
-  email           String?          @unique
-  phone           String?          @unique
-  status          LeadStatus       @default(New)
-  source          String
-  subSource       String?
-  campaign        String?
-  assignedToId    String?
-  assignedTo      User?            @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
-  createdById     String
-  createdBy       User             @relation(fields: [createdById], references: [id], name: "createdLeads")
+  id        String   @id @default(uuid())
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  contactPerson String? 
+  email         String? 
+  phone         String? 
+  position      String? 
+
+  status    LeadStatus @default(New)
+  source    String? 
+  subSource String?
+  campaign  String?
+
+  assignedToId String? 
+  assignedTo   User?   @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
+
+  createdById String 
+  createdBy   User   @relation(fields: [createdById], references: [id], name: "createdLeads")
+
   notes           String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
   lastContactDate DateTime?
-  estimatedValue  Float?
-  leadScore       Float?
-  contactHistory  ContactHistory[]
-  inquiries       Inquiry[]
-  industry        String?
-  region          String?
-  referredBy      String?
   followUpDate    DateTime?
-  activityLog     ActivityLog[]
+
+  estimatedValue Decimal? 
+  leadScore      Float? 
+
+  
+  referredBy String?
+
+  isActive  Boolean  @default(true) 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer       Customer? 
+  contactHistory ContactHistory[]
+  inquiries      Inquiry[]
+  activityLog    ActivityLog[]
 
   @@index([email])
   @@index([phone])
+  @@index([companyId])
+  @@index([assignedToId])
   @@index([createdById])
+  @@index([status])
+  @@index([isActive])
 }
 
-model ActivityLog {
-  id          String      @id @default(uuid())
-  leadId      String
-  userId      String
-  createdById String
-  action      String
-  description String
-  metadata    Json?
-  oldStatus   LeadStatus?
-  newStatus   LeadStatus?
+enum CustomerStatus {
+  Active
+  Inactive 
+  OnHold 
+}
 
-  createdAt DateTime @default(now())
-  lead      Lead     @relation(fields: [leadId], references: [id])
-  createdBy User     @relation(fields: [createdById], references: [id])
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String? 
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  customerName String 
+
+  accountNumber String? @unique 
+  primaryEmail  String? 
+  primaryPhone  String? 
+
+  billingAddressStreet     String?
+  billingAddressCity       String?
+  billingAddressRegion     String?
+  billingAddressPostalCode String?
+  billingAddressCountry    String?
+
+  shippingAddressStreet     String?
+  shippingAddressCity       String?
+  shippingAddressRegion     String?
+  shippingAddressPostalCode String?
+  shippingAddressCountry    String?
+
+  status CustomerStatus @default(Active) 
+  notes  String?
+
+  convertedFromLeadId String? @unique 
+  convertedFromLead   Lead?   @relation(fields: [convertedFromLeadId], references: [id])
+
+  isActive  Boolean  @default(true) 
+  createdAt DateTime @default(now()) 
+  updatedAt DateTime @updatedAt
+
+  invoices       Invoice[] 
+  salesOrders    SalesOrder[] 
+  contactHistory ContactHistory[] 
+  activityLog    ActivityLog[] 
+
+  @@index([companyId])
+  @@index([status])
+  @@index([isActive])
+  @@index([primaryEmail])
+  @@index([primaryPhone])
+}
+
+// --- ActivityLog (Tracks changes to Lead OR Customer) ---
+model ActivityLog {
+  id          String   @id @default(uuid())
+  leadId      String? // Link to Lead if action relates to Lead
+  customerId  String? // Link to Customer if action relates to Customer
+  userId      String // User performing action
+  action      String // e.g., "LeadStatusChange", "CustomerCreated", "NoteAdded"
+  description String
+  metadata    Json? // Store old/new values { "field": "status", "old": "New", "new": "Contacted" }
+  createdAt   DateTime @default(now())
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull) // Don't delete logs if lead deleted
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull) // Don't delete logs if customer deleted
+  user     User      @relation(fields: [userId], references: [id]) // Assume User model exists
 
   @@index([leadId])
+  @@index([customerId])
   @@index([userId])
-  @@index([createdById])
   @@index([createdAt])
 }
 
+// --- ContactHistory (Logs interactions with Lead OR Customer) ---
 model ContactHistory {
-  id        String   @id @default(uuid())
-  leadId    String
-  method    String
-  summary   String
-  outcome   String?
-  timestamp DateTime @default(now())
+  id         String   @id @default(uuid())
+  leadId     String? // Link to Lead context
+  customerId String? // Link to Customer context
+  userId     String // User making contact
+  method     String // e.g., "Call", "Email", "Meeting"
+  summary    String
+  outcome    String?
+  timestamp  DateTime @default(now())
 
-  lead Lead @relation(fields: [leadId], references: [id])
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull) // Don't delete history if lead deleted
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull) // Don't delete history if customer deleted
+  user     User      @relation(fields: [userId], references: [id]) // Assume User model exists
 
   @@index([leadId])
+  @@index([customerId])
+  @@index([userId])
   @@index([timestamp])
+}
+
+model Invoice {
+  id         String   @id @default(uuid())
+  customerId String // <<< REQUIRED Link to Customer
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  // ... other invoice fields
+  @@index([customerId])
+}
+
+model SalesOrder {
+  id         String   @id @default(uuid())
+  customerId String // <<< REQUIRED Link to Customer
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  // ... other sales order fields
+  @@index([customerId])
 }
 
 model SystemSettings {
@@ -186,7 +285,7 @@ enum PricingUnit {
 model Product {
   id             String      @id @default(uuid())
   category       Category // e.g., "Aggregate", "Heavy Equipment", "Steel"
-  sku         String   @unique 
+  sku            String      @unique
   name           String
   description    String
   basePrice      Decimal // e.g., 5500.00
@@ -195,7 +294,7 @@ model Product {
   unit           String? // e.g., "piece", "bundle"
   pickUpPrice    Decimal?
   deliveryPrice  Decimal?
-  isActive       Boolean @default(true)
+  isActive       Boolean     @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -273,7 +372,7 @@ model Inquiry {
   isCompany        Boolean         @default(false)
   companyName      String?
   companyAddress   String?
-  productType      String          // e.g., "GI Pipe", "Steel"
+  productType      String // e.g., "GI Pipe", "Steel"
   inquiryType      InquiryType
   quantity         Int
   deliveryMethod   DeliveryMethod
@@ -295,8 +394,8 @@ model Inquiry {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
-  assignedToId     String?
-  assignedTo       User?  @relation(fields: [assignedToId], references: [id], name: "assignedInquiries")
+  assignedToId String?
+  assignedTo   User?   @relation(fields: [assignedToId], references: [id], name: "assignedInquiries")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
