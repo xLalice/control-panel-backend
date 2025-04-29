@@ -9,6 +9,7 @@ export class ProductController {
   async getAllProducts(req: Request, res: Response): Promise<any> {
     try {
       const products = await prisma.product.findMany({
+        where: {isActive: true},
         include: {
           aggregate: true,
           heavyEquipment: true,
@@ -73,7 +74,7 @@ export class ProductController {
       const { id } = req.params;
 
       const product = await prisma.product.findUnique({
-        where: { id },
+        where: { id, isActive: true },
         include: {
           aggregate: true,
           heavyEquipment: true,
@@ -208,7 +209,7 @@ export class ProductController {
 
       // Check if product exists
       const existingProduct = await prisma.product.findUnique({
-        where: { id },
+        where: { id, isActive: true },
         include: {
           aggregate: true,
           heavyEquipment: true,
@@ -308,8 +309,11 @@ export class ProductController {
       }
 
       // Delete the product (cascade will handle related records)
-      await prisma.product.delete({
+      await prisma.product.update({
         where: { id },
+        data: {
+          isActive: false,
+        }
       });
 
       return res.status(200).json({
@@ -411,6 +415,7 @@ export class ProductController {
             { description: { contains: query, mode: "insensitive" } },
             { sku: { contains: query, mode: "insensitive" } },
           ],
+          isActive: true,
         },
         include: {
           aggregate: true,
