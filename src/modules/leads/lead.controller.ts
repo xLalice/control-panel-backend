@@ -18,7 +18,10 @@ export class LeadController {
       info("Creating lead");
       const validatedData = createLeadSchema.parse(req.body);
       info(validatedData)
-      const lead = await leadService.createLead(validatedData, req.user!.id);
+      const lead = await leadService.createLead(
+        { ...validatedData, status: validatedData.status as LeadStatus },
+        req.user!.id
+      );
       info("Created lead: ", lead)
       res.status(201).json(lead);
     } catch (error: unknown) {
@@ -36,7 +39,7 @@ export class LeadController {
     try {
       const { id } = req.params;
       const validatedData = updateLeadSchema.parse(req.body);
-      const lead = await leadService.updateLead(id, validatedData);
+const lead = await leadService.updateLead(id, { ...validatedData, status: validatedData.status as LeadStatus | undefined });
       res.json(lead);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -53,7 +56,11 @@ export class LeadController {
     try {
       const { id } = req.params;
       const validatedData = updateLeadStatusSchema.parse(req.body);
-      const lead = await leadService.updateLeadStatus(id, validatedData, req.user!.id);
+      const lead = await leadService.updateLeadStatus(
+        id,
+        { ...validatedData, status: validatedData.status as LeadStatus },
+        req.user!.id
+      );
       res.json(lead);
     } catch (error: unknown) {
       if (error instanceof Error) {
