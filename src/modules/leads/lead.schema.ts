@@ -1,3 +1,4 @@
+import { LeadStatus } from '@prisma/client';
 import { z } from 'zod';
 
 export const createLeadSchema = z.object({
@@ -18,12 +19,12 @@ export const createLeadSchema = z.object({
   referredBy: z.string().optional(),
   followUpDate: z.string().transform((str) => new Date(str)).optional(),
   lastContactDate: z.string().transform((str) => new Date(str)).optional(),
-  contactHistory: z.any().optional(), // JSON field
-  status: z.enum(['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost']).optional().default("New"),
+  contactHistory: z.any().optional(), 
+  status: z.enum(Object.values(LeadStatus) as [string, ...string[]]).optional().default("New"),
 });
 
 export const updateLeadSchema = createLeadSchema.partial().extend({
-  status: z.enum(['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost']).optional(),
+  status: z.enum(Object.values(LeadStatus) as [string, ...string[]]).optional(),
   assignedToId: z.string().optional(),
   notes: z.string().optional(),
   followUpDate: z.string().transform((str) => new Date(str)).optional(),
@@ -31,7 +32,7 @@ export const updateLeadSchema = createLeadSchema.partial().extend({
 });
 
 export const updateLeadStatusSchema = z.object({
-  status: z.enum(['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost']),
+  status: z.enum(Object.values(LeadStatus) as [string, ...string[]]).optional(),
   notes: z.string().optional(),
   method: z.string().optional(),
 });
