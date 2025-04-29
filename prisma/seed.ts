@@ -1,7 +1,6 @@
-// prisma/seed.ts
 import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, CustomerStatus, Report } from '@prisma/client';
 import { faker } from '@faker-js/faker';
-import { networkInterfaces } from 'os';
+import bcrypt from "bcryptjs" 
 
 const prisma = new PrismaClient();
 
@@ -201,16 +200,19 @@ async function main() {
   console.log('Admin Role created/updated.');
 
   // Create Users
+  const hashedPassword = await bcrypt.hash("12345678", 10); 
+
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
     create: {
       email: 'admin@example.com',
-      password: '$2a$12$K8GpYeKMUZYBJkRq9tD.eeYixEEp0L2WkAisejwgfy70a/BAH0KIa', // hashed '12345678'
+      password: hashedPassword,
       name: 'Admin User',
       roleId: adminRole.id,
     }
   });
+  
   console.log('Admin user created/updated.');
 
   // Create more users with different roles
@@ -219,18 +221,19 @@ async function main() {
     update: {},
     create: {
       email: 'sales@example.com',
-      password: '$2a$12$K8GpYeKMUZYBJkRq9tD.eeYixEEp0L2WkAisejwgfy70a/BAH0KIa', // hashed '12345678'
+      password: hashedPassword, 
       name: 'Sales Rep',
       roleId: salesRole.id,
     }
   });
+  
 
   const managerUser = await prisma.user.upsert({
     where: { email: 'manager@example.com' },
     update: {},
     create: {
       email: 'manager@example.com',
-      password: '$2a$12$K8GpYeKMUZYBJkRq9tD.eeYixEEp0L2WkAisejwgfy70a/BAH0KIa', // hashed '12345678'
+      password: hashedPassword, 
       name: 'Manager User',
       roleId: managerRole.id,
     }
@@ -241,7 +244,7 @@ async function main() {
     update: {},
     create: {
       email: 'ojt@example.com',
-      password: '$2a$12$K8GpYeKMUZYBJkRq9tD.eeYixEEp0L2WkAisejwgfy70a/BAH0KIa', // hashed '12345678'
+      password: hashedPassword, 
       name: 'OJT User',
       roleId: basicRole.id,
       isOJT: true,
