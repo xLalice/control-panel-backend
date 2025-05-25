@@ -153,7 +153,7 @@ model Client {
   companyId String? 
   company   Company? @relation(fields: [companyId], references: [id])
 
-  clientName String 
+  clientName String @unique
 
   accountNumber String? @unique 
   primaryEmail  String? 
@@ -186,6 +186,7 @@ model Client {
   contactHistory ContactHistory[] 
   activityLog    ActivityLog[] 
 
+  @@index([clientName])
   @@index([companyId])
   @@index([status])
   @@index([isActive])
