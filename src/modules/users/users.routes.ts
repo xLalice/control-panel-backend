@@ -1,10 +1,7 @@
 import express from "express";
-import { prisma } from "../../config/prisma";
-import { error, info } from "../../utils/logger";
 import { isAuthenticated } from "../../middlewares/isAuthenticated";
 import { checkPermission } from "../../middlewares/authorization";
 import { createNewUser, deleteUser, getAllPermissions, getRoles, getUsers, updateUser } from "./users.controller";
-import { getActiveResourcesInfo } from "process";
 
 const router = express.Router();
 

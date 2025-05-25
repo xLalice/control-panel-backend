@@ -111,7 +111,7 @@ export class InquiryController {
       }
 
       const { email, phoneNumber, companyName } = validationResult.data;
-      const result = await inquiryService.checkCustomerExists({
+      const result = await inquiryService.checkClientExists({
         email,
         phoneNumber,
         companyName,

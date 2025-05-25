@@ -52,7 +52,7 @@ export class InquiryService {
     if (productType) where.productType = productType;
     if (search) {
       where.OR = [
-        { customerName: { contains: search, mode: "insensitive" } },
+        { clientName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { phoneNumber: { contains: search, mode: "insensitive" } },
         { companyName: { contains: search, mode: "insensitive" } },
@@ -120,7 +120,7 @@ export class InquiryService {
     return inquiry as Inquiry | null;
   }
 
-  async checkCustomerExists(params: {
+  async checkClientExists(params: {
     email?: string;
     phoneNumber?: string;
     companyName?: string;
@@ -175,7 +175,7 @@ export class InquiryService {
   }
 
   async create(data: CreateInquiryDto, userId: string): Promise<Inquiry> {
-    const customerCheck = await this.checkCustomerExists({
+    const clientCheck = await this.checkClientExists({
       email: data.email,
       phoneNumber: data.phoneNumber,
       companyName: data.isCompany ? data.companyName : undefined,
@@ -192,8 +192,8 @@ export class InquiryService {
       status: InquiryStatus.New,
     };
 
-    if (customerCheck.lead) {
-      inquiryData.relatedLeadId = customerCheck.lead.id;
+    if (clientCheck.lead) {
+      inquiryData.relatedLeadId = clientCheck.lead.id;
     }
 
     const inquiry = await prisma.$transaction(async (tx) => {
@@ -206,13 +206,13 @@ export class InquiryService {
         include: { createdBy: true },
       });
 
-      if (customerCheck.lead) {
-        const oldStatus = customerCheck.lead.status;
+      if (clientCheck.lead) {
+        const oldStatus = clientCheck.lead.status;
         const newStatus = this.determineLeadStatusFromInquiry("New", oldStatus);
 
         if (oldStatus !== newStatus) {
           await tx.lead.update({
-            where: { id: customerCheck.lead.id },
+            where: { id: clientCheck.lead.id },
             data: {
               status: newStatus,
               lastContactDate: new Date(),
@@ -222,7 +222,7 @@ export class InquiryService {
 
           await tx.activityLog.create({
             data: {
-              leadId: customerCheck.lead.id,
+              leadId: clientCheck.lead.id,
               userId,
               action: "STATUS_CHANGE",
               description: `Lead status updated due to new inquiry`,
@@ -233,7 +233,7 @@ export class InquiryService {
 
         await tx.contactHistory.create({
           data: {
-            leadId: customerCheck.lead.id,
+            leadId: clientCheck.lead.id,
             user: { connect: { id: userId } },
             method: "Inquiry Form",
             summary: `New inquiry for ${data.productType}, quantity: ${data.quantity}`,
@@ -386,7 +386,7 @@ export class InquiryService {
             method: "Quote",
             userId,
             summary: `Quote of ${quoteDetails.totalPrice} sent for ${inquiry.productType}`,
-            outcome: "Awaiting customer response",
+            outcome: "Awaiting Client response",
           },
         });
       }
@@ -400,7 +400,7 @@ export class InquiryService {
       id,
       "Approved",
       "Negotiation",
-      "Quote accepted by customer",
+      "Quote accepted by client",
       userId
     );
   }
@@ -697,10 +697,10 @@ export class InquiryService {
           },
         });
       } else {
-        // Create a new company based on customer name
+        // Create a new company based on client name
         company = await tx.company.create({
           data: {
-            name: `${inquiry.customerName}'s Company`, // Fallback company name
+            name: `${inquiry.clientName}'s Company`, // Fallback company name
             email: inquiry.email,
             phone: inquiry.phoneNumber,
           },
@@ -731,7 +731,7 @@ export class InquiryService {
       const lead = await tx.lead.create({
         data: {
           companyId: company.id,
-          contactPerson: inquiry.customerName ?? "Unknown",
+          contactPerson: inquiry.clientName ?? "Unknown",
 
           email: inquiry.email ?? "unknown@example.com",
           phone: inquiry.phoneNumber,

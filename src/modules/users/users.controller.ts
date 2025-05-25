@@ -35,10 +35,11 @@ export const createNewUser = async (req: Request, res: Response) => {
     const result = CreateUserSchema.safeParse(req.body);
 
     if (!result.success) {
-      return res.status(400).json({
+     res.status(400).json({
         message: "Validation failed",
         error: handleZodError(result.error),
       });
+      return;
     }
     const { name, email, password, role } = result.data;
 
