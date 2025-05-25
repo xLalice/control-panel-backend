@@ -1,6 +1,8 @@
 import { prisma } from "../../config/prisma";
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import { CreateUserSchema } from "./user.schema";
+import { handleZodError } from "../../utils/zod";
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
@@ -30,11 +32,15 @@ export const getRoles = async (req: Request, res: Response) => {
 
 export const createNewUser = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role } = req.body;
+    const result = CreateUserSchema.safeParse(req.body);
 
-    if (!password || !name || !email || !role) {
-      res.status(400).json({ error: "Missing required fields" });
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        error: handleZodError(result.error),
+      });
     }
+    const { name, email, password, role } = result.data;
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
