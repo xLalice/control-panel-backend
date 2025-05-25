@@ -13,6 +13,7 @@ import inquiryRoutes from "./modules/inquiries/inquiry.routes"
 import documentRoutes from "./modules/documents/documents.routes"
 import attendanceRoutes from "./modules/attendance/attendance.routes"
 import userRoutes from "./modules/users/users.routes"
+import clientRoutes from "./modules/clients/client.routes"
 import { info } from "./utils/logger";
 require("dotenv").config();
 
@@ -75,6 +76,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/inquiries", inquiryRoutes);
 app.use('/api/documents', documentRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use('/api/clients', clientRoutes);
 
 
 const PORT = process.env.PORT || 5000;

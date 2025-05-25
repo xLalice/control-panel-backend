@@ -16,6 +16,15 @@ export const createClient = async (req: Request, res: Response) => {
       return;
     }
 
+    const existingClient = await prisma.client.findUnique({
+      where: { clientName: result.data.clientName },
+    });
+
+    if (existingClient) {
+      res.status(400).json({ error: "Client already exists." });
+      return;
+    };
+
     const client = await prisma.client.create({
       data: result.data,
     });
@@ -31,7 +40,7 @@ export const createClient = async (req: Request, res: Response) => {
 
 export const getClients = async (req: Request, res: Response) => {
   try {
-    const clients = await prisma.client.findMany();
+    const clients = await prisma.client.findMany({ where: { isActive: true } });
     res.status(200).json(clients);
   } catch (error) {
     console.error("Error during authentication", error);
@@ -73,16 +82,4 @@ export const updateClient = async (req: Request, res: Response) => {
       .status(201)
       .json({ client, message: "Successfully updated the client" });
   } catch (error) {}
-};
-
-export const deleteClient = async (req: Request, res: Response) => {
-  try {
-    const client = await prisma.client.delete({
-      where: { id: req.params.id },
-    });
-    res.status(200).json(client);
-  } catch (error) {
-    console.error("Error during authentication", error);
-    res.status(500).json("Error deleting client");
-  }
 };
