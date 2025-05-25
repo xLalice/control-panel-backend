@@ -1,4 +1,4 @@
-import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, CustomerStatus, Report } from '@prisma/client';
+import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, ClientStatus, Report } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import bcrypt from "bcryptjs" 
 
@@ -309,8 +309,8 @@ async function main() {
 
   // Create Document Categories
   const documentCategories = [
-    { name: 'Invoices', description: 'Customer invoices and billing documents' },
-    { name: 'Quotes', description: 'Price quotes sent to customers' },
+    { name: 'Invoices', description: 'client invoices and billing documents' },
+    { name: 'Quotes', description: 'Price quotes sent to clients' },
     { name: 'Contracts', description: 'Signed agreements and contracts' },
     { name: 'Marketing', description: 'Marketing materials and brochures' },
     { name: 'Technical', description: 'Product specifications and technical documents' },
@@ -486,7 +486,7 @@ async function main() {
       followUpDate: i % 2 === 0 ? faker.date.soon({ days: 10 }) : null,
       estimatedValue: faker.number.float({ min: 5000, max: 100000, fractionDigits: 2 }),
       leadScore: faker.number.float({ min: 0, max: 100, fractionDigits: 1 }),
-      referredBy: i % 5 === 0 ? 'Existing Customer' : null,
+      referredBy: i % 5 === 0 ? 'Existing client' : null,
       isActive: true,
     });
   }
@@ -514,7 +514,7 @@ async function main() {
               id: faker.string.uuid(),
               userId: salesUser.id, // Assign a valid userId
               leadId: leads[i].id,
-              customerId: null, // Set to null if not applicable
+              clientId: null, // Set to null if not applicable
               method: contactMethods[faker.number.int({ min: 0, max: contactMethods.length - 1 })],
               summary: faker.lorem.sentence(),
               outcome: ['Interested', 'Follow-up Scheduled', 'Not Interested', 'Left Message'][j % 4],
@@ -533,12 +533,12 @@ async function main() {
 
   console.log('Contact Histories created.');
 
-  // Convert some leads to customers
-  const customerStatuses = Object.values(CustomerStatus);
-  const customers: {
+  // Convert some leads to clients
+  const clientStatuses = Object.values(ClientStatus);
+  const clients: {
     id: string;
     companyId: string;
-    customerName: string;
+    clientName: string;
     accountNumber: string;
     primaryEmail: string;
     primaryPhone: string;
@@ -552,21 +552,21 @@ async function main() {
     shippingAddressRegion: string;
     shippingAddressPostalCode: string;
     shippingAddressCountry: string;
-    status: CustomerStatus;
+    status: ClientStatus;
     notes: string;
     convertedFromLeadId: string;
     isActive: boolean;
   }[] = [];
 
-  // Convert every 5th lead to a customer
+  // Convert every 5th lead to a client
   for (let i = 0; i < leads.length; i += 5) {
-    const customerId = faker.string.uuid();
+    const clientId = faker.string.uuid();
     const lead = leads[i];
     
-    customers.push({
-      id: customerId,
+    clients.push({
+      id: clientId,
       companyId: lead.companyId,
-      customerName: lead.contactPerson,
+      clientName: lead.contactPerson,
       accountNumber: `ACC-${faker.number.int({ min: 10000, max: 99999 })}`,
       primaryEmail: lead.email,
       primaryPhone: lead.phone,
@@ -580,7 +580,7 @@ async function main() {
       shippingAddressRegion: faker.location.state(),
       shippingAddressPostalCode: faker.location.zipCode(),
       shippingAddressCountry: 'United States',
-      status: customerStatuses[i % customerStatuses.length],
+      status: clientStatuses[i % clientStatuses.length],
       notes: faker.lorem.paragraph(),
       convertedFromLeadId: lead.id,
       isActive: true,
@@ -593,26 +593,26 @@ async function main() {
     });
   }
 
-  for (const customer of customers) {
-    await prisma.customer.upsert({
-      where: { id: customer.id },
-      update: customer,
-      create: customer,
+  for (const client of clients) {
+    await prisma.client.upsert({
+      where: { id: client.id },
+      update: client,
+      create: client,
     });
   }
 
-  console.log('Customers created.');
+  console.log('clients created.');
 
-  // Create contact history for customers
-  for (const customer of customers) {
-    // Add 2-4 contact history entries per customer
+  // Create contact history for clients
+  for (const client of clients) {
+    // Add 2-4 contact history entries per client
     const entryCount = faker.number.int({ min: 2, max: 4 });
     
     for (let j = 0; j < entryCount; j++) {
       await prisma.contactHistory.create({
         data: {
           id: faker.string.uuid(),
-          customerId: customer.id,
+          clientId: client.id,
           leadId: null,
           userId: salesUser.id,
           method: contactMethods[faker.number.int({ min: 0, max: contactMethods.length - 1 })],
@@ -624,9 +624,9 @@ async function main() {
     }
   }
 
-  console.log('Customer Contact Histories created.');
+  console.log('client Contact Histories created.');
 
-  // Create activity logs for leads and customers
+  // Create activity logs for leads and clients
   for (let i = 0; i < leads.length; i++) {
     const lead = leads[i];
     
@@ -638,7 +638,7 @@ async function main() {
         data: {
           id: faker.string.uuid(),
           leadId: lead.id,
-          customerId: null,
+          clientId: null,
           userId: lead.createdById,
           action: ['LeadCreated', 'LeadStatusChanged', 'LeadAssigned', 'NoteAdded'][j % 4],
           description: faker.lorem.sentence(),
@@ -653,9 +653,9 @@ async function main() {
     }
   }
 
-  // Create activity logs for customers
-  for (const customer of customers) {    
-    // Create 2-4 activity logs per customer
+  // Create activity logs for clients
+  for (const client of clients) {    
+    // Create 2-4 activity logs per client
     const logCount = faker.number.int({ min: 2, max: 4 });
     
     for (let j = 0; j < logCount; j++) {
@@ -663,9 +663,9 @@ async function main() {
         data: {
           id: faker.string.uuid(),
           leadId: null,
-          customerId: customer.id,
+          clientId: client.id,
           userId: adminUser.id,
-          action: ['CustomerCreated', 'CustomerStatusChanged', 'AddressUpdated', 'NoteAdded'][j % 4],
+          action: ['clientCreated', 'clientStatusChanged', 'AddressUpdated', 'NoteAdded'][j % 4],
           description: faker.lorem.sentence(),
           metadata: { 
             field: j % 4 === 1 ? 'status' : (j % 4 === 2 ? 'address' : 'notes'),
@@ -680,16 +680,16 @@ async function main() {
 
   console.log('Activity Logs created.');
 
-  // Create invoices for customers
-  for (const customer of customers) {
-    // Create 2-5 invoices per customer
+  // Create invoices for clients
+  for (const client of clients) {
+    // Create 2-5 invoices per client
     const invoiceCount = faker.number.int({ min: 2, max: 5 });
     
     for (let j = 0; j < invoiceCount; j++) {
       await prisma.invoice.create({
         data: {
           id: faker.string.uuid(),
-          customerId: customer.id,
+          clientId: client.id,
         }
       });
     }
@@ -697,16 +697,16 @@ async function main() {
 
   console.log('Invoices created.');
 
-  // Create sales orders for customers
-  for (const customer of customers) {
-    // Create 1-3 sales orders per customer
+  // Create sales orders for clients
+  for (const client of clients) {
+    // Create 1-3 sales orders per client
     const orderCount = faker.number.int({ min: 1, max: 3 });
     
     for (let j = 0; j < orderCount; j++) {
       await prisma.salesOrder.create({
         data: {
           id: faker.string.uuid(),
-          customerId: customer.id,
+          clientId: client.id,
         }
       });
     }
@@ -976,7 +976,7 @@ async function main() {
     
     inquiries.push({
           id: faker.string.uuid(),
-          customerName: faker.person.fullName(),
+          clientName: faker.person.fullName(),
           phoneNumber: faker.phone.number(),
           email: faker.internet.email(),
           isCompany: isCompanyInquiry,
