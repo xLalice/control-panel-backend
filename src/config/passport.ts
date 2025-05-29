@@ -27,13 +27,8 @@ passport.use(
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-          console.log("Password entered:", password);
-          console.log("Stored hash:", user.password);
-          const test = await bcrypt.compare(password, user.password);
-          console.log("Compare result:", test);
           return done(null, false, { message: "Incorrect password" });
         }
-        
         return done(null, user);
       } catch (error) {
         console.error("Error during authentication:", error);
@@ -50,18 +45,15 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (obj: { id: string; roleId: number }, done) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: obj.id },
+      where: { id: obj.id }, 
       include: { role: true },
     });
 
     if (!user) {
-      console.log("User not found during deserialization.");
       return done(null, false);
     }
-
     done(null, user);
   } catch (error) {
-    console.log("Error deserializing user:", error);
     done(error, null);
   }
 });
