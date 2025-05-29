@@ -85,6 +85,7 @@ export const getClients = async (req: Request, res: Response) => {
       where: { isActive: true },
       orderBy: { createdAt: 'desc' },
       select: {
+        id: true,
         clientName : true,
         primaryEmail: true,
         primaryPhone: true,
@@ -297,17 +298,37 @@ export const getClientActivityLog = async (req: Request, res: Response) => {
       where: { clientId: req.params.id }
     });
 
-    res.status(200).json({
-      activities,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total: totalCount,
-        pages: Math.ceil(totalCount / Number(limit))
-      }
-    });
+    res.status(200).json(activities);
   } catch (error) {
     console.error("Error fetching activity log:", error);
     res.status(500).json({ error: "Error fetching activity log" });
+  }
+};
+
+export const getClientContactHistory = async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const contactHistory = await prisma.contactHistory.findMany({
+      where: { clientId: req.params.id },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true }
+        }
+      },
+      orderBy: { timestamp: 'desc' },
+      skip,
+      take: Number(limit)
+    });
+
+    const totalCount = await prisma.contactHistory.count({
+      where: { clientId: req.params.id }
+    });
+
+    res.status(200).json(contactHistory);
+  } catch (error) {
+    console.error("Error fetching contact history:", error);
+    res.status(500).json({ error: "Error fetching contact history" });
   }
 };
