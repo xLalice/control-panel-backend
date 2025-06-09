@@ -13,7 +13,7 @@ router.get("/:id/activity-log", getClientActivityLog)
 router.post("/", isAuthenticated, createClient);
 
 
-router.patch("/:id", updateClient);
+router.patch("/:id", isAuthenticated, updateClient);
 
 router.delete("/:id", isAuthenticated, deleteClient);
 
