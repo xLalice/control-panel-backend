@@ -2,26 +2,22 @@ import { LeadStatus } from '@prisma/client';
 import { z } from 'zod';
 
 export const createLeadSchema = z.object({
+  name: z.string().min(1, "Lead name is required"),
   companyId: z.string().optional(), 
   companyName: z.string().optional(),
   contactPerson: z.string().optional(),
-  email: z.string().email('Invalid email address').optional(),
+  email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
-  source: z.string().min(1, 'Source is required'),
-  subSource: z.string().optional(),
-  campaign: z.string().optional(),
+  source: z.string().optional(),
   assignedToId: z.string().optional(), 
   notes: z.string().optional(),
-  estimatedValue: z.number().positive().optional(),
-  leadScore: z.number().min(0).max(100).optional(),
-  industry: z.string().optional(),
-  region: z.string().optional(),
+  estimatedValue: z.number().nullable().optional(),
+  leadScore:  z.number().min(0).max(100).nullable().optional(),
   referredBy: z.string().optional(),
-  followUpDate: z.string().transform((str) => new Date(str)).optional(),
-  lastContactDate: z.string().transform((str) => new Date(str)).optional(),
-  contactHistory: z.any().optional(), 
   status: z.enum(Object.values(LeadStatus) as [string, ...string[]]).optional().default("New"),
 });
+
+
 
 export const updateLeadSchema = createLeadSchema.partial().extend({
   status: z.enum(Object.values(LeadStatus) as [string, ...string[]]).optional(),
@@ -52,3 +48,9 @@ export const createActivityLogSchema = z.object({
   oldStatus: z.enum(['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost']).optional(),
   newStatus: z.enum(['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost']).optional(),
 });
+
+
+export type CreateLeadDto = z.infer<typeof createLeadSchema>
+export type UpdateLeadDto = z.infer<typeof updateLeadSchema>
+export type UpdateLeadStatusDto = z.infer<typeof updateLeadStatusSchema>
+export type assignLeadSchema = z.infer<typeof assignLeadSchema>

@@ -17,12 +17,12 @@ export class LeadController {
     try {
       info("Creating lead");
       const validatedData = createLeadSchema.parse(req.body);
-      info(validatedData)
+      info(validatedData);
       const lead = await leadService.createLead(
         { ...validatedData, status: validatedData.status as LeadStatus },
         req.user!.id
       );
-      info("Created lead: ", lead)
+      info("Created lead: ", lead);
       res.status(201).json(lead);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -38,8 +38,24 @@ export class LeadController {
   async updateLead(req: Request, res: Response) {
     try {
       const { id } = req.params;
+
+      if (!req.user) {
+        res
+          .status(401)
+          .json({ message: "User not authenticated after middleware." });
+        return;
+      }
+      const userId = req.user.id;
+
       const validatedData = updateLeadSchema.parse(req.body);
-const lead = await leadService.updateLead(id, { ...validatedData, status: validatedData.status as LeadStatus | undefined });
+      const lead = await leadService.updateLead(
+        id,
+        {
+          ...validatedData,
+          status: validatedData.status as LeadStatus | undefined,
+        },
+        userId
+      );
       res.json(lead);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -107,16 +123,11 @@ const lead = await leadService.updateLead(id, { ...validatedData, status: valida
   async getLeads(req: Request, res: Response) {
     try {
       const filters = req.query;
-      console.log("Get leads called with filters:", filters);
-
       const filteredFilters = Object.fromEntries(
         Object.entries(filters).filter(([, v]) => v !== undefined)
       );
 
-      console.log("Filtered filters:", filteredFilters);
-
       const leads = await leadService.getLeads(filteredFilters);
-      console.log("Leads:", leads);
       res.json(leads);
     } catch (error: unknown) {
       if (error instanceof Error) {

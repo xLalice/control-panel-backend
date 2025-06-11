@@ -8,12 +8,14 @@ import {
 } from "@prisma/client";
 import {
   AssignLeadDto,
-  CreateLeadDto,
   SearchLeadsParams,
-  UpdateLeadDto,
-  UpdateLeadStatusDto,
   PaginatedLeadsResponse,
 } from "./lead.types";
+import {
+  CreateLeadDto,
+  UpdateLeadDto,
+  UpdateLeadStatusDto,
+} from "./lead.schema";
 import { Prisma } from "@prisma/client";
 import { JsonObject } from "@prisma/client/runtime/library";
 import { getSortingConfig } from "./lead.utils";
@@ -30,24 +32,11 @@ export class LeadService {
       assignedToId,
       email,
       phone,
+      name,
       ...leadData
     } = data;
 
     console.log("Creating lead with data:", data);
-
-    if (!companyId && !companyName) {
-      console.error(
-        "Failed to create lead: Either Company ID or Company Name is required"
-      );
-      throw new Error(
-        "Either Company ID or Company Name is required to create a lead"
-      );
-    }
-
-    if (!source) {
-      console.error("Failed to create lead: Source is required");
-      throw new Error("Source is required to create a lead");
-    }
 
     const assignedTo =
       assignedToId && assignedToId.trim() !== ""
@@ -81,17 +70,18 @@ export class LeadService {
       }
     }
 
-    if (!company) {
-      console.error("Failed to create lead: Company could not be determined");
-      throw new Error("Company could not be determined for lead creation");
-    }
+    const statusEnumValue = data.status
+      ? LeadStatus[data.status as keyof typeof LeadStatus]
+      : undefined;
 
     const lead = await this.prisma.lead.create({
       data: {
         ...leadData,
-        company: { connect: { id: company.id } },
+        name,
+        email,
+        ...(company?.id && { company: { connect: { id: company.id } } }),
         source,
-        status,
+        status: statusEnumValue,
         assignedTo,
         createdBy: { connect: { id: userId } },
       },
@@ -100,7 +90,7 @@ export class LeadService {
     await this.prisma.activityLog.create({
       data: {
         leadId: lead.id,
-        userId: lead.assignedToId || "Unassigned",
+        userId: userId,
         action: "Created",
         description: `Lead created at ${new Date().toISOString()}`,
         metadata: { notes: lead.notes },
@@ -111,22 +101,164 @@ export class LeadService {
     return lead;
   }
 
-  async updateLead(id: string, data: UpdateLeadDto): Promise<Lead> {
-    const { companyId, assignedToId, companyName, ...leadData } = data;
-
+  async updateLead(
+    id: string,
+    data: UpdateLeadDto,
+    userId: string
+  ): Promise<Lead> {
     console.log("Updating lead with data:", data);
 
-    return this.prisma.lead.update({
+    const oldLead = await this.prisma.lead.findUnique({
       where: { id },
-      data: {
-        ...leadData,
-        company: companyId ? { connect: { id: companyId } } : undefined,
-        assignedTo:
-          assignedToId && assignedToId.trim() !== ""
-            ? { connect: { id: assignedToId } }
-            : { disconnect: true },
+      include: {
+        company: true,
+        assignedTo: true,
       },
     });
+
+    if (!oldLead) {
+      throw new Error(`Lead with ID ${id} not found.`);
+    }
+
+    const { companyId, assignedToId, companyName, ...leadData } = data;
+
+    const statusEnumValue = data.status
+      ? LeadStatus[data.status as keyof typeof LeadStatus]
+      : undefined;
+
+    const updateData: Prisma.LeadUpdateInput = {
+      ...leadData,
+      status: statusEnumValue,
+    };
+
+    if (companyId !== undefined) {
+      if (companyId.trim() === "") {
+        updateData.company = { disconnect: true };
+      } else {
+        updateData.company = { connect: { id: companyId } };
+      }
+    } else if (companyName && companyName.trim() !== "") {
+      let existingCompany = await this.prisma.company.findUnique({
+        where: { name: companyName.trim() },
+      });
+
+      if (existingCompany) {
+        updateData.company = { connect: { id: existingCompany.id } };
+      } else {
+        const newCompany = await this.prisma.company.create({
+          data: { name: companyName.trim() },
+        });
+        updateData.company = { connect: { id: newCompany.id } };
+      }
+    }
+
+    if (assignedToId !== undefined) {
+      if (assignedToId.trim() !== "") {
+        updateData.assignedTo = { connect: { id: assignedToId } };
+      } else {
+        updateData.assignedTo = { disconnect: true };
+      }
+    }
+
+    const updatedLead = await this.prisma.lead.update({
+      where: { id },
+      data: updateData,
+      include: {
+        company: true,
+        assignedTo: true,
+      },
+    });
+
+    const changes: { field: string; old: any; new: any }[] = [];
+    let descriptionParts: string[] = [];
+
+    const addChange = (
+      field: string,
+      oldVal: any,
+      newVal: any,
+      label: string
+    ) => {
+      if (oldVal !== newVal) {
+        changes.push({ field, old: oldVal, new: newVal });
+        descriptionParts.push(
+          `${label} changed from '${oldVal || "N/A"}' to '${newVal || "N/A"}'`
+        );
+      }
+    };
+
+    addChange("name", oldLead.name, updatedLead.name, "Lead Name");
+    addChange(
+      "contactPerson",
+      oldLead.contactPerson,
+      updatedLead.contactPerson,
+      "Contact Person"
+    );
+    addChange("email", oldLead.email, updatedLead.email, "Email");
+    addChange("phone", oldLead.phone, updatedLead.phone, "Phone");
+    addChange("status", oldLead.status, updatedLead.status, "Status");
+    addChange(
+      "estimatedValue",
+      oldLead.estimatedValue?.toString(),
+      updatedLead.estimatedValue?.toString(),
+      "Estimated Value"
+    );
+    addChange(
+      "leadScore",
+      oldLead.leadScore,
+      updatedLead.leadScore,
+      "Lead Score"
+    );
+    addChange("source", oldLead.source, updatedLead.source, "Source");
+    addChange("notes", oldLead.notes, updatedLead.notes, "Notes");
+
+    const oldCompanyName = oldLead.company?.name || null;
+    const newCompanyName = updatedLead.company?.name || null;
+    if (oldCompanyName !== newCompanyName) {
+      changes.push({
+        field: "companyId",
+        old: oldCompanyName,
+        new: newCompanyName,
+      });
+      descriptionParts.push(
+        `Company changed from '${oldCompanyName || "N/A"}' to '${
+          newCompanyName || "N/A"
+        }'`
+      );
+    }
+
+    const oldAssignedToName = oldLead.assignedTo?.name || null;
+    const newAssignedToName = updatedLead.assignedTo?.name || null;
+    if (oldAssignedToName !== newAssignedToName) {
+      changes.push({
+        field: "assignedToId",
+        old: oldAssignedToName,
+        new: newAssignedToName,
+      });
+      descriptionParts.push(
+        `Assigned To changed from '${oldAssignedToName || "N/A"}' to '${
+          newAssignedToName || "N/A"
+        }'`
+      );
+    }
+
+    if (changes.length > 0) {
+      let actionDescription = `Lead updated: ${descriptionParts.join(", ")}`;
+      if (descriptionParts.length === 0) {
+        actionDescription = "Lead details updated.";
+      }
+
+      await this.prisma.activityLog.create({
+        data: {
+          leadId: updatedLead.id,
+          userId: userId,
+          action: "LEAD_UPDATED",
+          description: actionDescription,
+          metadata: changes,
+        },
+      });
+    }
+
+    return updatedLead;
   }
 
   async updateLeadStatus(
@@ -136,7 +268,7 @@ export class LeadService {
   ): Promise<Lead> {
     const lead = await this.prisma.lead.findUnique({
       where: { id },
-      include: { contactHistory: true },
+      include: { contactHistory: true, company: true },
     });
 
     if (!lead) throw new Error("Lead not found");
@@ -144,13 +276,13 @@ export class LeadService {
     const updateLastContactStates = [
       "Contacted",
       "Qualified",
-      "Proposal",
-      "Converted",
+      "Proposal Sent",
+      "Won",
     ];
 
     const updateData: any = {
-      status,
-      ...(updateLastContactStates.includes(status) && {
+      ...(status !== undefined && { status: status }),
+      ...(updateLastContactStates.includes(status as string) && {
         lastContactDate: new Date(),
       }),
     };
@@ -158,12 +290,32 @@ export class LeadService {
     await this.prisma.activityLog.create({
       data: {
         leadId: id,
-        userId: lead.assignedToId || "system",
+        userId: userId,
         action: "Status Change",
         description: `Lead status changed from ${lead.status} to ${status}`,
         metadata: { notes },
       },
     });
+
+    if (status === "Won") {
+      await this.prisma.client.create({
+        data: {
+          companyId: lead.companyId,
+          clientName: lead.contactPerson || lead?.company?.name || "Unknown",
+          primaryEmail: lead.email,
+          primaryPhone: lead.phone,
+          notes: lead.notes,
+          convertedFromLeadId: lead.id,
+        },
+      });
+
+      await this.prisma.lead.update({
+        where: { id },
+        data: {
+          isActive: false,
+        },
+      });
+    }
 
     if (notes) {
       updateData.contactHistory = {
@@ -216,6 +368,7 @@ export class LeadService {
               OR: [
                 { contactPerson: { contains: search, mode: "insensitive" } },
                 { email: { contains: search, mode: "insensitive" } },
+                { name: { contains: search, mode: "insensitive" } },
                 {
                   company: { name: { contains: search, mode: "insensitive" } },
                 },
@@ -223,7 +376,9 @@ export class LeadService {
             }
           : {},
         status ? { status } : {},
-        assignedTo ? { assignedToId: assignedTo } : {},
+        assignedTo
+          ? { assignedToId: assignedTo === "unassigned" ? null : assignedTo }
+          : {},
       ],
     };
 
@@ -231,18 +386,20 @@ export class LeadService {
       ...(sortBy ? getSortingConfig(sortBy, sortOrder) : { createdAt: "desc" }),
     };
 
-    // Get total count
     const total = await this.prisma.lead.count({ where });
 
-    // Get paginated leads
     const leads = await this.prisma.lead.findMany({
       where,
       orderBy,
       select: {
         id: true,
+        name: true,
         company: { select: { name: true, email: true, phone: true } },
         contactPerson: true,
+        estimatedValue: true,
+        source: true,
         email: true,
+        phone: true,
         status: true,
         assignedTo: { select: { name: true } },
         createdAt: true,
@@ -272,7 +429,6 @@ export class LeadService {
     const lead = await this.prisma.lead.findUnique({ where: { id } });
     if (!lead) throw new Error("Lead not found");
 
-    // Convert "unassigned" to null
     const assignedToId =
       data.assignedToId === "unassigned" ? null : data.assignedToId;
 
@@ -280,7 +436,6 @@ export class LeadService {
       throw new Error("Lead is already assigned to this user or unassigned");
     }
 
-    // If it's not "unassigned", validate that the user exists
     if (assignedToId) {
       const assignedUser = await this.prisma.user.findUnique({
         where: { id: assignedToId },
@@ -341,6 +496,9 @@ export class LeadService {
     return this.prisma.activityLog.findMany({
       where: { leadId },
       orderBy: { createdAt: "desc" },
+      include: {
+        user: true
+      }
     });
   }
 }
