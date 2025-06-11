@@ -732,12 +732,14 @@ export class InquiryService {
         data: {
           companyId: company.id,
           contactPerson: inquiry.clientName ?? "Unknown",
+          name: inquiry.clientName
+                ?? inquiry.companyName 
+                ?? `Lead from Inquiry ${inquiry.id.substring(0, 8)}`,
 
           email: inquiry.email ?? "unknown@example.com",
           phone: inquiry.phoneNumber,
           status: leadStatus,
           source: "Inquiry",
-          subSource: inquiry.referenceSource,
           estimatedValue: inquiry.quotedPrice || null,
           createdById: userId,
           assignedToId: userId,
