@@ -34,9 +34,9 @@ model User {
   ojtStartDate DateTime?
   ojtEndDate   DateTime?
 
-  assignedInquiryies Inquiry[]     @relation("assignedInquiries")
-  assignedLeads      Lead[]        @relation("assignedLeads")
-  createdLeads       Lead[]        @relation("createdLeads")
+  assignedInquiryies Inquiry[]  @relation("assignedInquiries")
+  assignedLeads      Lead[]     @relation("assignedLeads")
+  createdLeads       Lead[]     @relation("createdLeads")
   reports            Report[]
   inquiries          Inquiry[]
   documents          Document[]
@@ -44,7 +44,7 @@ model User {
   attendanceRecords Attendance[]
   allowedIPs        AllowedIP[]
 
-  activityLog    ActivityLog[] 
+  activityLog    ActivityLog[]
   contactHistory ContactHistory[]
 
   createdAt DateTime @default(now())
@@ -71,21 +71,22 @@ enum LeadStatus {
   Lost
   Archived
 }
+
 model Company {
   id        String   @id @default(uuid())
-  name      String   @unique 
+  name      String   @unique
   industry  String?
   region    String?
-  email     String? 
-  phone     String? 
+  email     String?
+  phone     String?
   website   String?
   notes     String?
-  isActive  Boolean  @default(true) 
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  leads     Lead[] 
-  clients Client[] 
+  leads   Lead[]
+  clients Client[]
 
   @@index([name])
   @@index([email])
@@ -94,47 +95,47 @@ model Company {
 }
 
 model Lead {
-  id        String   @id @default(uuid())
+  id   String @id @default(uuid())
+  name String 
+
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id])
 
   contactPerson String? 
-  email         String? 
-  phone         String? 
-  position      String? 
+  email         String 
+  phone         String?
 
-  status    LeadStatus @default(New)
-  source    String? 
-  subSource String?
-  campaign  String?
+  status   LeadStatus @default(New) 
+  source   String?
+  campaign String?
 
-  assignedToId String? 
+  assignedToId String?
   assignedTo   User?   @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
 
   createdById String 
   createdBy   User   @relation(fields: [createdById], references: [id], name: "createdLeads")
 
-  notes           String?
+  notes           String?   @db.Text 
   lastContactDate DateTime?
   followUpDate    DateTime?
 
   estimatedValue Decimal? 
-  leadScore      Float? 
+  leadScore      Int? 
 
-  
   referredBy String?
 
   isActive  Boolean  @default(true) 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  client       Client? 
-  contactHistory ContactHistory[]
-  inquiries      Inquiry[]
-  activityLog    ActivityLog[]
+  
+  client         Client? 
+  contactHistory ContactHistory[] 
+  inquiries      Inquiry[] 
+  activityLog    ActivityLog[] 
 
-  @@index([email])
-  @@index([phone])
+  @@index([email]) 
+  @@index([phone]) 
   @@index([companyId])
   @@index([assignedToId])
   @@index([createdById])
@@ -144,20 +145,20 @@ model Lead {
 
 enum ClientStatus {
   Active
-  Inactive 
-  OnHold 
+  Inactive
+  OnHold
 }
 
 model Client {
   id        String   @id @default(uuid())
-  companyId String? 
+  companyId String?
   company   Company? @relation(fields: [companyId], references: [id])
 
-  clientName String @unique
+  clientName String
 
-  accountNumber String? @unique 
-  primaryEmail  String? 
-  primaryPhone  String? 
+  accountNumber String? @unique
+  primaryEmail  String?
+  primaryPhone  String?
 
   billingAddressStreet     String?
   billingAddressCity       String?
@@ -171,20 +172,20 @@ model Client {
   shippingAddressPostalCode String?
   shippingAddressCountry    String?
 
-  status ClientStatus @default(Active) 
+  status ClientStatus @default(Active)
   notes  String?
 
-  convertedFromLeadId String? @unique 
+  convertedFromLeadId String? @unique
   convertedFromLead   Lead?   @relation(fields: [convertedFromLeadId], references: [id])
 
-  isActive  Boolean  @default(true) 
-  createdAt DateTime @default(now()) 
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  invoices       Invoice[] 
-  salesOrders    SalesOrder[] 
-  contactHistory ContactHistory[] 
-  activityLog    ActivityLog[] 
+  invoices       Invoice[]
+  salesOrders    SalesOrder[]
+  contactHistory ContactHistory[]
+  activityLog    ActivityLog[]
 
   @@index([clientName])
   @@index([companyId])
@@ -197,17 +198,17 @@ model Client {
 // --- ActivityLog (Tracks changes to Lead OR Client) ---
 model ActivityLog {
   id          String   @id @default(uuid())
-  leadId      String? 
-  clientId  String? 
-  userId      String 
-  action      String 
+  leadId      String?
+  clientId    String?
+  userId      String
+  action      String
   description String
   metadata    Json? // Store old/new values { "field": "status", "old": "New", "new": "Contacted" }
   createdAt   DateTime @default(now())
 
-  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull) 
-  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull) 
-  user     User      @relation(fields: [userId], references: [id])
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  user   User    @relation(fields: [userId], references: [id])
 
   @@index([leadId])
   @@index([clientId])
@@ -217,18 +218,18 @@ model ActivityLog {
 
 // --- ContactHistory (Logs interactions with Lead OR client) ---
 model ContactHistory {
-  id         String   @id @default(uuid())
-  leadId     String? // Link to Lead context
-  clientId String? // Link to client context
-  userId     String // User making contact
-  method     String // e.g., "Call", "Email", "Meeting"
-  summary    String
-  outcome    String?
-  timestamp  DateTime @default(now())
+  id        String   @id @default(uuid())
+  leadId    String? // Link to Lead context
+  clientId  String? // Link to client context
+  userId    String // User making contact
+  method    String // e.g., "Call", "Email", "Meeting"
+  summary   String
+  outcome   String?
+  timestamp DateTime @default(now())
 
-  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull) // Don't delete history if lead deleted
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull) // Don't delete history if lead deleted
   client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull) // Don't delete history if client deleted
-  user     User      @relation(fields: [userId], references: [id]) // Assume User model exists
+  user   User    @relation(fields: [userId], references: [id]) // Assume User model exists
 
   @@index([leadId])
   @@index([clientId])
@@ -237,7 +238,7 @@ model ContactHistory {
 }
 
 model Invoice {
-  id         String   @id @default(uuid())
+  id       String @id @default(uuid())
   clientId String // <<< REQUIRED Link to client
   client   Client @relation(fields: [clientId], references: [id])
 
@@ -246,7 +247,7 @@ model Invoice {
 }
 
 model SalesOrder {
-  id         String   @id @default(uuid())
+  id       String @id @default(uuid())
   clientId String // <<< REQUIRED Link to client
   client   Client @relation(fields: [clientId], references: [id])
 
@@ -367,7 +368,7 @@ enum InquiryType {
 
 model Inquiry {
   id               String          @id @default(uuid())
-  clientName     String
+  clientName       String
   phoneNumber      String
   email            String
   isCompany        Boolean         @default(false)
