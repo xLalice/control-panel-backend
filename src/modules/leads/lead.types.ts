@@ -1,41 +1,10 @@
-import { Lead, LeadStatus, Company, ActivityLog } from "@prisma/client";
-
-export interface CreateLeadDto {
-  companyId?: string;
-  companyName?: string;
-  contactPerson?: string;
-  email?: string;
-  phone?: string;
-  source: string;
-  subSource?: string;
-  campaign?: string;
-  industry?: string;
-  region?: string;
-  referredBy?: string;
-  estimatedValue?: number;
-  followUpDate?: Date;
-  notes?: string;
-  status: LeadStatus;
-  assignedToId?: string;
-}
-
-export interface UpdateLeadDto extends Partial<CreateLeadDto> {
-  status?: LeadStatus;
-  assignedToId?: string;
-  leadScore?: number;
-  lastContactDate?: Date;
-}
-
-export interface UpdateLeadStatusDto {
-  status: LeadStatus;
-  notes?: string;
-  method?: string;
-}
+import { LeadStatus } from "@prisma/client";
 
 export interface SearchLeadsParams {
   search?: string;
   status?: LeadStatus;
   assignedTo?: string;
+  name?: string;
   page?: number;
   pageSize?: number;
   sortBy?: string;
