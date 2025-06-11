@@ -1,6 +1,7 @@
-import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, ClientStatus, Report } from '@prisma/client';
+import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, ClientStatus, Report, Lead } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import bcrypt from "bcryptjs" 
+import {Decimal} from "decimal.js"
 
 const prisma = new PrismaClient();
 
@@ -431,7 +432,7 @@ async function main() {
 
   for (const company of companies) {
     await prisma.company.upsert({
-      where: { id: company.id },
+      where: { name: company.name },
       update: company,
       create: company,
     });
@@ -442,54 +443,36 @@ async function main() {
   // Create Leads
   const leadStatuses = Object.values(LeadStatus);
   
-  const leads: {
-    id: string;
-    companyId: string;
-    contactPerson: string;
-    email: string;
-    phone: string;
-    position: string;
-    status: LeadStatus;
-    source: string;
-    subSource: string | null;
-    campaign: string | null;
-    assignedToId: string | null;
-    createdById: string;
-    notes: string;
-    lastContactDate: Date | null;
-    followUpDate: Date | null;
-    estimatedValue: number;
-    leadScore: number;
-    referredBy: string | null;
-    isActive: boolean;
-  }[] = [];
+  const leads: Lead[] = [];
 
   for (let i = 0; i < 20; i++) {
     const companyIndex = i % companies.length;
     const leadId = faker.string.uuid();
-    
+
     leads.push({
       id: leadId,
+      name: faker.company.name() + ' Lead - ' + faker.commerce.productName(),
       companyId: companies[companyIndex].id,
       contactPerson: faker.person.fullName(),
       email: faker.internet.email(),
       phone: faker.phone.number(),
-      position: faker.person.jobTitle(),
-      status: leadStatuses[i % leadStatuses.length],
+      status: (['New', 'Contacted', 'Qualified', 'ProposalSent', 'Negotiation', 'Won', 'Lost', 'Archived'] as const)[i % 8], // Cast to ensure correct string literal type
       source: ['Website', 'Referral', 'Trade Show', 'Cold Call', 'LinkedIn'][i % 5],
-      subSource: i % 2 === 0 ? 'Google Search' : 'Facebook Ad',
       campaign: i % 3 === 0 ? 'Q1 2025 Campaign' : null,
+      
       assignedToId: i % 3 === 0 ? salesUser.id : (i % 3 === 1 ? managerUser.id : null),
       createdById: i % 2 === 0 ? adminUser.id : salesUser.id,
       notes: faker.lorem.paragraph(),
       lastContactDate: i % 2 === 0 ? faker.date.recent({ days: 10 }) : null,
       followUpDate: i % 2 === 0 ? faker.date.soon({ days: 10 }) : null,
-      estimatedValue: faker.number.float({ min: 5000, max: 100000, fractionDigits: 2 }),
-      leadScore: faker.number.float({ min: 0, max: 100, fractionDigits: 1 }),
+      estimatedValue: new Decimal(faker.number.float({ min: 5000, max: 100000 })),
+      leadScore: faker.number.int({ min: 0, max: 100 }),
       referredBy: i % 5 === 0 ? 'Existing client' : null,
       isActive: true,
+      createdAt: faker.date.past(), 
+      updatedAt: faker.date.recent(), 
     });
-  }
+}
 
   for (const lead of leads) {
     await prisma.lead.upsert({
@@ -565,11 +548,11 @@ async function main() {
     
     clients.push({
       id: clientId,
-      companyId: lead.companyId,
-      clientName: lead.contactPerson,
+      companyId: lead.companyId!,
+      clientName: lead.contactPerson || lead.name,
       accountNumber: `ACC-${faker.number.int({ min: 10000, max: 99999 })}`,
       primaryEmail: lead.email,
-      primaryPhone: lead.phone,
+      primaryPhone: lead.phone!,
       billingAddressStreet: faker.location.streetAddress(),
       billingAddressCity: faker.location.city(),
       billingAddressRegion: faker.location.state(),
