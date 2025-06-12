@@ -37,7 +37,7 @@ export const createClient = async (req: Request, res: Response) => {
       return;
     }
 
-    const existingClient = await prisma.client.findUnique({
+    const existingClient = await prisma.client.findFirst({
       where: { clientName: result.data.clientName },
     });
 
