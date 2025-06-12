@@ -27,6 +27,7 @@ export const updateLeadSchema = createLeadSchema.partial().extend({
   lastContactDate: z.string().transform((str) => new Date(str)).optional(),
 });
 
+
 export const updateLeadStatusSchema = z.object({
   status: z.enum(Object.values(LeadStatus) as [string, ...string[]]).optional(),
   notes: z.string().optional(),
