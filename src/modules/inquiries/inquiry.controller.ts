@@ -8,7 +8,8 @@ import {
   rejectInquirySchema,
 } from "./inquiry.schema";
 import { z } from "zod";
-import { CreateInquiryDto } from "./inquiry.types";
+import {  Priority } from "@prisma/client";
+import { CreateInquiryDto, UpdateInquiryDto, InquiryStatus } from "./inquiry.types";
 
 const inquiryService = new InquiryService();
 
@@ -26,12 +27,10 @@ export class InquiryController {
       const validationResult = filterInquirySchema.safeParse(req.query);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid filter parameters",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid filter parameters",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -41,8 +40,7 @@ export class InquiryController {
         ...filter,
         status: !filter.status ? undefined : filter.status,
         source: filter.source === "all" ? undefined : filter.source,
-        productType:
-          !filter.productType ? undefined : filter.productType,
+        productType: !filter.productType ? undefined : filter.productType,
         inquiryType: !filter.inquiryType ? undefined : filter.inquiryType,
       };
 
@@ -63,12 +61,10 @@ export class InquiryController {
       const validationResult = inquiryIdSchema.safeParse(req.params);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -101,12 +97,10 @@ export class InquiryController {
         .safeParse(req.body);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid parameters",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid parameters",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -132,20 +126,18 @@ export class InquiryController {
       const validationResult = createInquirySchema.safeParse(req.body);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry data",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry data",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
       const inquiryData = validationResult.data;
       const formattedInquiryData: CreateInquiryDto = {
         ...inquiryData,
-        
-        priority: inquiryData.priority || undefined,
+        status: InquiryStatus.New,
+        priority: inquiryData.priority ?? Priority.Low, 
       };
 
       const inquiry = await inquiryService.create(
@@ -168,12 +160,10 @@ export class InquiryController {
       const idValidation = inquiryIdSchema.safeParse(req.params);
 
       if (!idValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: idValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
         return;
       }
 
@@ -182,12 +172,10 @@ export class InquiryController {
       const dataValidation = updateInquirySchema.safeParse(req.body);
 
       if (!dataValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry data",
-            details: dataValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry data",
+          details: dataValidation.error.format(),
+        });
         return;
       }
 
@@ -199,13 +187,18 @@ export class InquiryController {
       }
 
       const inquiryData = dataValidation.data;
-      const updatedInquiry = await inquiryService.update(
-        id,
-        inquiryData,
+      const formattedUpdateData: UpdateInquiryDto = {
+        ...inquiryData,
+        status: inquiryData.status as InquiryStatus | undefined,
+      };
+
+      const inquiry = await inquiryService.update(
+        req.params.id, // Assuming id from params
+        formattedUpdateData,
         req.user!.id
       );
 
-      res.json(updatedInquiry);
+      res.json(inquiry);
     } catch (error) {
       console.error("Error updating inquiry:", error);
       res.status(500).json({ error: "Failed to update inquiry" });
@@ -220,12 +213,10 @@ export class InquiryController {
       const idValidation = inquiryIdSchema.safeParse(req.params);
 
       if (!idValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: idValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
         return;
       }
 
@@ -234,12 +225,10 @@ export class InquiryController {
       const quoteValidation = quoteSchema.safeParse(req.body);
 
       if (!quoteValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid quote data",
-            details: quoteValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid quote data",
+          details: quoteValidation.error.format(),
+        });
         return;
       }
 
@@ -272,12 +261,10 @@ export class InquiryController {
       const validationResult = inquiryIdSchema.safeParse(req.params);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -310,12 +297,10 @@ export class InquiryController {
       const idValidation = inquiryIdSchema.safeParse(req.params);
 
       if (!idValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: idValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
         return;
       }
 
@@ -330,12 +315,10 @@ export class InquiryController {
         .safeParse(req.body);
 
       if (!dateValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid scheduled date",
-            details: dateValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid scheduled date",
+          details: dateValidation.error.format(),
+        });
         return;
       }
 
@@ -368,12 +351,10 @@ export class InquiryController {
       const validationResult = inquiryIdSchema.safeParse(req.params);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -406,12 +387,10 @@ export class InquiryController {
       const validationResult = rejectInquirySchema.safeParse(req.params);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -444,12 +423,10 @@ export class InquiryController {
       const validationResult = inquiryIdSchema.safeParse(req.params);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -498,12 +475,10 @@ export class InquiryController {
       const validationResult = inquiryIdSchema.safeParse(req.params);
 
       if (!validationResult.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: validationResult.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: validationResult.error.format(),
+        });
         return;
       }
 
@@ -533,12 +508,10 @@ export class InquiryController {
       const idValidation = inquiryIdSchema.safeParse(req.params);
 
       if (!idValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: idValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
         return;
       }
 
@@ -551,12 +524,10 @@ export class InquiryController {
         .safeParse(req.body);
 
       if (!priorityValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid priority",
-            details: priorityValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid priority",
+          details: priorityValidation.error.format(),
+        });
         return;
       }
 
@@ -589,12 +560,10 @@ export class InquiryController {
       const idValidation = inquiryIdSchema.safeParse(req.params);
 
       if (!idValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: idValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
         return;
       }
 
@@ -609,12 +578,10 @@ export class InquiryController {
         .safeParse(req.body);
 
       if (!dueDateValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid due date",
-            details: dueDateValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid due date",
+          details: dueDateValidation.error.format(),
+        });
         return;
       }
 
@@ -647,12 +614,10 @@ export class InquiryController {
       const idValidation = inquiryIdSchema.safeParse(req.params);
 
       if (!idValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid inquiry ID",
-            details: idValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
         return;
       }
 
@@ -665,12 +630,10 @@ export class InquiryController {
         .safeParse(req.body);
 
       if (!assignValidation.success) {
-        res
-          .status(400)
-          .json({
-            error: "Invalid user ID",
-            details: assignValidation.error.format(),
-          });
+        res.status(400).json({
+          error: "Invalid user ID",
+          details: assignValidation.error.format(),
+        });
         return;
       }
 

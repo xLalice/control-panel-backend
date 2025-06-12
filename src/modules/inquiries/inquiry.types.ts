@@ -1,4 +1,4 @@
-import {ReferenceSource, LeadStatus, InquiryType, Priority } from "@prisma/client";
+import {ReferenceSource, LeadStatus, InquiryType, Priority, DeliveryMethod } from "@prisma/client";
 
 export enum InquiryStatus {
   New = "New",
@@ -15,59 +15,40 @@ export enum InquiryTypeEnum {
   Other = "Other"
 }
 
-export enum ProductType {
-  AGGREGATE = "AGGREGATE",
-  HEAVY_EQUIPMENT = "HEAVY_EQUIPMENT",
-  STEEL = "STEEL"
+export interface CreateInquiryDto {
+  clientName: string;
+  phoneNumber: string;
+  email: string;
+  isCompany?: boolean; 
+  companyName?: string;
+  companyAddress?: string;
+  productId?: string; 
+  inquiryType: InquiryType; 
+  quantity: number; 
+  deliveryMethod?: DeliveryMethod;
+  deliveryLocation?: string; 
+  preferredDate: Date | string; 
+  referenceSource: ReferenceSource; 
+  status?: InquiryStatus;
+  remarks?: string; 
+  priority?: Priority; 
+  dueDate?: Date | string; 
 }
+
+export type UpdateInquiryDto = Partial<CreateInquiryDto & {
+   status?: InquiryStatus;
+ }>
 
 export type InquirySortField = "id" | "customerName" | "status" | "createdAt" | "updatedAt";
 
 
-export interface CreateInquiryDto {
-  customerName: string;
-  phoneNumber: string;
-  email: string;
-  isCompany: boolean;
-  companyName?: string;
-  companyAddress?: string;
-  productType: ProductType;
-  quantity: number;
-  deliveryMethod: string;
-  deliveryLocation?: string;
-  preferredDate: string | Date;
-  referenceSource: string;
-  remarks?: string;
-  inquiryType?: InquiryType;
-  priority?: Priority;
-  dueDate?: Date;
-}
-
-export interface UpdateInquiryDto {
-  customerName?: string;
-  phoneNumber?: string;
-  email?: string;
-  isCompany?: boolean;
-  companyName?: string;
-  companyAddress?: string;
-  productType?: ProductType;
-  quantity?: number;
-  deliveryMethod?: string;
-  deliveryLocation?: string;
-  preferredDate?: string | Date;
-  referenceSource?: string;
-  remarks?: string;
-  status?: string;
-  quotedPrice?: number;
-  relatedLeadId?: string;
-}
 
 export interface InquiryFilterParams {
   page?: number;
   limit?: number;
   status?: string;
   source?: ReferenceSource;
-  productType?: ProductType | "all" | undefined;
+  productId?: string | null;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   search?: string;

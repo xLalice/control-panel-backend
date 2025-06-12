@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { ProductType } from "./inquiry.types";
 import {
   DeliveryMethod,
   ReferenceSource,
@@ -9,21 +8,20 @@ import {
 } from "@prisma/client";
 
 const inquiryBaseSchema = z.object({
-  customerName: z.string().min(1, "Customer name is required"),
+  clientName: z.string().min(1, "Client name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
   email: z.string().email("Invalid email format"),
   isCompany: z.boolean(),
   companyName: z.string().optional(),
   companyAddress: z.string().optional(),
-  productType: z.nativeEnum(ProductType, {
-    errorMap: () => ({ message: "Invalid product type" }),
-  }),
+  productId: z.string(),
+  status: z.nativeEnum(InquiryStatus).optional(),
   quantity: z.number().int().positive("Quantity must be a positive number"),
   deliveryMethod: z.nativeEnum(DeliveryMethod, {
     errorMap: () => ({ message: "Invalid delivery method" }),
   }),
   deliveryLocation: z.string().optional(),
-  preferredDate: z.string().or(z.date()),
+  preferredDate: z.date().or(z.string()),
   referenceSource: z.nativeEnum(ReferenceSource, {
     errorMap: () => ({ message: "Invalid reference source" }),
   }),
@@ -32,7 +30,7 @@ const inquiryBaseSchema = z.object({
   dueDate: z.date().optional(),
   inquiryType: z.nativeEnum(InquiryType, {
     errorMap: () => ({ message: "Invalid inquiry type" }),
-  })
+  }),
 });
 
 export const createInquirySchema = inquiryBaseSchema;
@@ -101,14 +99,7 @@ export const filterInquirySchema = z.object({
       z.literal("all"),
     ])
     .optional(),
-  productType: z
-    .union([
-      z.nativeEnum(ProductType, {
-        errorMap: () => ({ message: "Invalid product type" }),
-      }),
-      z.literal("all"),
-    ])
-    .optional(),
+  productType: z.string().optional(),
   sortBy: z
     .enum(["id", "customerName", "status", "createdAt", "updatedAt"])
     .optional()
