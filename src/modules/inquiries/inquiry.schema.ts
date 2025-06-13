@@ -6,6 +6,7 @@ import {
   InquiryType,
   Priority,
 } from "@prisma/client";
+import { string } from "zod/v4";
 
 const inquiryBaseSchema = z.object({
   clientName: z.string().min(1, "Client name is required"),
@@ -53,20 +54,17 @@ export const updatePrioritySchema = z.object({
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
 });
 
-// Adding missing schema for updateDueDate
 export const updateDueDateSchema = z.object({
   id: z.string().uuid("Invalid inquiry ID format"),
   dueDate: z.string().or(z.date()),
 });
 
-// Adding missing schema for assignInquiry
 export const assignInquirySchema = z.object({
   id: z.string().uuid("Invalid inquiry ID format"),
   assigneeId: z.string().uuid("Invalid assignee ID format"),
   userId: z.string().uuid("Invalid user ID format"),
 });
 
-// Adding statistics type parameter to match getStatistics
 export const statisticsFilterSchema = z.object({
   type: z
     .enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"])
@@ -75,14 +73,13 @@ export const statisticsFilterSchema = z.object({
 });
 
 export const filterInquirySchema = z.object({
-  page: z
-    .string()
-    .optional()
-    .transform((val) => (val ? parseInt(val) : 1)),
-  limit: z
-    .string()
-    .optional()
-    .transform((val) => (val ? parseInt(val) : 10)),
+  page: z.coerce
+    .number()
+    .int()
+    .min(1, "Page number cannot be negative")
+    .default(1),
+
+  limit: z.coerce.number().int().min(1, "Limit must be at least 1").default(10),
   status: z
     .union([
       z.nativeEnum(InquiryStatus, {
@@ -101,10 +98,22 @@ export const filterInquirySchema = z.object({
     .optional(),
   productType: z.string().optional(),
   sortBy: z
-    .enum(["id", "customerName", "status", "createdAt", "updatedAt"])
-    .optional()
-    .default("createdAt"),
-  sortOrder: z.enum(["asc", "desc"]).optional(),
+    .string()
+    .refine(
+      (val) =>
+        [
+          "createdAt",
+          "clientName",
+          "status",
+          "product.name",
+          "assignedTo.name",
+        ].includes(val),
+      "Invalid sortBy field"
+    )
+    .default("createdAt")
+    .optional(),
+
+  sortOrder: z.enum(["asc", "desc"]).default("desc").optional(),
   search: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -113,4 +122,18 @@ export const filterInquirySchema = z.object({
 
 export const inquiryIdSchema = z.object({
   id: z.string().uuid("Invalid inquiry ID format"),
+});
+
+export const scheduleInquirySchema = z.object({
+  scheduledDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format",
+  }),
+  priority: z.nativeEnum(Priority),
+  notes: z.string().optional(),
+  reminderMinutes: z.number().optional()
+});
+
+export const  quoteSchema = z.object({
+  basePrice: z.number().positive({ message: "Base price must be positive" }),
+  totalPrice: z.number().positive({ message: "Total price must be positive" }),
 });
