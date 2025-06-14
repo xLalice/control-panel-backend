@@ -22,7 +22,7 @@ export interface CreateInquiryDto {
   isCompany?: boolean; 
   companyName?: string;
   companyAddress?: string;
-  productId?: string; 
+  product: string; 
   inquiryType: InquiryType; 
   quantity: number; 
   deliveryMethod?: DeliveryMethod;
@@ -33,6 +33,12 @@ export interface CreateInquiryDto {
   remarks?: string; 
   priority?: Priority; 
   dueDate?: Date | string; 
+}
+
+export interface ScheduleOptions {
+  priority?: Priority;
+  notes?: string;
+  reminderMinutes?: number;
 }
 
 export type UpdateInquiryDto = Partial<CreateInquiryDto & {
