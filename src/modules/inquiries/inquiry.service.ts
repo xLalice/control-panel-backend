@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+
 import {
   InquiryFilterParams,
   PaginatedResponse,
@@ -11,6 +12,7 @@ import {
   CreateInquiryDto,
   UpdateInquiryDto,
   ScheduleOptions,
+  DailyDataRaw,
 } from "./inquiry.types";
 import {
   DeliveryMethod,
@@ -21,6 +23,7 @@ import {
   Inquiry,
   Product,
   Lead,
+  Prisma,
 } from "@prisma/client";
 
 export class InquiryService {
@@ -616,101 +619,187 @@ export class InquiryService {
 
   async getStatistics(
     startDate?: string | Date,
-    endDate?: string | Date
+    endDate?: string | Date,
+    includeDailyTrends: boolean = false
   ): Promise<InquiryStatistics> {
-    const dateFilter: any = {};
+    const where: any = {};
+    const dateFilterParams: Date[] = [];
+
     if (startDate) {
-      dateFilter.gte = new Date(startDate);
+      where.createdAt = { gte: new Date(startDate) };
     }
     if (endDate) {
-      dateFilter.lte = new Date(endDate);
+      where.createdAt = { ...where.createdAt, lte: new Date(endDate) };
     }
 
-    const where: any = {};
-    if (startDate || endDate) {
-      where.createdAt = dateFilter;
-    }
+    let rawDateFilterClause = "";
+    const rawQueryParams: Prisma.Sql[] = []; 
 
-    const totalInquiriesBigInt = await prisma.inquiry.count({ where });
+    const defaultStartDate = new Date("1900-01-01");
+    const defaultEndDate = new Date(); 
 
-    const statusCountsBigInt = await prisma.inquiry.groupBy({
-      by: ["status"],
-      _count: {
-        status: true,
-      },
-      where,
-    });
+    const filterGte = startDate ? new Date(startDate) : defaultStartDate;
+    const filterLte = endDate ? new Date(endDate) : defaultEndDate;
 
-    const sourceCountsBigInt = await prisma.inquiry.groupBy({
-      by: ["referenceSource"],
-      _count: {
-        referenceSource: true,
-      },
-      where,
-    });
+    rawDateFilterClause = `WHERE "createdAt" >= $1 AND "createdAt" <= $2`;
+    rawQueryParams.push(Prisma.sql`${filterGte}`);
+    rawQueryParams.push(Prisma.sql`${filterLte}`);
 
-    const productTypeCountsBigInt = await prisma.inquiry.groupBy({
-      by: ["productId"],
-      _count: {
-        productId: true,
-      },
-      where,
-    });
+    const [
+      totalInquiriesBigInt,
+      statusCountsBigInt,
+      referenceSourceCountsBigInt,
+      inquiryTypeCountsBigInt,
+      priorityCountsBigInt,
+      deliveryMethodCountsBigInt,
+      productTypeCountsBigInt,
+      convertedCountBigInt,
+      monthlyDataBigInt,
+      dailyDataBigInt,
+      averageQuoteTimeBigInt,
+      overdueQuotesBigInt,
+      quoteValueStats,
+    ] = await Promise.all([
+      prisma.inquiry.count({ where }),
 
-    const convertedCountBigInt = await prisma.inquiry.count({
-      where: {
-        ...where,
-        status: {
-          in: [
-            InquiryStatus.Approved,
-            InquiryStatus.Scheduled,
-            InquiryStatus.Fulfilled,
-          ],
+      prisma.inquiry.groupBy({
+        by: ["status"],
+        _count: { status: true },
+        where,
+      }),
+
+      prisma.inquiry.groupBy({
+        by: ["referenceSource"],
+        _count: { referenceSource: true },
+        where,
+      }),
+
+      prisma.inquiry.groupBy({
+        by: ["inquiryType"],
+        _count: { inquiryType: true },
+        where,
+      }),
+
+      prisma.inquiry.groupBy({
+        by: ["priority"],
+        _count: { priority: true },
+        where: {
+          ...where,
+          priority: { not: null },
         },
-      },
-    });
+      }),
 
-    const currentDate = new Date();
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(currentDate.getMonth() - 6);
+      prisma.inquiry.groupBy({
+        by: ["deliveryMethod"],
+        _count: { deliveryMethod: true },
+        where,
+      }),
 
-    const monthlyDataBigInt = await prisma.$queryRaw<MonthlyDataRaw[]>`
-      SELECT
-        DATE_TRUNC('month', "createdAt") as month,
-        COUNT(*) as count
-      FROM "Inquiry"
-      WHERE "createdAt" >= ${sixMonthsAgo} AND "createdAt" <= ${currentDate} 
-      GROUP BY DATE_TRUNC('month', "createdAt")
-      ORDER BY month ASC
-    `;
+      prisma.inquiry.groupBy({
+        by: ["productId"],
+        _count: { productId: true },
+        where,
+      }),
 
+      prisma.inquiry.count({
+        where: {
+          ...where,
+          status: {
+            in: [
+              InquiryStatus.Approved,
+              InquiryStatus.Scheduled,
+              InquiryStatus.Fulfilled,
+            ],
+          },
+        },
+      }),
+
+      // Monthly trends with status breakdown
+      this.getMonthlyTrends(filterGte, filterLte), // Pass actual Date objects
+
+      // Daily trends (optional)
+      includeDailyTrends
+        ? this.getDailyTrends(filterGte, filterLte)
+        : Promise.resolve([]),
+
+      // Average response time (hours between creation and first quote)
+      // Use Prisma.sql to safely inject the parameter
+      prisma.$queryRaw<Array<{ avg_hours: number }>>`
+        SELECT AVG(EXTRACT(EPOCH FROM ("quotedAt" - "createdAt")) / 3600) as avg_hours
+        FROM "Inquiry"
+        WHERE "quotedAt" IS NOT NULL
+        AND "createdAt" >= ${filterGte} AND "createdAt" <= ${filterLte}
+      `,
+
+      // Overdue quotes (quoted but not responded within 48 hours)
+      prisma.inquiry.count({
+        where: {
+          ...where,
+          status: InquiryStatus.Quoted,
+          quotedAt: {
+            lt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48 hours ago
+          },
+        },
+      }),
+
+      // Quote value statistics
+      prisma.inquiry.aggregate({
+        where: {
+          ...where,
+          quotedPrice: { not: null },
+        },
+        _avg: { quotedPrice: true },
+        _sum: { quotedPrice: true },
+        _count: { quotedPrice: true },
+      }),
+    ]);
+
+    // ... (rest of the processing and return statement remains the same) ...
+    // Convert BigInt values to numbers
     const totalInquiries = Number(totalInquiriesBigInt);
     const convertedCount = Number(convertedCountBigInt);
+    const overdueQuotes = Number(overdueQuotesBigInt);
 
+    // Process status data
     const byStatus = statusCountsBigInt.map((item) => ({
       status: item.status,
       count: Number(item._count.status),
     }));
 
-    const bySource = sourceCountsBigInt.map((item) => ({
-      source: item.referenceSource,
+    // Process reference source data
+    const byReferenceSource = referenceSourceCountsBigInt.map((item) => ({
+      referenceSource: item.referenceSource,
       count: Number(item._count.referenceSource),
     }));
 
+    // Process inquiry type data
+    const byInquiryType = inquiryTypeCountsBigInt.map((item) => ({
+      inquiryType: item.inquiryType,
+      count: Number(item._count.inquiryType),
+    }));
+
+    // Process priority data
+    const byPriority = priorityCountsBigInt.map((item) => ({
+      priority: item.priority || "Unassigned",
+      count: Number(item._count.priority),
+    }));
+
+    // Process delivery method data
+    const byDeliveryMethod = deliveryMethodCountsBigInt.map((item) => ({
+      deliveryMethod: item.deliveryMethod,
+      count: Number(item._count.deliveryMethod),
+    }));
+
+    // Process product data with names
     const productIds = productTypeCountsBigInt
       .map((item) => item.productId)
       .filter((id): id is string => id !== null);
+
     const products = await prisma.product.findMany({
-      where: {
-        id: {
-          in: productIds,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-      },
+      where: { id: { in: productIds } },
+      select: { id: true, name: true },
     });
+
     const productMap = new Map(products.map((p) => [p.id, p.name]));
 
     const byProductType = productTypeCountsBigInt.map((item) => ({
@@ -718,19 +807,203 @@ export class InquiryService {
       count: Number(item._count.productId),
     }));
 
+    const topProducts = await this.getTopProductsWithConversion(
+      filterGte,
+      filterLte,
+      productMap
+    );
+
     const monthlyTrends = monthlyDataBigInt.map((item) => ({
       month: item.month,
       count: Number(item.count),
+      fulfilled: Number(item.fulfilled),
+      cancelled: Number(item.cancelled),
     }));
+
+    // Process daily trends (if requested)
+    const dailyTrends = dailyDataBigInt.map((item) => ({
+      date: item.date,
+      count: Number(item.count),
+    }));
+
+    // Calculate active inquiries
+    const activeInquiries = byStatus
+      .filter((s) => !["Fulfilled", "Cancelled"].includes(s.status))
+      .reduce((sum, s) => sum + s.count, 0);
+
+    // Calculate average response time
+    const averageResponseTime = averageQuoteTimeBigInt[0]?.avg_hours || 0;
+
+    // Quote value metrics
+    const avgQuoteValue = Number(quoteValueStats._avg.quotedPrice) || 0;
+    const totalQuoteValue = Number(quoteValueStats._sum.quotedPrice) || 0;
 
     return {
       totalInquiries,
-      byStatus,
-      bySource,
-      byProductType,
-      monthlyTrends,
       conversionRate:
         totalInquiries > 0 ? (convertedCount / totalInquiries) * 100 : 0,
+      byStatus,
+      byReferenceSource,
+      byInquiryType,
+      byPriority,
+      byDeliveryMethod,
+      byProductType,
+      monthlyTrends,
+      dailyTrends: includeDailyTrends ? dailyTrends : undefined,
+      averageResponseTime,
+      topProducts,
+      performanceMetrics: {
+        activeInquiries,
+        overdueQuotes,
+        avgQuoteValue,
+        totalQuoteValue,
+      },
+    };
+  }
+
+  private async getMonthlyTrends(
+    startDate: Date,
+    endDate: Date
+  ): Promise<MonthlyDataRaw[]> {
+    return await prisma.$queryRaw<MonthlyDataRaw[]>`
+      SELECT
+        DATE_TRUNC('month', "createdAt") as month,
+        COUNT(*) as count,
+        COUNT(CASE WHEN status = 'Fulfilled' THEN 1 END) as fulfilled,
+        COUNT(CASE WHEN status = 'Cancelled' THEN 1 END) as cancelled
+      FROM "Inquiry"
+      WHERE "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
+      GROUP BY DATE_TRUNC('month', "createdAt")
+      ORDER BY month ASC
+    `;
+  }
+
+  private async getDailyTrends(
+    startDate: Date,
+    endDate: Date
+  ): Promise<DailyDataRaw[]> {
+    return await prisma.$queryRaw<DailyDataRaw[]>`
+      SELECT
+        DATE_TRUNC('day', "createdAt") as date,
+        COUNT(*) as count
+      FROM "Inquiry"
+      WHERE "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
+      GROUP BY DATE_TRUNC('day', "createdAt")
+      ORDER BY date ASC
+    `;
+  }
+
+  private async getTopProductsWithConversion(
+    startDate: Date,
+    endDate: Date,
+    productMap: Map<string, string>
+  ): Promise<
+    Array<{ productName: string; count: number; conversionRate: number }>
+  > {
+    const productStats = await prisma.$queryRaw<
+      Array<{
+        product_id: string;
+        total_count: bigint;
+        converted_count: bigint;
+      }>
+    >`
+      SELECT
+        "productId" as product_id,
+        COUNT(*) as total_count,
+        COUNT(CASE WHEN status IN ('Approved', 'Scheduled', 'Fulfilled') THEN 1 END) as converted_count
+      FROM "Inquiry"
+      WHERE "productId" IS NOT NULL AND "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
+      GROUP BY "productId"
+      ORDER BY total_count DESC
+      LIMIT 10
+    `;
+
+    return productStats.map((stat) => {
+      const totalCount = Number(stat.total_count);
+      const convertedCount = Number(stat.converted_count);
+
+      return {
+        productName: productMap.get(stat.product_id) || "Unknown Product",
+        count: totalCount,
+        conversionRate:
+          totalCount > 0 ? (convertedCount / totalCount) * 100 : 0,
+      };
+    });
+  }
+
+  async getConversionFunnelData(startDate?: Date, endDate?: Date) {
+    // Define default dates if not provided
+    const filterGte = startDate || new Date("1900-01-01");
+    const filterLte = endDate || new Date();
+
+    const funnelData = await prisma.$queryRaw<
+      Array<{
+        status: string;
+        count: bigint;
+        avg_days_in_status: number;
+      }>
+    >`
+      SELECT
+        status,
+        COUNT(*) as count,
+        AVG(
+          CASE
+            WHEN "updatedAt" != "createdAt"
+            THEN EXTRACT(EPOCH FROM ("updatedAt" - "createdAt")) / 86400
+            ELSE 0
+          END
+        ) as avg_days_in_status
+      FROM "Inquiry"
+      WHERE "createdAt" >= ${filterGte} AND "createdAt" <= ${filterLte}
+      GROUP BY status
+      ORDER BY
+        CASE status
+          WHEN 'New' THEN 1
+          WHEN 'Quoted' THEN 2
+          WHEN 'Approved' THEN 3
+          WHEN 'Scheduled' THEN 4
+          WHEN 'Fulfilled' THEN 5
+          WHEN 'Cancelled' THEN 6
+          ELSE 7
+        END
+    `;
+
+    return funnelData.map((item) => ({
+      status: item.status,
+      count: Number(item.count),
+      avgDaysInStatus: Math.round(item.avg_days_in_status * 10) / 10,
+    }));
+  }
+
+  async getRevenueProjections(startDate?: Date, endDate?: Date) {
+    // Define default dates if not provided
+    const filterGte = startDate || new Date("1900-01-01");
+    const filterLte = endDate || new Date();
+
+    const projections = await prisma.inquiry.aggregate({
+      where: {
+        quotedPrice: { not: null },
+        status: {
+          in: [
+            InquiryStatus.Quoted,
+            InquiryStatus.Approved,
+            InquiryStatus.Scheduled,
+          ],
+        },
+        createdAt: {
+          gte: filterGte,
+          lte: filterLte,
+        },
+      },
+      _sum: { quotedPrice: true },
+      _count: { quotedPrice: true },
+      _avg: { quotedPrice: true },
+    });
+
+    return {
+      potentialRevenue: Number(projections._sum.quotedPrice) || 0,
+      averageQuoteValue: Number(projections._avg.quotedPrice) || 0,
+      pendingQuotes: Number(projections._count.quotedPrice) || 0,
     };
   }
 
@@ -1002,12 +1275,10 @@ export class InquiryService {
    */
   async assignInquiry(
     inquiryId: string,
-    assignedToId: string,
-    assignedById: string
+    assignedById: string,
+    assignedToId: string | null
   ): Promise<Inquiry & { product: Product | null }> {
-    // Add Product to return type
     try {
-      // Check if inquiry exists
       const existingInquiry = await prisma.inquiry.findUnique({
         where: { id: inquiryId },
         include: {
@@ -1015,14 +1286,48 @@ export class InquiryService {
           assignedTo: true,
           relatedLead: true,
           product: true,
-        }, // ADDED: include product
+        },
       });
 
       if (!existingInquiry) {
         throw new Error(`Inquiry with ID ${inquiryId} not found`);
       }
 
-      // Check if the user being assigned exists
+      const oldAssignedToName =
+        existingInquiry.assignedTo?.name || "unassigned";
+
+      if (!assignedToId) {
+        const updatedInquiry = await prisma.inquiry.update({
+          where: { id: inquiryId },
+          data: {
+            assignedTo: { disconnect: true },
+            updatedAt: new Date(),
+          },
+          include: {
+            createdBy: true,
+            assignedTo: true,
+            relatedLead: true,
+            product: true,
+          },
+        });
+
+        await prisma.activityLog.create({
+          data: {
+            leadId: existingInquiry.relatedLeadId,
+            userId: assignedById,
+            action: "INQUIRY_UNASSIGNED",
+            description: `Inquiry "${existingInquiry.clientName}" (ID: ${inquiryId}) unassigned from ${oldAssignedToName}`,
+            metadata: {
+              inquiryId: inquiryId,
+              oldAssignedToId: existingInquiry.assignedToId,
+              oldAssignedToName: oldAssignedToName,
+            },
+          },
+        });
+
+        return updatedInquiry as Inquiry & { product: Product | null };
+      }
+
       const assignedUser = await prisma.user.findUnique({
         where: { id: assignedToId },
       });
@@ -1031,11 +1336,10 @@ export class InquiryService {
         throw new Error(`User with ID ${assignedToId} not found`);
       }
 
-      // Assign the inquiry to the user
       const updatedInquiry = await prisma.inquiry.update({
         where: { id: inquiryId },
         data: {
-          assignedToId,
+          assignedTo: { connect: { id: assignedUser.id } },
           updatedAt: new Date(),
         },
         include: {
@@ -1043,7 +1347,23 @@ export class InquiryService {
           assignedTo: true,
           relatedLead: true,
           product: true,
-        }, // ADDED: include product
+        },
+      });
+
+      await prisma.activityLog.create({
+        data: {
+          leadId: existingInquiry.relatedLeadId,
+          userId: assignedById,
+          action: "INQUIRY_ASSIGNED",
+          description: `Inquiry "${existingInquiry.clientName}" (ID: ${inquiryId}) assigned to ${assignedUser.name}`,
+          metadata: {
+            inquiryId: inquiryId,
+            oldAssignedToId: existingInquiry.assignedToId,
+            oldAssignedToName: oldAssignedToName,
+            newAssignedToId: assignedUser.id,
+            newAssignedToName: assignedUser.name,
+          },
+        },
       });
 
       return updatedInquiry as Inquiry & { product: Product | null };
