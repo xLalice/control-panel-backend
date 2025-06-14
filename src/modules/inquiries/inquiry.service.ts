@@ -10,6 +10,7 @@ import {
   MonthlyDataRaw,
   CreateInquiryDto,
   UpdateInquiryDto,
+  ScheduleOptions,
 } from "./inquiry.types";
 import {
   DeliveryMethod,
@@ -19,6 +20,7 @@ import {
   Priority,
   Inquiry,
   Product,
+  Lead,
 } from "@prisma/client";
 
 export class InquiryService {
@@ -65,7 +67,7 @@ export class InquiryService {
     } else if (sortBy === "assignedTo.name") {
       orderBy.assignedTo = { name: sortOrder };
     } else {
-      orderBy[sortBy] = sortOrder; 
+      orderBy[sortBy] = sortOrder;
     }
 
     const inquiries = await prisma.inquiry.findMany({
@@ -89,7 +91,7 @@ export class InquiryService {
             name: true,
             email: true,
           },
-        }
+        },
       },
     });
 
@@ -203,7 +205,6 @@ export class InquiryService {
     const inquiryData: any = {
       ...data,
       inquiryType: data.inquiryType as InquiryTypeEnum,
-      productId: data.productId,
       preferredDate: new Date(data.preferredDate),
       deliveryMethod: data.deliveryMethod as DeliveryMethod,
       referenceSource: data.referenceSource as ReferenceSource,
@@ -219,6 +220,7 @@ export class InquiryService {
       const newInquiry = await tx.inquiry.create({
         data: {
           ...inquiryData,
+          product: { connect: { id: data.product } },
           createdBy: { connect: { id: userId } },
           status: InquiryStatus.New,
         },
@@ -445,8 +447,15 @@ export class InquiryService {
   async scheduleInquiry(
     id: string,
     scheduledDate: Date,
-    userId: string
-  ): Promise<Inquiry & { product: Product | null }> {
+    userId: string,
+    options?: ScheduleOptions
+  ): Promise<
+    Inquiry & {
+      product: Product | null;
+      relatedLead: Lead | null;
+      createdBy: any;
+    }
+  > {
     return prisma.$transaction(async (tx) => {
       const inquiry = await tx.inquiry.findUnique({
         where: { id },
@@ -462,6 +471,8 @@ export class InquiryService {
         data: {
           status: "Scheduled",
           preferredDate: scheduledDate,
+          priority: options?.priority || inquiry.priority,
+          remarks: options?.notes || inquiry.remarks,
         },
         include: {
           relatedLead: true,
@@ -471,8 +482,6 @@ export class InquiryService {
       });
 
       if (inquiry.relatedLead) {
-        const oldStatus = inquiry.relatedLead.status;
-
         await tx.lead.update({
           where: { id: inquiry.relatedLead.id },
           data: {
@@ -482,6 +491,7 @@ export class InquiryService {
           },
         });
 
+        // Activity Log for Lead
         await tx.activityLog.create({
           data: {
             leadId: inquiry.relatedLead.id,
@@ -489,11 +499,18 @@ export class InquiryService {
             action: "DELIVERY_SCHEDULED",
             description: `Delivery scheduled for ${
               scheduledDate.toISOString().split("T")[0]
+            }. ${options?.priority ? `Priority: ${options.priority}.` : ""} ${
+              options?.notes ? `Notes: ${options.notes}.` : ""
             }`,
-            metadata: { inquiryId: id, scheduledDate },
+            metadata: {
+              inquiryId: id,
+              scheduledDate: scheduledDate.toISOString(),
+              priority: options?.priority,
+              notes: options?.notes,
+              reminderMinutes: options?.reminderMinutes,
+            },
           },
         });
-
         await tx.contactHistory.create({
           data: {
             leadId: inquiry.relatedLead.id,
@@ -501,16 +518,19 @@ export class InquiryService {
             method: "System Update",
             summary: `Delivery scheduled for ${
               scheduledDate.toISOString().split("T")[0]
-            }`,
+            }. ${options?.notes ? `Notes: ${options.notes}.` : ""}`,
             outcome: "Awaiting delivery",
           },
         });
       }
 
-      return updatedInquiry as Inquiry & { product: Product | null };
+      return updatedInquiry as Inquiry & {
+        product: Product | null;
+        relatedLead: Lead | null;
+        createdBy: any;
+      };
     });
   }
-
   async fulfillInquiry(
     id: string,
     userId: string
@@ -817,11 +837,10 @@ export class InquiryService {
         },
       });
 
-      // Update inquiry to link it to the lead
       await tx.inquiry.update({
         where: { id },
         data: {
-          status: InquiryStatus.Approved, // Or some other appropriate status for a converted inquiry
+          status: InquiryStatus.Approved,
           relatedLeadId: lead.id,
         },
       });
@@ -844,7 +863,7 @@ export class InquiryService {
           assignedTo: true,
           relatedLead: true,
           product: true,
-        }, 
+        },
       });
 
       if (!existingInquiry) {

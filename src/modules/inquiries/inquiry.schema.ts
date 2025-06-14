@@ -15,7 +15,7 @@ const inquiryBaseSchema = z.object({
   isCompany: z.boolean(),
   companyName: z.string().optional(),
   companyAddress: z.string().optional(),
-  productId: z.string(),
+  product: z.string(),
   status: z.nativeEnum(InquiryStatus).optional(),
   quantity: z.number().int().positive("Quantity must be a positive number"),
   deliveryMethod: z.nativeEnum(DeliveryMethod, {
@@ -125,15 +125,19 @@ export const inquiryIdSchema = z.object({
 });
 
 export const scheduleInquirySchema = z.object({
-  scheduledDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: "Invalid date format",
-  }),
-  priority: z.nativeEnum(Priority),
+  scheduledDate: z.string().datetime("Invalid date format for scheduled date. Expected ISO 8601 string."),
+  priority: z.nativeEnum(Priority).optional(), 
   notes: z.string().optional(),
-  reminderMinutes: z.number().optional()
+  reminderMinutes: z.number().int().min(0).optional(), 
 });
 
 export const  quoteSchema = z.object({
   basePrice: z.number().positive({ message: "Base price must be positive" }),
   totalPrice: z.number().positive({ message: "Total price must be positive" }),
 });
+
+export type ScheduleInquiryDTO = z.infer<typeof scheduleInquirySchema>
+export type QuoteDTO = z.infer<typeof quoteSchema>
+export type FilterInquiryInput = z.infer<typeof filterInquirySchema>
+
+
