@@ -61,8 +61,7 @@ export const updateDueDateSchema = z.object({
 
 export const assignInquirySchema = z.object({
   id: z.string().uuid("Invalid inquiry ID format"),
-  assigneeId: z.string().uuid("Invalid assignee ID format"),
-  userId: z.string().uuid("Invalid user ID format"),
+  assignedToId: z.string().cuid("Invalid assignee ID format")
 });
 
 export const statisticsFilterSchema = z.object({

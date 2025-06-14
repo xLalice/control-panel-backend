@@ -7,6 +7,7 @@ import {
   updateInquirySchema,
   createInquirySchema,
 } from "./inquiry.schema";
+import { check } from "zod/v4";
 
 const router = express.Router();
 const inquiryController = new InquiryController();
@@ -91,5 +92,19 @@ router.post(
   checkPermission("update:all_inquiries"),
   (req, res) => inquiryController.convertToLead(req, res)
 );
+
+router.patch(
+  "/:id/assign/",
+  isAuthenticated,
+  checkPermission("update:all_inquiries"),
+  (req, res) => inquiryController.assignInquiry(req, res)
+)
+
+router.get(
+  "/stats/overview",
+  isAuthenticated,
+  checkPermission("read:all_inquiries"),
+  (req, res) => inquiryController.getInquiryStatistics(req, res)
+)
 
 export default router;

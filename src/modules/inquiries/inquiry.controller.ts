@@ -653,7 +653,7 @@ export class InquiryController {
 
       const assignValidation = z
         .object({
-          assignedToId: z.string().uuid(),
+          assignedToId: z.string().cuid().nullable(),
         })
         .safeParse(req.body);
 
@@ -675,8 +675,9 @@ export class InquiryController {
       const { assignedToId } = assignValidation.data;
       const updatedInquiry = await inquiryService.assignInquiry(
         id,
+        req.user!.id,
         assignedToId,
-        req.user!.id
+        
       );
 
       res.json(updatedInquiry);

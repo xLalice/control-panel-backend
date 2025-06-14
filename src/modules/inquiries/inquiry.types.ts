@@ -1,10 +1,16 @@
-import {ReferenceSource, LeadStatus, InquiryType, Priority, DeliveryMethod } from "@prisma/client";
+import {
+  ReferenceSource,
+  LeadStatus,
+  InquiryType,
+  Priority,
+  DeliveryMethod,
+} from "@prisma/client";
 
 export enum InquiryStatus {
   New = "New",
-  Processed = "InProgress", 
+  Processed = "InProgress",
   Converted = "Converted",
-  Closed = "Closed"
+  Closed = "Closed",
 }
 
 export enum InquiryTypeEnum {
@@ -12,27 +18,27 @@ export enum InquiryTypeEnum {
   ProductAvailability = "ProductAvailability",
   TechnicalQuestion = "TechnicalQuestion",
   DeliveryInquiry = "DeliveryInquiry",
-  Other = "Other"
+  Other = "Other",
 }
 
 export interface CreateInquiryDto {
   clientName: string;
   phoneNumber: string;
   email: string;
-  isCompany?: boolean; 
+  isCompany?: boolean;
   companyName?: string;
   companyAddress?: string;
-  product: string; 
-  inquiryType: InquiryType; 
-  quantity: number; 
+  product: string;
+  inquiryType: InquiryType;
+  quantity: number;
   deliveryMethod?: DeliveryMethod;
-  deliveryLocation?: string; 
-  preferredDate: Date | string; 
-  referenceSource: ReferenceSource; 
+  deliveryLocation?: string;
+  preferredDate: Date | string;
+  referenceSource: ReferenceSource;
   status?: InquiryStatus;
-  remarks?: string; 
-  priority?: Priority; 
-  dueDate?: Date | string; 
+  remarks?: string;
+  priority?: Priority;
+  dueDate?: Date | string;
 }
 
 export interface ScheduleOptions {
@@ -41,13 +47,18 @@ export interface ScheduleOptions {
   reminderMinutes?: number;
 }
 
-export type UpdateInquiryDto = Partial<CreateInquiryDto & {
-   status?: InquiryStatus;
- }>
+export type UpdateInquiryDto = Partial<
+  CreateInquiryDto & {
+    status?: InquiryStatus;
+  }
+>;
 
-export type InquirySortField = "id" | "customerName" | "status" | "createdAt" | "updatedAt";
-
-
+export type InquirySortField =
+  | "id"
+  | "customerName"
+  | "status"
+  | "createdAt"
+  | "updatedAt";
 
 export interface InquiryFilterParams {
   page?: number;
@@ -60,12 +71,11 @@ export interface InquiryFilterParams {
   search?: string;
   startDate?: string;
   endDate?: string;
-  inquiryType?: InquiryType
-  priority?: Priority
-  dueDate?: Date
-  assignedToId?: string
+  inquiryType?: InquiryType;
+  priority?: Priority;
+  dueDate?: Date;
+  assignedToId?: string;
 }
-
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -77,19 +87,47 @@ export interface PaginatedResponse<T> {
   };
 }
 
-export interface  InquiryStatistics {
-  totalInquiries: number; 
-  byStatus: Array<{ status: string | null; count: number }>; 
-  bySource: Array<{ source: string | null; count: number }>; 
-  byProductType: Array<{ productType: string | null; count: number }>; 
-  monthlyTrends: Array<{ month: Date; count: number }>; 
+export interface InquiryStatistics {
+  totalInquiries: number;
   conversionRate: number;
+  byStatus: Array<{ status: string; count: number }>;
+  byReferenceSource: Array<{ referenceSource: string; count: number }>;
+  byInquiryType: Array<{ inquiryType: string; count: number }>;
+  byPriority: Array<{ priority: string; count: number }>;
+  byDeliveryMethod: Array<{ deliveryMethod: string; count: number }>;
+  byProductType: Array<{ productType: string; count: number }>;
+  monthlyTrends: Array<{
+    month: Date;
+    count: number;
+    fulfilled: number;
+    cancelled: number;
+  }>;
+  dailyTrends?: Array<{ date: Date; count: number }>;
+  averageResponseTime?: number; // in hours
+  topProducts: Array<{
+    productName: string;
+    count: number;
+    conversionRate: number;
+  }>;
+  performanceMetrics: {
+    activeInquiries: number;
+    overdueQuotes: number;
+    avgQuoteValue: number;
+    totalQuoteValue: number;
+  };
 }
 
-export type MonthlyDataRaw = {
+export interface MonthlyDataRaw {
   month: Date;
-  count: bigint; 
-};
+  count: bigint;
+  fulfilled: bigint;
+  cancelled: bigint;
+}
+
+export interface DailyDataRaw {
+  date: Date;
+  count: bigint;
+}
 
 export interface ConversionResult {
   lead: {
