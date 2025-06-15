@@ -5,6 +5,7 @@ import {
   User,
   ActivityLog,
   Company,
+  Client,
 } from "@prisma/client";
 import {
   AssignLeadDto,
@@ -17,7 +18,7 @@ import {
   UpdateLeadStatusDto,
 } from "./lead.schema";
 import { Prisma } from "@prisma/client";
-import { JsonObject } from "@prisma/client/runtime/library";
+import { JsonObject, JsonValue } from "@prisma/client/runtime/library";
 import { getSortingConfig } from "./lead.utils";
 
 export class LeadService {
@@ -497,8 +498,88 @@ export class LeadService {
       where: { leadId },
       orderBy: { createdAt: "desc" },
       include: {
-        user: true
-      }
+        user: true,
+      },
     });
+  }
+
+  async convertLeadToClient(
+    leadId: string,
+    convertedById: string
+  ): Promise<Client> {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      include: { company: true },
+    });
+
+    if (!lead) {
+      throw new Error("Lead does not exist.");
+    }
+
+    if (lead.status !== "Won") {
+      throw new Error(
+        "Cannot convert a lead that has not been won. Current status: " +
+          lead.status
+      );
+    }
+
+    const clientName =
+      lead.company?.name ||
+      lead.contactPerson ||
+      `Client from Lead ${lead.id.substring(0, 8)}`;
+
+    return await this.prisma.$transaction(async (tx) => {
+      const clientCreationData: Prisma.ClientCreateInput = {
+        clientName: clientName,
+        primaryEmail: lead.email,
+        primaryPhone: lead.phone,
+        status: "Active",
+        notes: `Converted from Lead ID: ${lead.id}. Original lead name: ${lead.name}.`,
+        convertedFromLead: { connect: { id: lead.id } },
+        ...(lead.companyId && { company: { connect: { id: lead.companyId } } }),
+      };
+
+      const createdClient = await tx.client.create({
+        data: clientCreationData,
+      });
+
+      await tx.lead.update({
+        where: { id: lead.id },
+        data: {
+          status: "Won",
+          client: {connect: {id: createdClient.id}},
+          isActive: false,
+          updatedAt: new Date(),
+        },
+      });
+
+      await tx.contactHistory.updateMany({
+        where: { leadId: lead.id },
+        data: { clientId: createdClient.id, leadId: null },
+      });
+
+      await tx.activityLog.updateMany({
+        where: { leadId: lead.id },
+        data: { clientId: createdClient.id, leadId: null },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          leadId: lead.id,
+          clientId: createdClient.id,
+          userId: convertedById,
+          action: "LEAD_CONVERTED_TO_CLIENT",
+          description: `Lead "${lead.name}" (ID: ${lead.id}) converted to Client "${createdClient.clientName}" (ID: ${createdClient.id}).`,
+          metadata: {
+            leadId: lead.id,
+            clientId: createdClient.id,
+            oldLeadStatus: lead.status,
+            newLeadStatus: "ConvertedToClient" as JsonValue,
+          },
+        },
+      });
+
+      return createdClient;
+    }); 
   }
 }
