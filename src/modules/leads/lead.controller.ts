@@ -184,4 +184,34 @@ export class LeadController {
       }
     }
   }
+
+  async convertLeadToClient(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const convertedClient = await leadService.convertLeadToClient(
+        id,
+        req.user?.id!
+      );
+
+      res.status(201).json(convertedClient);
+    } catch (error: any) {
+      console.error("Error converting lead to client:", error.message);
+
+      if (error.message === "Lead does not exist.") {
+        res.status(404).json({ message: error.message });
+        return;
+      }
+      if (
+        error.message.startsWith("Cannot convert a lead that has not been won")
+      ) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+
+      res.status(500).json({
+        message: "An unexpected error occurred during lead conversion.",
+      });
+    }
+  }
 }
