@@ -1092,7 +1092,9 @@ export class InquiryService {
           createdById: userId,
           assignedToId: userId,
           notes: `Converted from inquiry (Product: ${
-            inquiry.product?.name || "Unknown"
+            inquiry.clientName ??
+            inquiry.companyName ??
+            `Lead from Inquiry ${inquiry.id.substring(0, 8)}`
           }). Original remarks: ${inquiry.remarks || "None"}`,
           followUpDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
@@ -1105,7 +1107,7 @@ export class InquiryService {
           method: "Inquiry Form",
           summary: `Initial inquiry for ${
             inquiry.product?.name || "Unknown Product"
-          } submitted through inquiry form`, // CHANGED: Added product name to summary
+          } submitted through inquiry form`, 
           outcome: "Converted to lead",
         },
       });
