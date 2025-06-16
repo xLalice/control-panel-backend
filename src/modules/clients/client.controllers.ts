@@ -84,17 +84,6 @@ export const getClients = async (req: Request, res: Response) => {
     const clients = await prisma.client.findMany({ 
       where: { isActive: true },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        clientName : true,
-        primaryEmail: true,
-        primaryPhone: true,
-        billingAddressCity: true,
-        billingAddressCountry: true,
-        billingAddressRegion: true,
-        status: true,
-        createdAt: true
-      }
     });
 
     res.status(200).json(clients);
