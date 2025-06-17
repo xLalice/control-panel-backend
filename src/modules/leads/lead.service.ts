@@ -2,10 +2,10 @@ import {
   PrismaClient,
   Lead,
   LeadStatus,
-  User,
   ActivityLog,
   Company,
   Client,
+  ContactHistory as PrismaContactHistory
 } from "@prisma/client";
 import {
   AssignLeadDto,
@@ -20,6 +20,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { JsonObject, JsonValue } from "@prisma/client/runtime/library";
 import { getSortingConfig } from "./lead.utils";
+import { AddContactHistoryData, ContactHistory } from "../clients/client.types";
 
 export class LeadService {
   constructor(private prisma: PrismaClient) {}
@@ -345,7 +346,12 @@ export class LeadService {
   async getLead(id: string): Promise<Lead | null> {
     return this.prisma.lead.findUnique({
       where: { id },
-      include: { company: true, assignedTo: true, contactHistory: true },
+      include: {
+        company: true,
+        assignedTo: true,
+        contactHistory: true,
+        client: true,
+      },
     });
   }
 
@@ -503,6 +509,59 @@ export class LeadService {
     });
   }
 
+  async getContactHistory(leadId: string): Promise<PrismaContactHistory[]> {
+    return this.prisma.contactHistory.findMany({
+      where: { leadId },
+      orderBy: { timestamp: "desc" },
+      include: {
+        user: true,
+      },
+    });
+  }
+
+  async addContactHistory(
+    leadId: string,
+    data: Omit<AddContactHistoryData, "entity">
+  ): Promise<ContactHistory> {
+    try {
+      const createdContact = await this.prisma.contactHistory.create({
+        data: {
+          method: data.method,
+          summary: data.summary,
+          outcome: data.outcome,
+          timestamp: data.timestamp,
+          userId: data.userId,
+          leadId: leadId,
+          clientId: null,
+        },
+        include: {
+          user: { select: { id: true, name: true } },
+          lead: { select: { id: true, name: true } },
+        },
+      });
+
+      const formattedContact: ContactHistory = {
+        id: createdContact.id,
+        method: createdContact.method,
+        summary: createdContact.summary,
+        outcome: createdContact.outcome || undefined,
+        timestamp: createdContact.timestamp,
+        user: createdContact.user
+          ? { id: createdContact.user.id, name: createdContact.user.name }
+          : undefined,
+        lead: createdContact.lead
+          ? { id: createdContact.lead.id, name: createdContact.lead.name }
+          : undefined,
+        client: undefined,
+      };
+
+      return formattedContact;
+    } catch (error) {
+      console.error(`Error adding contact history for lead ${leadId}:`, error);
+      throw new Error(`Failed to add contact history for lead.`);
+    }
+  }
+
   async convertLeadToClient(
     leadId: string,
     convertedById: string
@@ -547,7 +606,7 @@ export class LeadService {
         where: { id: lead.id },
         data: {
           status: "Won",
-          client: {connect: {id: createdClient.id}},
+          client: { connect: { id: createdClient.id } },
           isActive: false,
           updatedAt: new Date(),
         },
@@ -580,6 +639,6 @@ export class LeadService {
       });
 
       return createdClient;
-    }); 
+    });
   }
 }
