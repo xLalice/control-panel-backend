@@ -29,4 +29,38 @@ export const CreateClientSchema = z.object({
 });
 
 export const UpdateClientSchema = CreateClientSchema.partial();
+export const EntityTypeEnum = ['Lead', 'Inquiry', 'Client'] as const;
+export const EntityTypeSchema = z.enum(EntityTypeEnum, {
+  message: `Invalid entity type. Expected one of: ${EntityTypeEnum.join(', ')}.`,
+});
 
+
+export const ContactMethodEnum = ['Call', 'Email', 'Meeting', 'SMS', 'In-Person'] as const;
+export const ContactMethodSchema = z.enum(ContactMethodEnum, {
+  message: `Invalid contact method. Expected one of: ${ContactMethodEnum.join(', ')}.`,
+});
+
+
+export const ContactOutcomeEnum = [
+  'Successful',
+  'No Answer',
+  'Left Voicemail',
+  'Follow-up Needed',
+  'Next Steps Defined',
+  'Not Interested'
+] as const;
+export const ContactOutcomeSchema = z.enum(ContactOutcomeEnum, {
+  message: `Invalid contact outcome. Expected one of: ${ContactOutcomeEnum.join(', ')}.`,
+}).optional(); 
+
+
+export const LogContactHistorySchema = z.object({
+  method: ContactMethodSchema,
+  summary: z.string().min(1, 'Summary cannot be empty.').max(1000, 'Summary cannot exceed 1000 characters.'),
+  outcome: ContactOutcomeSchema,
+  timestamp: z.string().datetime({ message: 'Invalid timestamp format. Expected ISO 8601 string.' }),
+  entityId: z.string().uuid('Invalid entity ID format.'),
+  entityType: EntityTypeSchema,
+});
+
+export type LogContactHistoryInput = z.infer<typeof LogContactHistorySchema>;
