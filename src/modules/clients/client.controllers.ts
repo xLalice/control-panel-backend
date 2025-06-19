@@ -9,7 +9,7 @@ import { handleZodError } from "../../utils/zod";
 import { prisma } from "../../config/prisma";
 import { generateNextAccountNumber } from "./client.utils";
 import { addContactHistory } from "./client.service";
-import { ZodError } from "zod/v4";
+import { ZodError, z } from "zod";
 
 const createActivityLog = async (
   clientId: string,
@@ -34,74 +34,61 @@ const createActivityLog = async (
 };
 
 export const createClient = async (req: Request, res: Response) => {
-  try {
-    const result = CreateClientSchema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({
-        message: "Validation failed",
-        error: handleZodError(result.error),
-      });
-      return;
-    }
-
-    const existingClient = await prisma.client.findFirst({
-      where: { clientName: result.data.clientName },
+  const result = CreateClientSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({
+      message: "Validation failed",
+      error: handleZodError(result.error),
     });
-
-    if (existingClient) {
-      res.status(400).json({ error: "Client already exists." });
-      return;
-    }
-
-    const accountNumber = await generateNextAccountNumber(prisma);
-
-    const client = await prisma.client.create({
-      data: {
-        ...result.data,
-        accountNumber,
-      },
-    });
-
-    if (req.user?.id) {
-      await createActivityLog(
-        client.id,
-        req.user.id,
-        "Created",
-        `Client "${client.clientName}" was created`,
-        {
-          clientName: client.clientName,
-          accountNumber: client.accountNumber,
-          status: client.status,
-          createdData: result.data,
-        }
-      );
-    }
-
-    res
-      .status(201)
-      .json({ client, message: "Successfully created the client" });
-  } catch (error) {
-    console.error("Error creating client:", error);
-    res.status(500).json({ error: "Error creating client." });
+    return;
   }
+
+  const existingClient = await prisma.client.findFirst({
+    where: { clientName: result.data.clientName },
+  });
+
+  if (existingClient) {
+    res.status(400).json({ error: "Client already exists." });
+    return;
+  }
+
+  const accountNumber = await generateNextAccountNumber(prisma);
+
+  const client = await prisma.client.create({
+    data: {
+      ...result.data,
+      accountNumber,
+    },
+  });
+
+  if (req.user?.id) {
+    await createActivityLog(
+      client.id,
+      req.user.id,
+      "Created",
+      `Client "${client.clientName}" was created`,
+      {
+        clientName: client.clientName,
+        accountNumber: client.accountNumber,
+        status: client.status,
+        createdData: result.data,
+      }
+    );
+  }
+
+  res.status(201).json({ client, message: "Successfully created the client" });
 };
 
 export const getClients = async (req: Request, res: Response) => {
-  try {
     const clients = await prisma.client.findMany({
       where: { isActive: true },
       orderBy: { createdAt: "desc" },
     });
 
     res.status(200).json(clients);
-  } catch (error) {
-    console.error("Error fetching clients:", error);
-    res.status(500).json({ error: "Error fetching clients" });
-  }
 };
 
 export const getClient = async (req: Request, res: Response) => {
-  try {
     const client = await prisma.client.findUnique({
       where: { id: req.params.id },
       include: {
@@ -123,14 +110,9 @@ export const getClient = async (req: Request, res: Response) => {
     }
 
     res.status(200).json(client);
-  } catch (error) {
-    console.error("Error fetching client:", error);
-    res.status(500).json({ error: "Error fetching client" });
-  }
 };
 
 export const updateClient = async (req: Request, res: Response) => {
-  try {
     const result = UpdateClientSchema.safeParse(req.body);
     if (!result.success) {
       res.status(400).json({
@@ -182,15 +164,10 @@ export const updateClient = async (req: Request, res: Response) => {
     res
       .status(200)
       .json({ client, message: "Successfully updated the client" });
-  } catch (error) {
-    console.error("Error updating client:", error);
-    res.status(500).json({ error: "Error updating client" });
-  }
 };
 
 export const deleteClient = async (req: Request, res: Response) => {
-  try {
-    const client = await prisma.client.findUnique({
+const client = await prisma.client.findUnique({
       where: { id: req.params.id },
     });
 
@@ -222,15 +199,10 @@ export const deleteClient = async (req: Request, res: Response) => {
       message: "Client successfully deactivated",
       client: updatedClient,
     });
-  } catch (error) {
-    console.error("Error deleting client:", error);
-    res.status(500).json({ error: "Error deleting client" });
-  }
 };
 
 export const restoreClient = async (req: Request, res: Response) => {
-  try {
-    const client = await prisma.client.findUnique({
+const client = await prisma.client.findUnique({
       where: { id: req.params.id },
     });
 
@@ -266,15 +238,10 @@ export const restoreClient = async (req: Request, res: Response) => {
       message: "Client successfully restored",
       client: restoredClient,
     });
-  } catch (error) {
-    console.error("Error restoring client:", error);
-    res.status(500).json({ error: "Error restoring client" });
-  }
 };
 
 export const getClientActivityLog = async (req: Request, res: Response) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
+const { page = 1, limit = 20 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     const activities = await prisma.activityLog.findMany({
@@ -290,15 +257,10 @@ export const getClientActivityLog = async (req: Request, res: Response) => {
     });
 
     res.status(200).json(activities);
-  } catch (error) {
-    console.error("Error fetching activity log:", error);
-    res.status(500).json({ error: "Error fetching activity log" });
-  }
 };
 
 export const getClientContactHistory = async (req: Request, res: Response) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
+const { page = 1, limit = 20 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     const contactHistory = await prisma.contactHistory.findMany({
@@ -318,16 +280,11 @@ export const getClientContactHistory = async (req: Request, res: Response) => {
     });
 
     res.status(200).json(contactHistory);
-  } catch (error) {
-    console.error("Error fetching contact history:", error);
-    res.status(500).json({ error: "Error fetching contact history" });
-  }
 };
 export const logContactHistory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  try {
     const { id } = req.params;
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -361,16 +318,4 @@ export const logContactHistory = async (
     let createdContact = await addContactHistory(id, newContactData);
 
     res.status(201).json(createdContact);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      console.error("Zod validation error for logContactHistory:", error);
-      console.error("Error logging contact history:", error.message);
-      res
-        .status(500)
-        .json({ error: "Internal server error: " + error.message });
-    } else {
-      console.error("An unknown error occurred in logContactHistory:", error);
-      res.status(500).json({ error: "An unknown error occurred." });
-    }
-  }
 };

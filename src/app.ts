@@ -15,6 +15,7 @@ import attendanceRoutes from "./modules/attendance/attendance.routes"
 import userRoutes from "./modules/users/users.routes"
 import clientRoutes from "./modules/clients/client.routes"
 import { info } from "./utils/logger";
+import { errorHandler } from "./middlewares/errorHandler";
 require("dotenv").config();
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "QWERTY";
@@ -77,6 +78,8 @@ app.use("/api/inquiries", inquiryRoutes);
 app.use('/api/documents', documentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use('/api/clients', clientRoutes);
+
+app.use(errorHandler)
 
 
 const PORT = process.env.PORT || 5000;
