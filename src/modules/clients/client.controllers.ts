@@ -1,8 +1,15 @@
 import { Request, Response } from "express";
-import { CreateClientSchema, UpdateClientSchema } from "./client.schema";
+import {
+  CreateClientSchema,
+  LogContactHistoryInput,
+  LogContactHistorySchema,
+  UpdateClientSchema,
+} from "./client.schema";
 import { handleZodError } from "../../utils/zod";
 import { prisma } from "../../config/prisma";
 import { generateNextAccountNumber } from "./client.utils";
+import { addContactHistory } from "./client.service";
+import { ZodError } from "zod/v4";
 
 const createActivityLog = async (
   clientId: string,
@@ -47,7 +54,7 @@ export const createClient = async (req: Request, res: Response) => {
     }
 
     const accountNumber = await generateNextAccountNumber(prisma);
-    
+
     const client = await prisma.client.create({
       data: {
         ...result.data,
@@ -65,7 +72,7 @@ export const createClient = async (req: Request, res: Response) => {
           clientName: client.clientName,
           accountNumber: client.accountNumber,
           status: client.status,
-          createdData: result.data
+          createdData: result.data,
         }
       );
     }
@@ -81,9 +88,9 @@ export const createClient = async (req: Request, res: Response) => {
 
 export const getClients = async (req: Request, res: Response) => {
   try {
-    const clients = await prisma.client.findMany({ 
+    const clients = await prisma.client.findMany({
       where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     res.status(200).json(clients);
@@ -99,15 +106,15 @@ export const getClient = async (req: Request, res: Response) => {
       where: { id: req.params.id },
       include: {
         activityLog: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           take: 10,
           include: {
             user: {
-              select: { id: true, name: true, email: true }
-            }
-          }
-        }
-      }
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+      },
     });
 
     if (!client) {
@@ -143,16 +150,15 @@ export const updateClient = async (req: Request, res: Response) => {
     }
 
     const changedFields: Record<string, { old: any; new: any }> = {};
-    Object.keys(result.data).forEach(key => {
+    Object.keys(result.data).forEach((key) => {
       const oldValue = currentClient[key as keyof typeof currentClient];
       const newValue = result.data[key as keyof typeof result.data];
-      
+
       if (oldValue !== newValue) {
         changedFields[key] = { old: oldValue, new: newValue };
       }
     });
 
-    
     const client = await prisma.client.update({
       where: { id: req.params.id },
       data: result.data,
@@ -168,7 +174,7 @@ export const updateClient = async (req: Request, res: Response) => {
         {
           clientName: client.clientName,
           changedFields,
-          updateTimestamp: new Date().toISOString()
+          updateTimestamp: new Date().toISOString(),
         }
       );
     }
@@ -207,14 +213,14 @@ export const deleteClient = async (req: Request, res: Response) => {
         {
           clientName: client.clientName,
           accountNumber: client.accountNumber,
-          deletionType: "soft_delete"
+          deletionType: "soft_delete",
         }
       );
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Client successfully deactivated",
-      client: updatedClient
+      client: updatedClient,
     });
   } catch (error) {
     console.error("Error deleting client:", error);
@@ -251,14 +257,14 @@ export const restoreClient = async (req: Request, res: Response) => {
         `Client "${client.clientName}" was restored/reactivated`,
         {
           clientName: client.clientName,
-          accountNumber: client.accountNumber
+          accountNumber: client.accountNumber,
         }
       );
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Client successfully restored",
-      client: restoredClient
+      client: restoredClient,
     });
   } catch (error) {
     console.error("Error restoring client:", error);
@@ -275,16 +281,12 @@ export const getClientActivityLog = async (req: Request, res: Response) => {
       where: { clientId: req.params.id },
       include: {
         user: {
-          select: { id: true, name: true, email: true }
-        }
+          select: { id: true, name: true, email: true },
+        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       skip,
-      take: Number(limit)
-    });
-
-    const totalCount = await prisma.activityLog.count({
-      where: { clientId: req.params.id }
+      take: Number(limit),
     });
 
     res.status(200).json(activities);
@@ -303,21 +305,72 @@ export const getClientContactHistory = async (req: Request, res: Response) => {
       where: { clientId: req.params.id },
       include: {
         user: {
-          select: { id: true, name: true, email: true }
-        }
+          select: { id: true, name: true, email: true },
+        },
       },
-      orderBy: { timestamp: 'desc' },
+      orderBy: { timestamp: "desc" },
       skip,
-      take: Number(limit)
+      take: Number(limit),
     });
 
     const totalCount = await prisma.contactHistory.count({
-      where: { clientId: req.params.id }
+      where: { clientId: req.params.id },
     });
 
     res.status(200).json(contactHistory);
   } catch (error) {
     console.error("Error fetching contact history:", error);
     res.status(500).json({ error: "Error fetching contact history" });
+  }
+};
+export const logContactHistory = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized: User not authenticated." });
+      return;
+    }
+    const dataToValidate = {
+      ...req.body,
+      entityId: id,
+    };
+
+    const validatedData: LogContactHistoryInput =
+      LogContactHistorySchema.parse(dataToValidate);
+
+    const { method, summary, outcome, timestamp, entityType } = validatedData;
+
+    const parsedTimestamp = new Date(timestamp);
+
+    const newContactData = {
+      method,
+      summary,
+      outcome,
+      timestamp: parsedTimestamp,
+      entity: {
+        entityId: id,
+        entityType: entityType,
+      },
+      userId: userId,
+    };
+
+    let createdContact = await addContactHistory(id, newContactData);
+
+    res.status(201).json(createdContact);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      console.error("Zod validation error for logContactHistory:", error);
+      console.error("Error logging contact history:", error.message);
+      res
+        .status(500)
+        .json({ error: "Internal server error: " + error.message });
+    } else {
+      console.error("An unknown error occurred in logContactHistory:", error);
+      res.status(500).json({ error: "An unknown error occurred." });
+    }
   }
 };

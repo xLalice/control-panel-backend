@@ -4,54 +4,15 @@ import {
   InquiryType,
   Priority,
   DeliveryMethod,
+  InquiryStatus,
 } from "@prisma/client";
 
-export enum InquiryStatus {
-  New = "New",
-  Processed = "InProgress",
-  Converted = "Converted",
-  Closed = "Closed",
-}
-
-export enum InquiryTypeEnum {
-  PricingRequest = "PricingRequest",
-  ProductAvailability = "ProductAvailability",
-  TechnicalQuestion = "TechnicalQuestion",
-  DeliveryInquiry = "DeliveryInquiry",
-  Other = "Other",
-}
-
-export interface CreateInquiryDto {
-  clientName: string;
-  phoneNumber: string;
-  email: string;
-  isCompany?: boolean;
-  companyName?: string;
-  companyAddress?: string;
-  product: string;
-  inquiryType: InquiryType;
-  quantity: number;
-  deliveryMethod?: DeliveryMethod;
-  deliveryLocation?: string;
-  preferredDate: Date | string;
-  referenceSource: ReferenceSource;
-  status?: InquiryStatus;
-  remarks?: string;
-  priority?: Priority;
-  dueDate?: Date | string;
-}
 
 export interface ScheduleOptions {
-  priority?: Priority;
-  notes?: string;
-  reminderMinutes?: number;
-}
-
-export type UpdateInquiryDto = Partial<
-  CreateInquiryDto & {
-    status?: InquiryStatus;
+    priority?: Priority | null; // Allow null or undefined
+    notes?: string | null;      // Allow null or undefined
+    reminderMinutes?: number | null; // Allow null or undefined
   }
->;
 
 export type InquirySortField =
   | "id"
@@ -99,29 +60,25 @@ export interface InquiryStatistics {
   monthlyTrends: Array<{
     month: Date;
     count: number;
-    fulfilled: number;
-    cancelled: number;
+    converted: number;
+    closed: number;
+    
   }>;
   dailyTrends?: Array<{ date: Date; count: number }>;
   averageResponseTime?: number; // in hours
-  topProducts: Array<{
-    productName: string;
-    count: number;
-    conversionRate: number;
-  }>;
+  topProducts: Array<any>;
   performanceMetrics: {
     activeInquiries: number;
-    overdueQuotes: number;
-    avgQuoteValue: number;
-    totalQuoteValue: number;
+    avgResponseTime: number;
+    totalValue: number;
   };
 }
 
 export interface MonthlyDataRaw {
   month: Date;
   count: bigint;
-  fulfilled: bigint;
-  cancelled: bigint;
+  converted: bigint;
+  closed: bigint;
 }
 
 export interface DailyDataRaw {
@@ -155,7 +112,7 @@ export interface QuoteDetails {
   notes?: string;
 }
 
-// Response for customer existence check
+
 export interface InquiryContactResponse {
   exists: boolean;
   lead: any | null;

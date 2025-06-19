@@ -54,10 +54,20 @@ router.post("/convert-to-client/:id",
     leadController.convertLeadToClient
 );
 router.get(
-  "/:id/activities",
+  "/:id/activity-log",
   checkPermission("get:all_leads"),
   isAuthenticated,
   leadController.getLeadActivities
 );
+
+router.get("/:id/contact-history",
+  isAuthenticated,
+  leadController.getContactHistory
+)
+
+router.post("/:id/contact-history",
+  isAuthenticated,
+  leadController.logContactHistory
+)
 
 export default router;

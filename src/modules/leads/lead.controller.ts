@@ -9,6 +9,11 @@ import {
 import { prisma } from "../../config/prisma";
 import { LeadStatus, User } from "@prisma/client";
 import { info } from "console";
+import {
+  LogContactHistoryInput,
+  LogContactHistorySchema,
+} from "../clients/client.schema";
+import { ZodError } from "zod/v4";
 
 const leadService = new LeadService(prisma);
 
@@ -181,6 +186,74 @@ export class LeadController {
         res.status(400).json({ error: error.message });
       } else {
         res.status(400).json({ error: "An unknown error occurred" });
+      }
+    }
+  }
+
+  async getContactHistory(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const contactHistory = await leadService.getContactHistory(id);
+      res.json(contactHistory);
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: "An unknown error occurred" });
+      }
+    }
+  }
+
+  async logContactHistory(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        res
+          .status(401)
+          .json({ error: "Unauthorized: User not authenticated." });
+        return;
+      }
+      const dataToValidate = {
+        ...req.body,
+        entityId: id,
+      };
+
+      const validatedData: LogContactHistoryInput =
+        LogContactHistorySchema.parse(dataToValidate);
+
+      const { method, summary, outcome, timestamp, entityType } = validatedData;
+
+      const parsedTimestamp = new Date(timestamp);
+
+      const newContactData = {
+        method,
+        summary,
+        outcome,
+        timestamp: parsedTimestamp,
+        entity: {
+          entityId: id,
+          entityType: entityType,
+        },
+        userId: userId,
+      };
+
+      let createdContact = await leadService.addContactHistory(
+        id,
+        newContactData
+      );
+
+      res.status(201).json(createdContact);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Zod validation error for logContactHistory:", error);
+        console.error("Error logging contact history:", error.message);
+        res
+          .status(500)
+          .json({ error: "Internal server error: " + error.message });
+      } else {
+        console.error("An unknown error occurred in logContactHistory:", error);
+        res.status(500).json({ error: "An unknown error occurred." });
       }
     }
   }

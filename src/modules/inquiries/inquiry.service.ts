@@ -1,16 +1,19 @@
+import { includes } from "zod/v4";
 import { prisma } from "../../config/prisma";
+import {
+  AssociateInquiryDataDto,
+  CreateInquiryDto,
+  InquiryWithItemsAndProducts,
+  UpdateInquiryDto,
+} from "./inquiry.schema";
 
 import {
   InquiryFilterParams,
   PaginatedResponse,
   InquiryStatistics,
   ConversionResult,
-  QuoteDetails,
   InquiryContactResponse,
-  InquiryTypeEnum,
   MonthlyDataRaw,
-  CreateInquiryDto,
-  UpdateInquiryDto,
   ScheduleOptions,
   DailyDataRaw,
 } from "./inquiry.types";
@@ -24,6 +27,9 @@ import {
   Product,
   Lead,
   Prisma,
+  InquiryItem,
+  User,
+  Company,
 } from "@prisma/client";
 
 export class InquiryService {
@@ -32,7 +38,7 @@ export class InquiryService {
    */
   async findAll(
     params: InquiryFilterParams
-  ): Promise<PaginatedResponse<Inquiry & { product: Product | null }>> {
+  ): Promise<PaginatedResponse<Inquiry>> {
     const {
       page = 1,
       limit = 20,
@@ -53,21 +59,26 @@ export class InquiryService {
     }
 
     if (source) where.referenceSource = source;
-    if (productId) where.productId = productId;
     if (search) {
       where.OR = [
         { clientName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { phoneNumber: { contains: search, mode: "insensitive" } },
         { companyName: { contains: search, mode: "insensitive" } },
-        { product: { name: { contains: search, mode: "insensitive" } } },
+        {
+          items: {
+            some: {
+              product: {
+                name: { contains: search, mode: "insensitive" },
+              },
+            },
+          },
+        },
       ];
     }
 
     const orderBy: any = {};
-    if (sortBy === "product.name") {
-      orderBy.product = { name: sortOrder };
-    } else if (sortBy === "assignedTo.name") {
+    if (sortBy === "assignedTo.name") {
       orderBy.assignedTo = { name: sortOrder };
     } else {
       orderBy[sortBy] = sortOrder;
@@ -86,8 +97,12 @@ export class InquiryService {
             email: true,
           },
         },
-        relatedLead: true,
-        product: true,
+        leadOriginated: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
         assignedTo: {
           select: {
             id: true,
@@ -95,13 +110,14 @@ export class InquiryService {
             email: true,
           },
         },
+        lead: true,
       },
     });
 
     const total = await prisma.inquiry.count({ where });
 
     return {
-      data: inquiries as (Inquiry & { product: Product | null })[],
+      data: inquiries as Inquiry[],
       meta: {
         page,
         limit,
@@ -124,7 +140,7 @@ export class InquiryService {
             email: true,
           },
         },
-        relatedLead: {
+        lead: {
           include: {
             company: true,
             contactHistory: {
@@ -134,7 +150,7 @@ export class InquiryService {
             },
           },
         },
-        product: true,
+        items: true,
       },
     });
 
@@ -144,13 +160,18 @@ export class InquiryService {
   async checkClientExists(params: {
     email?: string;
     phoneNumber?: string;
-    companyName?: string;
+    companyName?: string | null;
+    clientName?: string;
   }): Promise<InquiryContactResponse> {
-    const { email, phoneNumber, companyName } = params;
+    const { email, phoneNumber, companyName, clientName } = params;
 
     const whereConditions = [];
     if (email) whereConditions.push({ email });
     if (phoneNumber) whereConditions.push({ phone: phoneNumber });
+    if (clientName) whereConditions.push({
+      clientName
+    })
+
 
     let existingCompany = null;
     if (companyName) {
@@ -198,38 +219,53 @@ export class InquiryService {
   async create(
     data: CreateInquiryDto,
     userId: string
-  ): Promise<Inquiry & { product: Product | null }> {
+  ): Promise<InquiryWithItemsAndProducts> {
     const clientCheck = await this.checkClientExists({
       email: data.email,
       phoneNumber: data.phoneNumber,
-      companyName: data.isCompany ? data.companyName : undefined,
+      companyName: data.isCompany ? data.companyName : null,
     });
 
-    const inquiryData: any = {
-      ...data,
-      inquiryType: data.inquiryType as InquiryTypeEnum,
-      preferredDate: new Date(data.preferredDate),
-      deliveryMethod: data.deliveryMethod as DeliveryMethod,
-      referenceSource: data.referenceSource as ReferenceSource,
-      deliveryLocation: data.deliveryLocation ?? "",
-      status: InquiryStatus.New,
-    };
-
-    if (clientCheck.lead) {
-      inquiryData.relatedLeadId = clientCheck.lead.id;
-    }
+    const { items, ...inquiryBaseData } = data;
 
     const inquiry = await prisma.$transaction(async (tx) => {
       const newInquiry = await tx.inquiry.create({
         data: {
-          ...inquiryData,
-          product: { connect: { id: data.product } },
+          ...inquiryBaseData,
+          preferredDate:
+            inquiryBaseData.preferredDate instanceof Date
+              ? inquiryBaseData.preferredDate
+              : inquiryBaseData.preferredDate
+              ? new Date(inquiryBaseData.preferredDate as string)
+              : null,
+
+          lead: clientCheck.lead
+            ? { connect: { id: clientCheck.lead.id } }
+            : undefined,
+
           createdBy: { connect: { id: userId } },
+
           status: InquiryStatus.New,
+
+          items: {
+            createMany: {
+              data: items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                remarks: item.remarks,
+              })),
+            },
+          },
         },
         include: {
           createdBy: true,
-          product: true,
+          assignedTo: true,
+          lead: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
         },
       });
 
@@ -250,27 +286,26 @@ export class InquiryService {
           await tx.activityLog.create({
             data: {
               leadId: clientCheck.lead.id,
-              userId,
-              action: "STATUS_CHANGE",
+              userId: userId,
+              action: "Status Change",
               description: `Lead status updated due to new inquiry`,
               metadata: { inquiryId: newInquiry.id },
             },
           });
         }
 
-        const product = await tx.product.findUnique({
-          where: { id: newInquiry.productId },
-          select: { name: true },
-        });
+        const productSummaries = newInquiry.items
+          .map((item) => item.product?.name || "Unknown Product")
+          .join(", ");
 
         await tx.contactHistory.create({
           data: {
             leadId: clientCheck.lead.id,
-            user: { connect: { id: userId } },
+            userId: userId,
             method: "Inquiry Form",
-            summary: `New inquiry for ${
-              product?.name || "Unknown Product"
-            }, quantity: ${data.quantity}`,
+            summary: `New inquiry for ${productSummaries}, quantities: ${newInquiry.items
+              .map((item: InquiryItem) => item.quantity)
+              .join(", ")}`,
             outcome: "New inquiry created",
           },
         });
@@ -278,18 +313,21 @@ export class InquiryService {
 
       return newInquiry;
     });
-
-    return inquiry as Inquiry & { product: Product | null };
+    return inquiry;
   }
 
   async update(
     id: string,
     data: UpdateInquiryDto,
     userId: string
-  ): Promise<Inquiry & { product: Product | null }> {
+  ): Promise<InquiryWithItemsAndProducts> {
     const currentInquiry = await prisma.inquiry.findUnique({
       where: { id },
-      include: { relatedLead: true, createdBy: true, product: true },
+      include: {
+        lead: true,
+        createdBy: true,
+        items: true,
+      },
     });
 
     if (!currentInquiry) {
@@ -301,25 +339,49 @@ export class InquiryService {
       preferredDate: data.preferredDate
         ? new Date(data.preferredDate)
         : undefined,
+      products: undefined,
     };
 
     return prisma.$transaction(async (tx) => {
+      if (data.items !== undefined) {
+        await tx.inquiryItem.deleteMany({
+          where: { inquiryId: id },
+        });
+
+        const newItemsToCreate = data.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          remarks: item.remarks,
+          inquiryId: id,
+        }));
+
+        if (newItemsToCreate.length > 0) {
+          await tx.inquiryItem.createMany({
+            data: newItemsToCreate,
+          });
+        }
+      }
+
       const updatedInquiry = await tx.inquiry.update({
         where: { id },
         data: updateData,
         include: {
-          relatedLead: true,
+          lead: true,
           createdBy: true,
-          product: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
         },
       });
 
       if (
         data.status &&
         data.status !== currentInquiry.status &&
-        currentInquiry.relatedLead
+        currentInquiry.lead
       ) {
-        const oldLeadStatus = currentInquiry.relatedLead.status;
+        const oldLeadStatus = currentInquiry.lead.status;
         const newLeadStatus = this.determineLeadStatusFromInquiry(
           data.status,
           oldLeadStatus
@@ -327,7 +389,7 @@ export class InquiryService {
 
         if (oldLeadStatus !== newLeadStatus) {
           await tx.lead.update({
-            where: { id: currentInquiry.relatedLead.id },
+            where: { id: currentInquiry.lead.id },
             data: {
               status: newLeadStatus,
               lastContactDate: new Date(),
@@ -337,7 +399,7 @@ export class InquiryService {
 
           await tx.activityLog.create({
             data: {
-              leadId: currentInquiry.relatedLead.id,
+              leadId: currentInquiry.lead.id,
               userId,
               action: "STATUS_CHANGE",
               description: `Lead status updated due to inquiry status change to ${data.status}`,
@@ -347,8 +409,8 @@ export class InquiryService {
 
           await tx.contactHistory.create({
             data: {
-              leadId: currentInquiry.relatedLead.id,
-              userId,
+              leadId: currentInquiry.lead.id,
+              userId: userId,
               method: "System Update",
               summary: `Inquiry status changed to ${data.status}`,
               outcome: `Lead status updated to ${newLeadStatus}`,
@@ -357,92 +419,153 @@ export class InquiryService {
         }
       }
 
-      return updatedInquiry as Inquiry & { product: Product | null };
-    });
-  }
-
-  async createQuote(
-    id: string,
-    quoteDetails: QuoteDetails,
-    userId: string
-  ): Promise<Inquiry & { product: Product | null }> {
-    const inquiry = await prisma.inquiry.findUnique({
-      where: { id },
-      include: { relatedLead: true, product: true },
-    });
-
-    if (!inquiry) {
-      throw new Error("Inquiry not found");
-    }
-
-    return prisma.$transaction(async (tx) => {
-      const updatedInquiry = await tx.inquiry.update({
-        where: { id },
+      await tx.activityLog.create({
         data: {
-          status: "Quoted",
-          quotedPrice: quoteDetails.totalPrice,
-          quotedBy: userId,
-          quotedAt: new Date(),
-        },
-        include: {
-          relatedLead: true,
-          createdBy: true,
-          product: true,
+          inquiryId: id,
+          userId,
+          action: "INQUIRY_UPDATE",
+          description: `Inquiry details updated by user`,
+          metadata: { updatedFields: Object.keys(data) },
         },
       });
 
-      if (inquiry.relatedLead) {
-        const oldStatus = inquiry.relatedLead.status;
-        const newStatus = LeadStatus.ProposalSent;
-
-        await tx.lead.update({
-          where: { id: inquiry.relatedLead.id },
-          data: {
-            status: newStatus,
-            estimatedValue: quoteDetails.totalPrice,
-            lastContactDate: new Date(),
-            updatedAt: new Date(),
-          },
-        });
-
-        await tx.activityLog.create({
-          data: {
-            leadId: inquiry.relatedLead.id,
-            userId,
-            action: "QUOTE_CREATED",
-            description: `Quote created for ${
-              inquiry.product?.name || "Unknown Product"
-            }, amount: ${quoteDetails.totalPrice}`,
-            metadata: { inquiryId: id, ...quoteDetails },
-          },
-        });
-
+      if (currentInquiry.leadId) {
+        const productSummary = updatedInquiry.items
+          .map((item) => item.product?.name || "Unknown Product")
+          .join(", ");
         await tx.contactHistory.create({
           data: {
-            leadId: inquiry.relatedLead.id,
-            method: "Quote",
-            userId,
-            summary: `Quote of ${quoteDetails.totalPrice} sent for ${
-              inquiry.product?.name || "Unknown Product"
-            }`,
-            outcome: "Awaiting Client response",
+            leadId: currentInquiry.leadId,
+            userId: userId,
+            method: "Inquiry Update",
+            summary: `Inquiry ${id} updated. Now includes: ${productSummary}. New status: ${updatedInquiry.status}`,
+            outcome: "Inquiry details modified",
           },
         });
       }
 
-      return updatedInquiry as Inquiry & { product: Product | null };
+      return updatedInquiry as InquiryWithItemsAndProducts;
     });
   }
 
-  async approveInquiry(
+  async reviewInquiry(
     id: string,
     userId: string
-  ): Promise<Inquiry & { product: Product | null }> {
+  ): Promise<InquiryWithItemsAndProducts> {
     return this.updateInquiryStatus(
       id,
-      "Approved",
-      "Negotiation",
-      "Quote accepted by client",
+      InquiryStatus.Reviewed,
+      LeadStatus.Contacted,
+      "Inquiry reviewed",
+      userId
+    );
+  }
+
+  async associateInquiry(
+    inquiryId: string,
+    data: AssociateInquiryDataDto,
+    userId: string
+  ): Promise<InquiryWithItemsAndProducts> {
+    return prisma.$transaction(async (tx) => { 
+      const inquiry = await tx.inquiry.findUnique({
+        where: { id: inquiryId },
+        select: {
+          id: true,
+          status: true,
+          leadId: true,
+          clientId: true,
+          clientName: true,
+          lead: { select: { id: true, status: true, contactPerson: true } },
+          client: { select: { id: true, clientName: true } }, 
+        },
+      });
+
+      if (!inquiry) {
+        throw new Error("Inquiry not found.");
+      }
+
+      let updateData: Prisma.InquiryUpdateInput = {}; 
+      let newInquiryStatus: InquiryStatus;
+      let logMessage: string;
+      let associatedEntityName: string = "";
+
+      if (data.type === "client") {
+        const client = await tx.client.findUnique({
+          where: { id: data.entityId },
+        });
+        if (!client) {
+          throw new Error(`Client with ID ${data.entityId} not found.`);
+        }
+
+        updateData = {
+          client: { connect: { id: data.entityId } }, 
+          lead: { disconnect: true }, 
+        };
+        newInquiryStatus = InquiryStatus.AssociatedToClient;
+        logMessage = `Inquiry associated with existing client: ${client.clientName}`;
+        associatedEntityName = client.clientName;
+      } else { 
+        const lead = await tx.lead.findUnique({ where: { id: data.entityId } });
+        if (!lead) {
+          throw new Error(`Lead with ID ${data.entityId} not found.`);
+        }
+
+        updateData = {
+          lead: { connect: { id: data.entityId } }, 
+          client: { disconnect: true }
+        };
+        newInquiryStatus = InquiryStatus.ConvertedToLead;
+        logMessage = `Inquiry associated with existing lead: ${
+          lead.contactPerson || lead.id
+        }`;
+        associatedEntityName = lead.contactPerson || `Lead ID: ${lead.id}`;
+      }
+
+      const updatedInquiry = await tx.inquiry.update({
+        where: { id: inquiryId },
+        data: {
+          ...updateData,
+          status: newInquiryStatus,
+          updatedAt: new Date(),
+        },
+        include: {
+          lead: true,
+          client: true,
+          createdBy: true,
+          assignedTo: true,
+          items: { include: { product: true } },
+        },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          inquiryId: inquiryId,
+          userId: userId,
+          action: "ASSOCIATION_CHANGE",
+          description: logMessage,
+          metadata: {
+            associatedType: data.type,
+            associatedId: data.entityId,
+            associatedName: associatedEntityName,
+            oldInquiryStatus: inquiry.status,
+            newInquiryStatus: newInquiryStatus,
+          },
+        },
+      });
+
+      return updatedInquiry as InquiryWithItemsAndProducts;
+    });
+  }
+
+  async closeInquiry(
+    id: string,
+    userId: string
+  ): Promise<InquiryWithItemsAndProducts> {
+    return this.updateInquiryStatus(
+      id,
+      InquiryStatus.Closed,
+      null,
+      "Inquiry closed",
       userId
     );
   }
@@ -454,15 +577,14 @@ export class InquiryService {
     options?: ScheduleOptions
   ): Promise<
     Inquiry & {
-      product: Product | null;
-      relatedLead: Lead | null;
-      createdBy: any;
+      items: InquiryItem[] | null;
+      createdBy: User | null;
     }
   > {
     return prisma.$transaction(async (tx) => {
       const inquiry = await tx.inquiry.findUnique({
         where: { id },
-        include: { relatedLead: true, createdBy: true, product: true },
+        include: { createdBy: true, items: true },
       });
 
       if (!inquiry) {
@@ -472,21 +594,23 @@ export class InquiryService {
       const updatedInquiry = await tx.inquiry.update({
         where: { id },
         data: {
-          status: "Scheduled",
           preferredDate: scheduledDate,
           priority: options?.priority || inquiry.priority,
           remarks: options?.notes || inquiry.remarks,
+          status: InquiryStatus.DeliveryScheduled,
         },
         include: {
-          relatedLead: true,
           createdBy: true,
-          product: true,
+          items: true,
         },
       });
+      const lead = await tx.lead.findUnique({
+        where: { originatingInquiryId: inquiry.id },
+      });
 
-      if (inquiry.relatedLead) {
+      if (lead) {
         await tx.lead.update({
-          where: { id: inquiry.relatedLead.id },
+          where: { id: lead.id },
           data: {
             lastContactDate: new Date(),
             updatedAt: new Date(),
@@ -494,12 +618,11 @@ export class InquiryService {
           },
         });
 
-        // Activity Log for Lead
         await tx.activityLog.create({
           data: {
-            leadId: inquiry.relatedLead.id,
-            userId,
-            action: "DELIVERY_SCHEDULED",
+            leadId: lead.id,
+            userId: userId,
+            action: "Delivery Scheduled",
             description: `Delivery scheduled for ${
               scheduledDate.toISOString().split("T")[0]
             }. ${options?.priority ? `Priority: ${options.priority}.` : ""} ${
@@ -514,10 +637,11 @@ export class InquiryService {
             },
           },
         });
+
         await tx.contactHistory.create({
           data: {
-            leadId: inquiry.relatedLead.id,
-            userId,
+            leadId: lead.id,
+            userId: userId,
             method: "System Update",
             summary: `Delivery scheduled for ${
               scheduledDate.toISOString().split("T")[0]
@@ -525,39 +649,31 @@ export class InquiryService {
             outcome: "Awaiting delivery",
           },
         });
+      } else {
+        console.warn(
+          `Inquiry ${id} was scheduled but no associated Lead found to update or log activity.`
+        );
       }
 
-      return updatedInquiry as Inquiry & {
-        product: Product | null;
-        relatedLead: Lead | null;
-        createdBy: any;
-      };
+      return updatedInquiry;
     });
   }
-  async fulfillInquiry(
-    id: string,
-    userId: string
-  ): Promise<Inquiry & { product: Product | null }> {
-    return this.updateInquiryStatus(
-      id,
-      "Fulfilled",
-      "Won",
-      "Order successfully fulfilled",
-      userId
-    );
-  }
-
   private async updateInquiryStatus(
     id: string,
     inquiryStatus: InquiryStatus,
-    leadStatus: LeadStatus,
+    leadStatus: LeadStatus | null,
     outcome: string,
     userId: string
-  ): Promise<Inquiry & { product: Product | null }> {
+  ): Promise<InquiryWithItemsAndProducts> {
     return prisma.$transaction(async (tx) => {
       const inquiry = await tx.inquiry.findUnique({
         where: { id },
-        include: { relatedLead: true, createdBy: true, product: true },
+        include: {
+          lead: true,
+          createdBy: true,
+          items: { include: { product: true } },
+          assignedTo: true,
+        },
       });
 
       if (!inquiry) {
@@ -568,17 +684,18 @@ export class InquiryService {
         where: { id },
         data: { status: inquiryStatus },
         include: {
-          relatedLead: true,
+          lead: true,
           createdBy: true,
-          product: true,
+          assignedTo: true,
+          items: { include: { product: true } },
         },
       });
 
-      if (inquiry.relatedLead) {
-        const oldStatus = inquiry.relatedLead.status;
+      if (inquiry.lead && leadStatus !== null) {
+        const oldStatus = inquiry.lead.status;
 
         await tx.lead.update({
-          where: { id: inquiry.relatedLead.id },
+          where: { id: inquiry.lead.id },
           data: {
             status: leadStatus,
             lastContactDate: new Date(),
@@ -588,26 +705,35 @@ export class InquiryService {
 
         await tx.activityLog.create({
           data: {
-            leadId: inquiry.relatedLead.id,
-            userId,
-            action: "STATUS_CHANGE",
-            description: `Lead status updated due to inquiry status change to ${inquiryStatus}`,
-            metadata: { inquiryId: id },
+            leadId: inquiry.lead.id,
+            userId: userId,
+            action: "Status Change",
+            description: `Lead status updated from ${oldStatus} to ${leadStatus} due to inquiry status change to ${inquiryStatus}`,
+            metadata: {
+              inquiryId: id,
+              oldLeadStatus: oldStatus,
+              newLeadStatus: leadStatus,
+              newInquiryStatus: inquiryStatus,
+            },
           },
         });
 
         await tx.contactHistory.create({
           data: {
-            leadId: inquiry.relatedLead.id,
-            userId,
+            leadId: inquiry.lead.id,
+            userId: userId,
             method: "System Update",
-            summary: `Inquiry status changed to ${inquiryStatus}`,
-            outcome,
+            summary: `Inquiry status changed to ${inquiryStatus}. Lead status changed to ${leadStatus}.`,
+            outcome: outcome,
           },
         });
+      } else {
+        console.warn(
+          `Inquiry ${id} status changed to ${inquiryStatus} but no associated Lead found to update.`
+        );
       }
 
-      return updatedInquiry as Inquiry & { product: Product | null };
+      return updatedInquiry;
     });
   }
 
@@ -633,10 +759,10 @@ export class InquiryService {
     }
 
     let rawDateFilterClause = "";
-    const rawQueryParams: Prisma.Sql[] = []; 
+    const rawQueryParams: Prisma.Sql[] = [];
 
     const defaultStartDate = new Date("1900-01-01");
-    const defaultEndDate = new Date(); 
+    const defaultEndDate = new Date();
 
     const filterGte = startDate ? new Date(startDate) : defaultStartDate;
     const filterLte = endDate ? new Date(endDate) : defaultEndDate;
@@ -656,9 +782,6 @@ export class InquiryService {
       convertedCountBigInt,
       monthlyDataBigInt,
       dailyDataBigInt,
-      averageQuoteTimeBigInt,
-      overdueQuotesBigInt,
-      quoteValueStats,
     ] = await Promise.all([
       prisma.inquiry.count({ where }),
 
@@ -695,10 +818,17 @@ export class InquiryService {
         where,
       }),
 
-      prisma.inquiry.groupBy({
+      // Fixed: Query InquiryItem with proper join to Inquiry for date filtering
+      prisma.inquiryItem.groupBy({
         by: ["productId"],
         _count: { productId: true },
-        where,
+        where: {
+          inquiry: where.createdAt
+            ? {
+                createdAt: where.createdAt,
+              }
+            : {},
+        },
       }),
 
       prisma.inquiry.count({
@@ -706,59 +836,25 @@ export class InquiryService {
           ...where,
           status: {
             in: [
-              InquiryStatus.Approved,
-              InquiryStatus.Scheduled,
-              InquiryStatus.Fulfilled,
+              InquiryStatus.ConvertedToLead,
+              InquiryStatus.AssociatedToClient,
             ],
           },
         },
       }),
 
       // Monthly trends with status breakdown
-      this.getMonthlyTrends(filterGte, filterLte), // Pass actual Date objects
+      this.getMonthlyTrends(filterGte, filterLte),
 
       // Daily trends (optional)
       includeDailyTrends
         ? this.getDailyTrends(filterGte, filterLte)
         : Promise.resolve([]),
-
-      // Average response time (hours between creation and first quote)
-      // Use Prisma.sql to safely inject the parameter
-      prisma.$queryRaw<Array<{ avg_hours: number }>>`
-        SELECT AVG(EXTRACT(EPOCH FROM ("quotedAt" - "createdAt")) / 3600) as avg_hours
-        FROM "Inquiry"
-        WHERE "quotedAt" IS NOT NULL
-        AND "createdAt" >= ${filterGte} AND "createdAt" <= ${filterLte}
-      `,
-
-      // Overdue quotes (quoted but not responded within 48 hours)
-      prisma.inquiry.count({
-        where: {
-          ...where,
-          status: InquiryStatus.Quoted,
-          quotedAt: {
-            lt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48 hours ago
-          },
-        },
-      }),
-
-      // Quote value statistics
-      prisma.inquiry.aggregate({
-        where: {
-          ...where,
-          quotedPrice: { not: null },
-        },
-        _avg: { quotedPrice: true },
-        _sum: { quotedPrice: true },
-        _count: { quotedPrice: true },
-      }),
     ]);
 
-    // ... (rest of the processing and return statement remains the same) ...
     // Convert BigInt values to numbers
     const totalInquiries = Number(totalInquiriesBigInt);
     const convertedCount = Number(convertedCountBigInt);
-    const overdueQuotes = Number(overdueQuotesBigInt);
 
     // Process status data
     const byStatus = statusCountsBigInt.map((item) => ({
@@ -816,27 +912,18 @@ export class InquiryService {
     const monthlyTrends = monthlyDataBigInt.map((item) => ({
       month: item.month,
       count: Number(item.count),
-      fulfilled: Number(item.fulfilled),
-      cancelled: Number(item.cancelled),
+      converted: Number(item.converted),
+      closed: Number(item.closed),
     }));
 
-    // Process daily trends (if requested)
     const dailyTrends = dailyDataBigInt.map((item) => ({
       date: item.date,
       count: Number(item.count),
     }));
 
-    // Calculate active inquiries
     const activeInquiries = byStatus
-      .filter((s) => !["Fulfilled", "Cancelled"].includes(s.status))
+      .filter((s) => !["Closed"].includes(s.status))
       .reduce((sum, s) => sum + s.count, 0);
-
-    // Calculate average response time
-    const averageResponseTime = averageQuoteTimeBigInt[0]?.avg_hours || 0;
-
-    // Quote value metrics
-    const avgQuoteValue = Number(quoteValueStats._avg.quotedPrice) || 0;
-    const totalQuoteValue = Number(quoteValueStats._sum.quotedPrice) || 0;
 
     return {
       totalInquiries,
@@ -850,13 +937,11 @@ export class InquiryService {
       byProductType,
       monthlyTrends,
       dailyTrends: includeDailyTrends ? dailyTrends : undefined,
-      averageResponseTime,
       topProducts,
       performanceMetrics: {
         activeInquiries,
-        overdueQuotes,
-        avgQuoteValue,
-        totalQuoteValue,
+        avgResponseTime: 0,
+        totalValue: 0,
       },
     };
   }
@@ -869,8 +954,8 @@ export class InquiryService {
       SELECT
         DATE_TRUNC('month', "createdAt") as month,
         COUNT(*) as count,
-        COUNT(CASE WHEN status = 'Fulfilled' THEN 1 END) as fulfilled,
-        COUNT(CASE WHEN status = 'Cancelled' THEN 1 END) as cancelled
+        COUNT(CASE WHEN status = 'ConvertedToLead' OR status = 'AssociatedToClient' THEN 1 END) as converted,
+        COUNT(CASE WHEN status = 'Closed' THEN 1 END) as closed
       FROM "Inquiry"
       WHERE "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
       GROUP BY DATE_TRUNC('month', "createdAt")
@@ -900,6 +985,7 @@ export class InquiryService {
   ): Promise<
     Array<{ productName: string; count: number; conversionRate: number }>
   > {
+    // Fixed: Query InquiryItem with JOIN to Inquiry for proper filtering
     const productStats = await prisma.$queryRaw<
       Array<{
         product_id: string;
@@ -908,12 +994,13 @@ export class InquiryService {
       }>
     >`
       SELECT
-        "productId" as product_id,
+        ii."productId" as product_id,
         COUNT(*) as total_count,
-        COUNT(CASE WHEN status IN ('Approved', 'Scheduled', 'Fulfilled') THEN 1 END) as converted_count
-      FROM "Inquiry"
-      WHERE "productId" IS NOT NULL AND "createdAt" >= ${startDate} AND "createdAt" <= ${endDate}
-      GROUP BY "productId"
+        COUNT(CASE WHEN i.status IN ('ConvertedToLead', 'AssociatedToClient') THEN 1 END) as converted_count
+      FROM "InquiryItem" ii
+      JOIN "Inquiry" i ON ii."inquiryId" = i.id
+      WHERE i."createdAt" >= ${startDate} AND i."createdAt" <= ${endDate}
+      GROUP BY ii."productId"
       ORDER BY total_count DESC
       LIMIT 10
     `;
@@ -959,11 +1046,11 @@ export class InquiryService {
       ORDER BY
         CASE status
           WHEN 'New' THEN 1
-          WHEN 'Quoted' THEN 2
-          WHEN 'Approved' THEN 3
-          WHEN 'Scheduled' THEN 4
-          WHEN 'Fulfilled' THEN 5
-          WHEN 'Cancelled' THEN 6
+          WHEN 'Reviewed' THEN 2
+          WHEN 'ConvertedToLead' THEN 3
+          WHEN 'AssociatedToClient' THEN 4
+          WHEN 'QuotationGenerated' THEN 5
+          WHEN 'Closed' THEN 6
           ELSE 7
         END
     `;
@@ -975,57 +1062,50 @@ export class InquiryService {
     }));
   }
 
-  async getRevenueProjections(startDate?: Date, endDate?: Date) {
-    // Define default dates if not provided
-    const filterGte = startDate || new Date("1900-01-01");
-    const filterLte = endDate || new Date();
-
-    const projections = await prisma.inquiry.aggregate({
-      where: {
-        quotedPrice: { not: null },
-        status: {
-          in: [
-            InquiryStatus.Quoted,
-            InquiryStatus.Approved,
-            InquiryStatus.Scheduled,
-          ],
-        },
-        createdAt: {
-          gte: filterGte,
-          lte: filterLte,
-        },
-      },
-      _sum: { quotedPrice: true },
-      _count: { quotedPrice: true },
-      _avg: { quotedPrice: true },
-    });
-
-    return {
-      potentialRevenue: Number(projections._sum.quotedPrice) || 0,
-      averageQuoteValue: Number(projections._avg.quotedPrice) || 0,
-      pendingQuotes: Number(projections._count.quotedPrice) || 0,
-    };
-  }
-
   /**
    * Convert inquiry to lead
    */
-  async convertToLead(id: string, userId: string): Promise<ConversionResult> {
+  async convertToLead(id: string, userId: string): Promise<Lead> {
     const result = await prisma.$transaction(async (tx) => {
       const inquiry = await tx.inquiry.findUnique({
         where: { id },
-        include: { product: true },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
       });
 
       if (!inquiry) {
         throw new Error("Inquiry not found");
       }
 
-      if (inquiry.relatedLeadId) {
-        throw new Error("This inquiry is already linked to a lead");
+      const existingLead = await tx.lead.findFirst({
+        where: {
+          OR: [
+            { originatingInquiryId: inquiry.id },
+            { email: inquiry.email },
+            { phone: inquiry.phoneNumber },
+          ],
+        },
+      });
+
+      if (existingLead) {
+        return existingLead;
       }
 
-      let company;
+      const productNames = inquiry.items
+        .map((item) => item.product?.name)
+        .filter(
+          (name): name is string => typeof name === "string" && name.length > 0
+        );
+
+      const productList =
+        productNames.length > 0 ? productNames.join(", ") : "Unknown Product";
+
+      let company: Company;
       if (inquiry.isCompany && inquiry.companyName) {
         company = await tx.company.upsert({
           where: {
@@ -1034,8 +1114,8 @@ export class InquiryService {
           update: {},
           create: {
             name: inquiry.companyName,
-            email: inquiry.email,
-            phone: inquiry.phoneNumber,
+            email: inquiry.email ?? null,
+            phone: inquiry.phoneNumber ?? null,
             industry: null,
             region: null,
           },
@@ -1043,38 +1123,43 @@ export class InquiryService {
       } else {
         company = await tx.company.create({
           data: {
-            name: `${inquiry.clientName}'s Company`,
-            email: inquiry.email,
-            phone: inquiry.phoneNumber,
+            name: inquiry.clientName
+              ? `${inquiry.clientName}'s Company`
+              : `Lead Company ${inquiry.id.substring(0, 8)}`,
+            email: inquiry.email ?? null,
+            phone: inquiry.phoneNumber ?? null,
+            industry: null,
+            region: null,
           },
         });
       }
 
-      let leadStatus: LeadStatus = "New";
+      let leadStatus: LeadStatus = LeadStatus.New;
 
       switch (inquiry.status) {
-        case "New":
-          leadStatus = "New";
+        case InquiryStatus.New:
+          leadStatus = LeadStatus.New;
           break;
-        case "Quoted":
-          leadStatus = "ProposalSent";
+        case InquiryStatus.Reviewed:
+          leadStatus = LeadStatus.Contacted;
           break;
-        case "Approved":
-          leadStatus = "Negotiation";
+        case InquiryStatus.ConvertedToLead:
+          leadStatus = LeadStatus.Qualified;
           break;
-        case "Scheduled":
-          leadStatus = "Qualified";
+        case InquiryStatus.AssociatedToClient:
+          leadStatus = LeadStatus.Qualified;
           break;
-        case "Fulfilled":
-          leadStatus = "Won";
+        case InquiryStatus.QuotationGenerated:
+          leadStatus = LeadStatus.ProposalSent;
           break;
-        case "Cancelled":
-          leadStatus = "New";
+        case InquiryStatus.Closed:
+          leadStatus = LeadStatus.Lost;
           break;
         default:
-          leadStatus = "New";
+          leadStatus = LeadStatus.New;
       }
 
+      // --- Create the Lead ---
       const lead = await tx.lead.create({
         data: {
           companyId: company.id,
@@ -1083,31 +1168,27 @@ export class InquiryService {
             inquiry.clientName ??
             inquiry.companyName ??
             `Lead from Inquiry ${inquiry.id.substring(0, 8)}`,
-
           email: inquiry.email ?? "unknown@example.com",
           phone: inquiry.phoneNumber,
           status: leadStatus,
           source: "Inquiry",
-          estimatedValue: inquiry.quotedPrice || null,
+          estimatedValue: null,
           createdById: userId,
           assignedToId: userId,
-          notes: `Converted from inquiry (Product: ${
-            inquiry.clientName ??
-            inquiry.companyName ??
-            `Lead from Inquiry ${inquiry.id.substring(0, 8)}`
-          }). Original remarks: ${inquiry.remarks || "None"}`,
+          notes: `Converted from inquiry (Product: ${productList}). Original remarks: ${
+            inquiry.remarks || "None"
+          }`,
           followUpDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          originatingInquiryId: inquiry.id,
         },
       });
 
       await tx.contactHistory.create({
         data: {
           leadId: lead.id,
-          userId,
+          userId: userId,
           method: "Inquiry Form",
-          summary: `Initial inquiry for ${
-            inquiry.product?.name || "Unknown Product"
-          } submitted through inquiry form`, 
+          summary: `Initial inquiry for ${productList} submitted through inquiry form`,
           outcome: "Converted to lead",
         },
       });
@@ -1115,12 +1196,12 @@ export class InquiryService {
       await tx.inquiry.update({
         where: { id },
         data: {
-          status: InquiryStatus.Approved,
-          relatedLeadId: lead.id,
+          status: InquiryStatus.ConvertedToLead,
+          leadId: lead.id,
         },
       });
 
-      return { lead, company };
+      return lead;
     });
 
     return result;
@@ -1129,37 +1210,87 @@ export class InquiryService {
   async cancelInquiry(
     inquiryId: string,
     cancelledById: string
-  ): Promise<Inquiry & { product: Product | null }> {
+  ): Promise<InquiryWithItemsAndProducts> {
     try {
-      const existingInquiry = await prisma.inquiry.findUnique({
-        where: { id: inquiryId },
-        include: {
-          createdBy: true,
-          assignedTo: true,
-          relatedLead: true,
-          product: true,
-        },
+      return await prisma.$transaction(async (tx) => {
+        const existingInquiry = await tx.inquiry.findUnique({
+          where: { id: inquiryId },
+          include: {
+            createdBy: true,
+            assignedTo: true,
+            lead: true,
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
+
+        if (!existingInquiry) {
+          throw new Error(`Inquiry with ID ${inquiryId} not found`);
+        }
+
+        if (existingInquiry.status === InquiryStatus.Closed) {
+          throw new Error(
+            `Inquiry with ID ${inquiryId} is already closed and cannot be cancelled again.`
+          );
+        }
+
+        const updatedInquiry = await tx.inquiry.update({
+          where: { id: inquiryId },
+          data: {
+            status: InquiryStatus.Closed,
+            updatedAt: new Date(),
+          },
+          include: {
+            createdBy: true,
+            assignedTo: true,
+            lead: true,
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
+
+        if (updatedInquiry.lead) {
+          await tx.lead.update({
+            where: { id: updatedInquiry.lead.id },
+            data: {
+              status: LeadStatus.Lost,
+              lastContactDate: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+
+          await tx.activityLog.create({
+            data: {
+              leadId: updatedInquiry.lead.id,
+              userId: cancelledById,
+              action: "Inquiry Cancelled",
+              description: `Inquiry #${inquiryId} cancelled. Lead status updated to 'Lost'.`,
+              metadata: {
+                inquiryId: inquiryId,
+                oldStatus: existingInquiry.status,
+                newStatus: updatedInquiry.status,
+              },
+            },
+          });
+
+          await tx.contactHistory.create({
+            data: {
+              leadId: updatedInquiry.lead.id,
+              userId: cancelledById,
+              method: "System Update",
+              summary: `Associated inquiry #${inquiryId} was cancelled.`,
+              outcome: "Inquiry Cancelled",
+            },
+          });
+        }
+        return updatedInquiry;
       });
-
-      if (!existingInquiry) {
-        throw new Error(`Inquiry with ID ${inquiryId} not found`);
-      }
-
-      const updatedInquiry = await prisma.inquiry.update({
-        where: { id: inquiryId },
-        data: {
-          status: InquiryStatus.Cancelled,
-          updatedAt: new Date(),
-        },
-        include: {
-          createdBy: true,
-          assignedTo: true,
-          relatedLead: true,
-          product: true,
-        }, // ADDED: include product
-      });
-
-      return updatedInquiry as Inquiry & { product: Product | null };
     } catch (error) {
       console.error("Error cancelling inquiry:", error);
       throw error;
@@ -1177,25 +1308,28 @@ export class InquiryService {
     inquiryId: string,
     priority: Priority,
     updatedById: string
-  ): Promise<Inquiry & { product: Product | null }> {
-    // Add Product to return type
+  ): Promise<InquiryWithItemsAndProducts> {
     try {
-      // Check if inquiry exists
       const existingInquiry = await prisma.inquiry.findUnique({
         where: { id: inquiryId },
         include: {
           createdBy: true,
           assignedTo: true,
-          relatedLead: true,
-          product: true,
-        }, // ADDED: include product
+          lead: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
       });
 
       if (!existingInquiry) {
         throw new Error(`Inquiry with ID ${inquiryId} not found`);
       }
 
-      // Update the inquiry priority
+      const oldPriority = existingInquiry.priority; // Capture old priority for logging
+
       const updatedInquiry = await prisma.inquiry.update({
         where: { id: inquiryId },
         data: {
@@ -1205,12 +1339,63 @@ export class InquiryService {
         include: {
           createdBy: true,
           assignedTo: true,
-          relatedLead: true,
-          product: true,
-        }, // ADDED: include product
+          lead: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
       });
 
-      return updatedInquiry as Inquiry & { product: Product | null };
+      if (updatedInquiry.lead) {
+        await prisma.activityLog.create({
+          data: {
+            leadId: updatedInquiry.lead.id,
+            userId: updatedById,
+            action: "Priority Change",
+            description: `Inquiry #${inquiryId} priority changed from ${
+              oldPriority || "None"
+            } to ${priority}.`,
+            metadata: {
+              inquiryId: inquiryId,
+              oldPriority: oldPriority,
+              newPriority: priority,
+            },
+          },
+        });
+
+        await prisma.contactHistory.create({
+          data: {
+            leadId: updatedInquiry.lead.id,
+            userId: updatedById,
+            method: "System Update",
+            summary: `Inquiry #${inquiryId} priority changed to ${priority}.`,
+            outcome: "Priority updated",
+          },
+        });
+      } else {
+        console.log(
+          `Inquiry ${inquiryId} priority updated, but no associated lead found for logging.`
+        );
+        await prisma.activityLog.create({
+          data: {
+            inquiryId: inquiryId,
+            userId: updatedById,
+            action: "Inquiry Priority Change",
+            description: `Inquiry #${inquiryId} priority changed from ${
+              oldPriority || "None"
+            } to ${priority}.`,
+            metadata: {
+              inquiryId: inquiryId,
+              oldPriority: oldPriority,
+              newPriority: priority,
+            },
+          },
+        });
+      }
+
+      return updatedInquiry;
     } catch (error) {
       console.error("Error updating inquiry priority:", error);
       throw error;
@@ -1228,25 +1413,26 @@ export class InquiryService {
     inquiryId: string,
     dueDate: Date,
     updatedById: string
-  ): Promise<Inquiry & { product: Product | null }> {
-    // Add Product to return type
+  ): Promise<InquiryWithItemsAndProducts> {
     try {
-      // Check if inquiry exists
       const existingInquiry = await prisma.inquiry.findUnique({
         where: { id: inquiryId },
         include: {
           createdBy: true,
           assignedTo: true,
-          relatedLead: true,
-          product: true,
-        }, // ADDED: include product
+          lead: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
       });
 
       if (!existingInquiry) {
         throw new Error(`Inquiry with ID ${inquiryId} not found`);
       }
 
-      // Update the inquiry due date
       const updatedInquiry = await prisma.inquiry.update({
         where: { id: inquiryId },
         data: {
@@ -1256,12 +1442,16 @@ export class InquiryService {
         include: {
           createdBy: true,
           assignedTo: true,
-          relatedLead: true,
-          product: true,
-        }, // ADDED: include product
+          lead: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
       });
 
-      return updatedInquiry as Inquiry & { product: Product | null };
+      return updatedInquiry as InquiryWithItemsAndProducts;
     } catch (error) {
       console.error("Error updating inquiry due date:", error);
       throw error;
@@ -1279,15 +1469,15 @@ export class InquiryService {
     inquiryId: string,
     assignedById: string,
     assignedToId: string | null
-  ): Promise<Inquiry & { product: Product | null }> {
+  ): Promise<InquiryWithItemsAndProducts> {
     try {
       const existingInquiry = await prisma.inquiry.findUnique({
         where: { id: inquiryId },
         include: {
           createdBy: true,
           assignedTo: true,
-          relatedLead: true,
-          product: true,
+          lead: true,
+          items: true,
         },
       });
 
@@ -1308,14 +1498,18 @@ export class InquiryService {
           include: {
             createdBy: true,
             assignedTo: true,
-            relatedLead: true,
-            product: true,
+            lead: true,
+            items: {
+              include: {
+                product: true,
+              },
+            },
           },
         });
 
         await prisma.activityLog.create({
           data: {
-            leadId: existingInquiry.relatedLeadId,
+            leadId: existingInquiry.leadId,
             userId: assignedById,
             action: "INQUIRY_UNASSIGNED",
             description: `Inquiry "${existingInquiry.clientName}" (ID: ${inquiryId}) unassigned from ${oldAssignedToName}`,
@@ -1327,7 +1521,7 @@ export class InquiryService {
           },
         });
 
-        return updatedInquiry as Inquiry & { product: Product | null };
+        return updatedInquiry as InquiryWithItemsAndProducts;
       }
 
       const assignedUser = await prisma.user.findUnique({
@@ -1347,14 +1541,18 @@ export class InquiryService {
         include: {
           createdBy: true,
           assignedTo: true,
-          relatedLead: true,
-          product: true,
+          lead: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
         },
       });
 
       await prisma.activityLog.create({
         data: {
-          leadId: existingInquiry.relatedLeadId,
+          leadId: existingInquiry.leadId,
           userId: assignedById,
           action: "INQUIRY_ASSIGNED",
           description: `Inquiry "${existingInquiry.clientName}" (ID: ${inquiryId}) assigned to ${assignedUser.name}`,
@@ -1368,7 +1566,7 @@ export class InquiryService {
         },
       });
 
-      return updatedInquiry as Inquiry & { product: Product | null };
+      return updatedInquiry as InquiryWithItemsAndProducts;
     } catch (error) {
       console.error("Error assigning inquiry:", error);
       throw error;
@@ -1382,13 +1580,10 @@ export class InquiryService {
     inquiryStatus: string,
     currentLeadStatus: LeadStatus
   ): LeadStatus {
-    // Logic to determine lead status based on inquiry status
     switch (inquiryStatus) {
       case "New":
-        // For new inquiries, don't downgrade lead status
         return currentLeadStatus;
       case "Quoted":
-        // Move to proposal stage when quoted, but don't downgrade
         return currentLeadStatus === "New" || currentLeadStatus === "Contacted"
           ? "ProposalSent"
           : currentLeadStatus;
@@ -1396,7 +1591,6 @@ export class InquiryService {
         // Move to negotiation when approved
         return "Negotiation";
       case "Scheduled":
-        // When scheduled, keep as negotiation
         return currentLeadStatus === "Negotiation"
           ? currentLeadStatus
           : "Negotiation";

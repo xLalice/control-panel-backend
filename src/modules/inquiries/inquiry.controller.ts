@@ -2,27 +2,19 @@ import { Request, Response } from "express";
 import { InquiryService } from "./inquiry.service";
 import {
   createInquirySchema,
-  updateInquirySchema,
   filterInquirySchema,
   inquiryIdSchema,
-  rejectInquirySchema,
   scheduleInquirySchema,
+  UpdateInquiryDto,
+  CreateInquiryDto,
+  rejectInquirySchema,
+  updateInquirySchema,
+  associateInquiryDataSchema,
 } from "./inquiry.schema";
 import { z } from "zod";
-import { Priority } from "@prisma/client";
-import {
-  CreateInquiryDto,
-  UpdateInquiryDto,
-  InquiryStatus,
-} from "./inquiry.types";
-import { success } from "zod/v4";
+import { Inquiry, InquiryStatus, Priority } from "@prisma/client";
 
 const inquiryService = new InquiryService();
-
-const quoteSchema = z.object({
-  basePrice: z.number().positive({ message: "Base price must be positive" }),
-  totalPrice: z.number().positive({ message: "Total price must be positive" }),
-});
 
 export class InquiryController {
   /**
@@ -99,6 +91,7 @@ export class InquiryController {
           email: z.string().email().optional(),
           phoneNumber: z.string().min(10).optional(),
           companyName: z.string().optional(),
+          clientName: z.string().optional(),
         })
         .safeParse(req.body);
 
@@ -110,11 +103,13 @@ export class InquiryController {
         return;
       }
 
-      const { email, phoneNumber, companyName } = validationResult.data;
+      const { email, phoneNumber, companyName, clientName } =
+        validationResult.data;
       const result = await inquiryService.checkClientExists({
         email,
         phoneNumber,
         companyName,
+        clientName,
       });
 
       res.json(result);
@@ -199,7 +194,7 @@ export class InquiryController {
       };
 
       const inquiry = await inquiryService.update(
-        req.params.id, 
+        req.params.id,
         formattedUpdateData,
         req.user!.id
       );
@@ -208,90 +203,6 @@ export class InquiryController {
     } catch (error) {
       console.error("Error updating inquiry:", error);
       res.status(500).json({ error: "Failed to update inquiry" });
-    }
-  }
-
-  /**
-   * Create a quote for an inquiry
-   */
-  async createQuote(req: Request, res: Response): Promise<void> {
-    try {
-      const idValidation = inquiryIdSchema.safeParse(req.params);
-
-      if (!idValidation.success) {
-        res.status(400).json({
-          error: "Invalid inquiry ID",
-          details: idValidation.error.format(),
-        });
-        return;
-      }
-
-      const { id } = idValidation.data;
-
-      const quoteValidation = quoteSchema.safeParse(req.body);
-
-      if (!quoteValidation.success) {
-        res.status(400).json({
-          error: "Invalid quote data",
-          details: quoteValidation.error.format(),
-        });
-        return;
-      }
-
-      const existingInquiry = await inquiryService.findById(id);
-
-      if (!existingInquiry) {
-        res.status(404).json({ error: "Inquiry not found" });
-        return;
-      }
-
-      const quoteDetails = quoteValidation.data;
-      const updatedInquiry = await inquiryService.createQuote(
-        id,
-        quoteDetails,
-        req.user!.id
-      );
-
-      res.json(updatedInquiry);
-    } catch (error) {
-      console.error("Error creating quote:", error);
-      res.status(500).json({ error: "Failed to create quote" });
-    }
-  }
-
-  /**
-   * Approve an inquiry
-   */
-  async approveInquiry(req: Request, res: Response): Promise<void> {
-    try {
-      const validationResult = inquiryIdSchema.safeParse(req.params);
-
-      if (!validationResult.success) {
-        res.status(400).json({
-          error: "Invalid inquiry ID",
-          details: validationResult.error.format(),
-        });
-        return;
-      }
-
-      const { id } = validationResult.data;
-
-      const existingInquiry = await inquiryService.findById(id);
-
-      if (!existingInquiry) {
-        res.status(404).json({ error: "Inquiry not found" });
-        return;
-      }
-
-      const updatedInquiry = await inquiryService.approveInquiry(
-        id,
-        req.user!.id
-      );
-
-      res.json(updatedInquiry);
-    } catch (error) {
-      console.error("Error approving inquiry:", error);
-      res.status(500).json({ error: "Failed to approve inquiry" });
     }
   }
 
@@ -348,42 +259,6 @@ export class InquiryController {
       } else {
         res.status(500).json({ error: "Failed to schedule inquiry" });
       }
-    }
-  }
-
-  /**
-   * Fulfill an inquiry
-   */
-  async fulfillInquiry(req: Request, res: Response): Promise<void> {
-    try {
-      const validationResult = inquiryIdSchema.safeParse(req.params);
-
-      if (!validationResult.success) {
-        res.status(400).json({
-          error: "Invalid inquiry ID",
-          details: validationResult.error.format(),
-        });
-        return;
-      }
-
-      const { id } = validationResult.data;
-
-      const existingInquiry = await inquiryService.findById(id);
-
-      if (!existingInquiry) {
-        res.status(404).json({ error: "Inquiry not found" });
-        return;
-      }
-
-      const updatedInquiry = await inquiryService.fulfillInquiry(
-        id,
-        req.user!.id
-      );
-
-      res.json(updatedInquiry);
-    } catch (error) {
-      console.error("Error fulfilling inquiry:", error);
-      res.status(500).json({ error: "Failed to fulfill inquiry" });
     }
   }
 
@@ -456,6 +331,74 @@ export class InquiryController {
     }
   }
 
+  async associateInquiry(req: Request, res: Response): Promise<void> {
+    try {
+      const validationResult = inquiryIdSchema.safeParse(req.params);
+
+      if (!validationResult.success) {
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: validationResult.error.format(),
+        });
+        return;
+      }
+
+      const { id } = validationResult.data;
+
+      const dataValidation = associateInquiryDataSchema.safeParse(req.body);
+
+      if (!dataValidation.success) {
+        res.status(400).json({
+          error: "Invalid association data",
+          details: dataValidation.error.format(),
+        });
+        return;
+      }
+
+      const associationData = dataValidation.data;
+
+      const userId = req.user?.id;
+      if (!userId) {
+        res
+          .status(401)
+          .json({ error: "Unauthorized: User ID not found in request." });
+        return;
+      }
+
+      const updatedInquiry = await inquiryService.associateInquiry(
+        id,
+        associationData,
+        userId
+      );
+
+      res.json(updatedInquiry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({
+          error: "Validation error",
+          details: error.format(),
+        });
+      } else if (error instanceof Error) {
+        if (error.message.includes("not found")) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res
+            .status(500)
+            .json({
+              error: "Failed to associate inquiry",
+              details: error.message,
+            });
+        }
+      } else {
+        res
+          .status(500)
+          .json({
+            error: "An unknown error occurred during inquiry association.",
+          });
+      }
+    }
+  }
+
   /**
    * Get inquiry statistics
    */
@@ -502,21 +445,21 @@ export class InquiryController {
     } catch (error) {
       console.error("Error converting inquiry to lead:", error);
 
-      let statusCode = 500; 
+      let statusCode = 500;
       let errorMessage =
-        "Failed to convert inquiry to lead. An unexpected error occurred."; 
+        "Failed to convert inquiry to lead. An unexpected error occurred.";
 
       if (error instanceof Error) {
         if (error.message === "Inquiry not found") {
-          statusCode = 404; 
+          statusCode = 404;
           errorMessage = "Inquiry not found";
         } else if (
           error.message === "This inquiry is already linked to a lead"
         ) {
-          statusCode = 409; 
-          errorMessage = "This inquiry is already linked to a lead"; 
+          statusCode = 409;
+          errorMessage = "This inquiry is already linked to a lead";
         } else if (error.message === "Inquiry is not in a convertible status") {
-          statusCode = 400; 
+          statusCode = 400;
           errorMessage =
             "Inquiry cannot be converted to a lead in its current status. It must be 'New' or 'Quoted'.";
         }
@@ -676,14 +619,79 @@ export class InquiryController {
       const updatedInquiry = await inquiryService.assignInquiry(
         id,
         req.user!.id,
-        assignedToId,
-        
+        assignedToId
       );
 
       res.json(updatedInquiry);
     } catch (error) {
       console.error("Error assigning inquiry:", error);
       res.status(500).json({ error: "Failed to assign inquiry" });
+    }
+  }
+
+  async reviewInquiry(req: Request, res: Response): Promise<void> {
+    try {
+      const idValidation = inquiryIdSchema.safeParse(req.params);
+
+      if (!idValidation.success) {
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
+        return;
+      }
+
+      const { id } = idValidation.data;
+
+      const existingInquiry = await inquiryService.findById(id);
+
+      if (!existingInquiry) {
+        res.status(404).json({ error: "Inquiry not found" });
+        return;
+      }
+
+      const reviewedInquiry = await inquiryService.reviewInquiry(
+        id,
+        req.user?.id!
+      );
+
+      res.json(reviewedInquiry);
+    } catch (error) {
+      console.error("Error assigning inquiry:", error);
+      res.status(500).json({ error: "Failed to assign inquiry" });
+    }
+  }
+
+  async closeInquiry(req: Request, res: Response): Promise<void> {
+    try {
+      const idValidation = inquiryIdSchema.safeParse(req.params);
+
+      if (!idValidation.success) {
+        res.status(400).json({
+          error: "Invalid inquiry ID",
+          details: idValidation.error.format(),
+        });
+        return;
+      }
+
+      const { id } = idValidation.data;
+
+      const existingInquiry = await inquiryService.findById(id);
+
+      if (!existingInquiry) {
+        res.status(404).json({ error: "Inquiry not found" });
+        return;
+      }
+
+      const closedInquiry = await inquiryService.closeInquiry(
+        id,
+        req.user?.id!
+      );
+
+      res.json(closedInquiry);
+    } catch (error) {
+      console.error("Error closing inquiry:", error);
+      res.status(500).json({ error: "Failed to close inquiry" });
     }
   }
 
