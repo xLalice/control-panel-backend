@@ -74,18 +74,6 @@ export const loginUser = (req: Request, res: Response, next: NextFunction) => {
               permissions: user.role.permissions.map((p) => p.name),
             },
           };
-
-          if (req.user) {
-            console.log("--- Login Route ---");
-            console.log(
-              "User authenticated by LocalStrategy:",
-              JSON.stringify(req.user, null, 2)
-            ); 
-            console.log(
-              "Session object after login (before serializeUser effect is fully seen by this log sometimes, but good to check):",
-              JSON.stringify(req.session, null, 2)
-            );
-          }
           return res.json({ user: transformedUser });
         });
       });
