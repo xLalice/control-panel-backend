@@ -993,6 +993,7 @@ async function main() {
           assignedToId: i % 3 === 0 ? salesUser.id : (i % 3 === 1 ? managerUser.id : null),
           createdAt: new Date(),
           updatedAt: new Date(),
+          clientId: null
         });
   }
 
