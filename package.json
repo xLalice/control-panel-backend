@@ -46,7 +46,7 @@
     "dev": "nodemon ./src/app.ts",
     "build": "npx prisma generate && tsc",
     "start": "node dist/app.js",
-    "db:seed": "node dist/prisma/seed.js"
+    "db:seed": "ts-node prisma/seed.ts && ts-node prisma/seedClients.ts"
   },
   "prisma": {
     "seed": "node dist/prisma/seed.js"
