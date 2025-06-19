@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 import { ClientStatus } from "@prisma/client";
 
 export const CreateClientSchema = z.object({

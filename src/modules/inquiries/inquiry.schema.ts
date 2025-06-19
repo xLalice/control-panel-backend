@@ -1,4 +1,4 @@
-import { z } from "zod"; // Using zod directly, not zod/v4
+import { z } from "zod"; // Using zod directly, not zod
 import {
   DeliveryMethod,
   ReferenceSource,
