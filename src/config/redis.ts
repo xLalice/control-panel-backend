@@ -16,7 +16,7 @@ redisClient.on("reconnection", () => console.log("Redis Client reconnected"));
 (async () => {
     try {
         await redisClient.connect();
-    } catch (err){
+    } catch (err ){
         console.error("Failed to connect to redis: ", err);
     }
 })();
