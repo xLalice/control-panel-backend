@@ -2,12 +2,7 @@ import express from "express";
 import { InquiryController } from "./inquiry.controller";
 import { isAuthenticated } from "../../middlewares/isAuthenticated";
 import { checkPermission } from "../../middlewares/authorization";
-import {
-  quoteSchema,
-  updateInquirySchema,
-  createInquirySchema,
-} from "./inquiry.schema";
-import { check } from "zod/v4";
+
 
 const router = express.Router();
 const inquiryController = new InquiryController();
@@ -51,40 +46,30 @@ router.put(
   (req, res) => inquiryController.updateInquiry(req, res)
 );
 
-router.post(
-  "/:id/quote",
-  isAuthenticated,
-  checkPermission("quote:inquiry"),
-  (req, res) => inquiryController.createQuote(req, res)
-);
-
-router.post(
-  "/:id/approve",
-  isAuthenticated,
-  checkPermission("update:all_inquiries"),
-  (req, res) => inquiryController.approveInquiry(req, res)
-);
-
-router.post(
-  "/:id/schedule",
-  isAuthenticated,
-  checkPermission("update:all_inquiries"),
-  (req, res) => inquiryController.scheduleInquiry(req, res)
-);
-
-router.post(
-  "/:id/fulfill",
-  isAuthenticated,
-  checkPermission("update:all_inquiries"),
-  (req, res) => inquiryController.fulfillInquiry(req, res)
-);
-
 router.delete(
   "/:id",
   isAuthenticated,
   checkPermission("delete:all_inquiries"),
   (req, res) => inquiryController.deleteInquiry(req, res)
 );
+
+router.post(
+  "/:id/review",
+  isAuthenticated,
+  (req, res) => inquiryController.reviewInquiry(req, res)
+)
+
+router.post(
+  "/:id/close",
+  isAuthenticated,
+  (req, res) => inquiryController.closeInquiry(req, res)
+)
+
+router.post(
+  "/:id/associate",
+  isAuthenticated,
+  (req, res) => inquiryController.associateInquiry(req, res)
+)
 
 router.post(
   "/:id/convert-to-lead",
