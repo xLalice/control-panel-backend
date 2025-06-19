@@ -5,6 +5,14 @@ import {Decimal} from "decimal.js"
 
 const prisma = new PrismaClient();
 
+function getRandomElement<T>(arr: T[]): T {
+  if (arr.length === 0) {
+    throw new Error("Array is empty, cannot get a random element.");
+  }
+  const randomIndex = Math.floor(Math.random() * arr.length);
+  return arr[randomIndex];
+}
+
 async function main() {
   console.log('Start seeding...');
 
@@ -470,6 +478,7 @@ async function main() {
       referredBy: i % 5 === 0 ? 'Existing client' : null,
       isActive: true,
       createdAt: faker.date.past(), 
+      originatingInquiryId: null,
       updatedAt: faker.date.recent(), 
     });
 }
@@ -944,6 +953,8 @@ async function main() {
 
   console.log('Products created.');
 
+
+  const allProductsId = (await prisma.product.findMany({ select: {id: true}}));
   // Create Inquiries
   const inquiryStatuses = Object.values(InquiryStatus);
   const inquiryTypes = Object.values(InquiryType);
@@ -953,10 +964,13 @@ async function main() {
   
   const inquiries: Inquiry[] = [];
 
+  const getRandomItem = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
   for (let i = 0; i < 15; i++) {
     const isCompanyInquiry = i % 3 === 0;
     const relatedLeadId = i % 5 === 0 ? leads[i % leads.length].id : null;
-    
+    const randomProduct = getRandomItem(products);
+
     inquiries.push({
           id: faker.string.uuid(),
           clientName: faker.person.fullName(),
@@ -965,9 +979,7 @@ async function main() {
           isCompany: isCompanyInquiry,
           companyName: isCompanyInquiry ? companies[i % companies.length].name : null,
           companyAddress: isCompanyInquiry ? `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}` : null,
-          productType: ['GI Pipe', 'Steel', 'Angle Bar', 'I-Beam', 'Deformed Bar'][i % 5],
           inquiryType: inquiryTypes[i % inquiryTypes.length],
-          quantity: faker.number.int({ min: 10, max: 1000 }),
           deliveryMethod: deliveryMethods[i % deliveryMethods.length],
           deliveryLocation: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}`,
           preferredDate: faker.date.soon({ days: 30 }),
@@ -976,10 +988,7 @@ async function main() {
           status: inquiryStatuses[i % inquiryStatuses.length],
           priority: priorities[i % priorities.length],
           dueDate: faker.date.soon({ days: 15 }),
-          quotedPrice: i % inquiryStatuses.length >= 1 ? faker.number.float({ min: 500, max: 10000, fractionDigits: 2 }) : null,
-          quotedBy: i % inquiryStatuses.length >= 1 ? salesUser.id : null,
-          quotedAt: i % inquiryStatuses.length >= 1 ? faker.date.recent({ days: 10 }) : null,
-          relatedLeadId: relatedLeadId,
+          leadId: relatedLeadId,
           createdById: i % 2 === 0 ? adminUser.id : salesUser.id,
           assignedToId: i % 3 === 0 ? salesUser.id : (i % 3 === 1 ? managerUser.id : null),
           createdAt: new Date(),
@@ -993,6 +1002,15 @@ async function main() {
       update: inquiry,
       create: inquiry,
     });
+
+    await prisma.inquiryItem.create({
+      data: {
+        inquiryId: inquiry.id,
+        productId: getRandomElement(allProductsId).id,
+        quantity: faker.number.int({ min: 1, max: 50 }),
+        remarks: faker.datatype.boolean(0.3) ? faker.lorem.sentence() : null,
+      }
+    })
   }
 
   console.log('Inquiries created.');

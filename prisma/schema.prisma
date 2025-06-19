@@ -40,6 +40,7 @@ model User {
   reports            Report[]
   inquiries          Inquiry[]
   documents          Document[]
+  quotations         Quotation[]
 
   attendanceRecords Attendance[]
   allowedIPs        AllowedIP[]
@@ -128,11 +129,15 @@ model Lead {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  
+  originatingInquiryId String? @unique
+  originatingInquiry   Inquiry? @relation("OriginatingInquiry", fields: [originatingInquiryId], references: [id])
+
+  inquiries Inquiry[] @relation("LeadInquiries")
+
   client         Client? 
-  contactHistory ContactHistory[] 
-  inquiries      Inquiry[] 
+  contactHistory ContactHistory[]
   activityLog    ActivityLog[] 
+  quotations    Quotation[]
 
   @@index([email]) 
   @@index([phone]) 
@@ -186,6 +191,8 @@ model Client {
   salesOrders    SalesOrder[]
   contactHistory ContactHistory[]
   activityLog    ActivityLog[]
+  quotations    Quotation[]
+  inquiries     Inquiry[]   @relation("ClientInquiries")
 
   @@index([clientName])
   @@index([companyId])
@@ -198,6 +205,7 @@ model Client {
 model ActivityLog {
   id          String   @id @default(uuid())
   leadId      String?
+  inquiryId   String?
   clientId    String?
   userId      String
   action      String
@@ -208,6 +216,9 @@ model ActivityLog {
   lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
   client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
   user   User    @relation(fields: [userId], references: [id])
+  inquiry Inquiry? @relation(fields: [inquiryId], references: [id])
+
+
 
   @@index([leadId])
   @@index([clientId])
@@ -288,10 +299,10 @@ model Product {
   sku            String      @unique
   name           String
   description    String
-  basePrice      Decimal // e.g., 5500.00
-  pricingUnit    PricingUnit // e.g., "day", "meter", "kilogram"
-  pricingDetails Json? // e.g., { "hoursPerDay": 8 }
-  unit           String? // e.g., "piece", "bundle"
+  basePrice      Decimal 
+  pricingUnit    PricingUnit 
+  pricingDetails Json? 
+  unit           String? 
   pickUpPrice    Decimal?
   deliveryPrice  Decimal?
   isActive       Boolean     @default(true)
@@ -302,7 +313,9 @@ model Product {
   heavyEquipment HeavyEquipment?
   steel          Steel?
 
-  inquiries     Inquiry[]
+  inquiries     InquiryItem[]
+  quotation    QuotationItem[]
+
 }
 
 model Aggregate {
@@ -374,25 +387,24 @@ model Inquiry {
   isCompany        Boolean         @default(false)
   companyName      String?
   companyAddress   String?
-  productId        String       
-  product           Product  @relation(fields: [productId], references: [id])
   inquiryType      InquiryType
-  quantity         Int
   deliveryMethod   DeliveryMethod
-  deliveryLocation String
-  preferredDate    DateTime
+  deliveryLocation String?
+  preferredDate    DateTime?
   referenceSource  ReferenceSource
   remarks          String?
   status           InquiryStatus   @default(New)
   priority         Priority?
   dueDate          DateTime?
 
-  quotedPrice Float?
-  quotedBy    String?
-  quotedAt    DateTime?
+  leadOriginated Lead? @relation("OriginatingInquiry") 
 
-  relatedLeadId String?
-  relatedLead   Lead?   @relation(fields: [relatedLeadId], references: [id])
+  lead           Lead? @relation("LeadInquiries", fields: [leadId], references: [id])
+  leadId         String?
+  client          Client? @relation("ClientInquiries", fields: [clientId], references: [id])
+  clientId      String?
+
+  items   InquiryItem[]
 
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
@@ -403,26 +415,114 @@ model Inquiry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  activityLog   ActivityLog[]
+
   @@index([createdById])
   @@index([assignedToId])
   @@index([status])
   @@index([createdAt])
   @@index([dueDate])
   @@index([priority])
-  @@index([relatedLeadId])
   @@index([clientName])
   @@index([phoneNumber])
   @@index([email])
   @@index([inquiryType])
 }
 
+model InquiryItem {
+  id          String   @id @default(uuid())
+  inquiryId   String
+  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+
+  quantity    Int
+
+  remarks     String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([inquiryId])
+  @@index([productId])
+}
+
 enum InquiryStatus {
   New
-  Quoted
-  Approved
-  Scheduled
-  Fulfilled
-  Cancelled
+  Reviewed
+  ConvertedToLead
+  AssociatedToClient
+  Closed
+  QuotationGenerated
+  DeliveryScheduled
+}
+
+enum QuotationStatus {
+  Draft
+  Sent
+  Accepted
+  Rejected
+  Expired
+}
+
+model Quotation {
+  id               String          @id @default(uuid())
+  quotationNumber  String          @unique 
+  status           QuotationStatus @default(Draft) 
+  issueDate        DateTime        @default(now()) 
+  validUntil       DateTime        
+
+  leadId           String?
+  lead             Lead?           @relation(fields: [leadId], references: [id])
+  
+  clientId         String?
+  client           Client?         @relation(fields: [clientId], references: [id])
+
+  subtotal         Decimal         @db.Decimal(10, 2) // Precision for currency
+  discount         Decimal?        @db.Decimal(10, 2) // Fixed amount discount
+  tax              Decimal?        @db.Decimal(10, 2) // Calculated tax amount
+  total            Decimal         @db.Decimal(10, 2)
+
+  notesToCustomer  String?         @db.Text
+  internalNotes    String?         @db.Text
+
+  preparedById     String
+  preparedBy       User            @relation(fields: [preparedById], references: [id])
+
+  items            QuotationItem[]
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Indexes for performance
+  @@index([status])
+  @@index([issueDate])
+  @@index([validUntil])
+  @@index([leadId])
+  @@index([clientId])
+  @@index([preparedById])
+  @@index([quotationNumber]) // Good for direct lookups
+}
+
+model QuotationItem {
+  id          String   @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade) // Cascade delete items with quote
+
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id]) 
+
+  description String   
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10, 2) 
+  lineTotal   Decimal  @db.Decimal(10, 2) 
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([quotationId])
+  @@index([productId])
 }
 
 model DocumentCategory {
