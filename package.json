@@ -45,7 +45,11 @@
     "test": "vitest",
     "dev": "nodemon ./src/app.ts",
     "build": "npx prisma generate && tsc",
-    "start": "node dist/app.js"
+    "start": "node dist/app.js",
+    "db:seed": "node dist/prisma/seed.js"
+  },
+  "prisma": {
+    "seed": "node dist/prisma/seed.js"
   },
   "author": "",
   "license": "ISC",
