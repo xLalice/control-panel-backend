@@ -1,12 +1,8 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-(async () => {
-  await prisma.inquiry.deleteMany();
-  console.log(prisma.inquiry.findMany());
-})();
 
-/* const clientData = [
+ const clientData = [
   {
     clientName: "Acme Corporation",
     accountNumber: "ACC-001",
@@ -515,4 +511,4 @@ async function seedClients() {
 }
 
 // Run the seeder
-seedClients(); */
+seedClients(); 
