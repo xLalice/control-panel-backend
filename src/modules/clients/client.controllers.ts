@@ -9,7 +9,7 @@ import { handleZodError } from "../../utils/zod";
 import { prisma } from "../../config/prisma";
 import { generateNextAccountNumber } from "./client.utils";
 import { addContactHistory } from "./client.service";
-import { ZodError, z } from "zod";
+import asyncHandler from "../../utils/asyncHandler";
 
 const createActivityLog = async (
   clientId: string,
@@ -33,7 +33,7 @@ const createActivityLog = async (
   }
 };
 
-export const createClient = async (req: Request, res: Response) => {
+export const createClient = asyncHandler(async (req: Request, res: Response) => {
   const result = CreateClientSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({
@@ -77,245 +77,246 @@ export const createClient = async (req: Request, res: Response) => {
   }
 
   res.status(201).json({ client, message: "Successfully created the client" });
-};
+});
 
-export const getClients = async (req: Request, res: Response) => {
-    const clients = await prisma.client.findMany({
-      where: { isActive: true },
-      orderBy: { createdAt: "desc" },
-    });
+export const getClients = asyncHandler(async (req: Request, res: Response) => {
+  const clients = await prisma.client.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: "desc" },
+  });
 
-    res.status(200).json(clients);
-};
+  res.status(200).json(clients);
+});
 
-export const getClient = async (req: Request, res: Response) => {
-    const client = await prisma.client.findUnique({
-      where: { id: req.params.id },
-      include: {
-        activityLog: {
-          orderBy: { createdAt: "desc" },
-          take: 10,
-          include: {
-            user: {
-              select: { id: true, name: true, email: true },
-            },
+export const getClient = asyncHandler(async (req: Request, res: Response) => {
+  const client = await prisma.client.findUnique({
+    where: { id: req.params.id },
+    include: {
+      activityLog: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
           },
         },
       },
+    },
+  });
+
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+
+  res.status(200).json(client);
+});
+
+export const updateClient = asyncHandler(async (req: Request, res: Response) => {
+  const result = UpdateClientSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({
+      message: "Validation failed",
+      error: handleZodError(result.error),
     });
+    return;
+  }
 
-    if (!client) {
-      res.status(404).json({ error: "Client not found" });
-      return;
+  const currentClient = await prisma.client.findUnique({
+    where: { id: req.params.id },
+  });
+
+  if (!currentClient) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+
+  const changedFields: Record<string, { old: any; new: any }> = {};
+  Object.keys(result.data).forEach((key) => {
+    const oldValue = currentClient[key as keyof typeof currentClient];
+    const newValue = result.data[key as keyof typeof result.data];
+
+    if (oldValue !== newValue) {
+      changedFields[key] = { old: oldValue, new: newValue };
     }
+  });
 
-    res.status(200).json(client);
-};
+  const client = await prisma.client.update({
+    where: { id: req.params.id },
+    data: result.data,
+  });
 
-export const updateClient = async (req: Request, res: Response) => {
-    const result = UpdateClientSchema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({
-        message: "Validation failed",
-        error: handleZodError(result.error),
-      });
-      return;
-    }
-
-    const currentClient = await prisma.client.findUnique({
-      where: { id: req.params.id },
-    });
-
-    if (!currentClient) {
-      res.status(404).json({ error: "Client not found" });
-      return;
-    }
-
-    const changedFields: Record<string, { old: any; new: any }> = {};
-    Object.keys(result.data).forEach((key) => {
-      const oldValue = currentClient[key as keyof typeof currentClient];
-      const newValue = result.data[key as keyof typeof result.data];
-
-      if (oldValue !== newValue) {
-        changedFields[key] = { old: oldValue, new: newValue };
+  if (req.user?.id && Object.keys(changedFields).length > 0) {
+    const fieldNames = Object.keys(changedFields).join(", ");
+    await createActivityLog(
+      client.id,
+      req.user.id,
+      "Updated",
+      `Client "${client.clientName}" was updated. Changed fields: ${fieldNames}`,
+      {
+        clientName: client.clientName,
+        changedFields,
+        updateTimestamp: new Date().toISOString(),
       }
-    });
+    );
+  }
 
-    const client = await prisma.client.update({
-      where: { id: req.params.id },
-      data: result.data,
-    });
+  res
+    .status(200)
+    .json({ client, message: "Successfully updated the client" });
+});
 
-    if (req.user?.id && Object.keys(changedFields).length > 0) {
-      const fieldNames = Object.keys(changedFields).join(", ");
-      await createActivityLog(
-        client.id,
-        req.user.id,
-        "Updated",
-        `Client "${client.clientName}" was updated. Changed fields: ${fieldNames}`,
-        {
-          clientName: client.clientName,
-          changedFields,
-          updateTimestamp: new Date().toISOString(),
-        }
-      );
-    }
+export const deleteClient = asyncHandler(async (req: Request, res: Response) => {
+  const client = await prisma.client.findUnique({
+    where: { id: req.params.id },
+  });
 
-    res
-      .status(200)
-      .json({ client, message: "Successfully updated the client" });
-};
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
 
-export const deleteClient = async (req: Request, res: Response) => {
-const client = await prisma.client.findUnique({
-      where: { id: req.params.id },
-    });
+  const updatedClient = await prisma.client.update({
+    where: { id: req.params.id },
+    data: { isActive: false },
+  });
 
-    if (!client) {
-      res.status(404).json({ error: "Client not found" });
-      return;
-    }
+  if (req.user?.id) {
+    await createActivityLog(
+      client.id,
+      req.user.id,
+      "Deleted",
+      `Client "${client.clientName}" was deactivated/deleted`,
+      {
+        clientName: client.clientName,
+        accountNumber: client.accountNumber,
+        deletionType: "soft_delete",
+      }
+    );
+  }
 
-    const updatedClient = await prisma.client.update({
-      where: { id: req.params.id },
-      data: { isActive: false },
-    });
+  res.status(200).json({
+    message: "Client successfully deactivated",
+    client: updatedClient,
+  });
+});
 
-    if (req.user?.id) {
-      await createActivityLog(
-        client.id,
-        req.user.id,
-        "Deleted",
-        `Client "${client.clientName}" was deactivated/deleted`,
-        {
-          clientName: client.clientName,
-          accountNumber: client.accountNumber,
-          deletionType: "soft_delete",
-        }
-      );
-    }
+export const restoreClient = asyncHandler(async (req: Request, res: Response) => {
+  const client = await prisma.client.findUnique({
+    where: { id: req.params.id },
+  });
 
-    res.status(200).json({
-      message: "Client successfully deactivated",
-      client: updatedClient,
-    });
-};
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
 
-export const restoreClient = async (req: Request, res: Response) => {
-const client = await prisma.client.findUnique({
-      where: { id: req.params.id },
-    });
+  if (client.isActive) {
+    res.status(400).json({ error: "Client is already active" });
+    return;
+  }
 
-    if (!client) {
-      res.status(404).json({ error: "Client not found" });
-      return;
-    }
+  const restoredClient = await prisma.client.update({
+    where: { id: req.params.id },
+    data: { isActive: true },
+  });
 
-    if (client.isActive) {
-      res.status(400).json({ error: "Client is already active" });
-      return;
-    }
+  if (req.user?.id) {
+    await createActivityLog(
+      client.id,
+      req.user.id,
+      "Restored",
+      `Client "${client.clientName}" was restored/reactivated`,
+      {
+        clientName: client.clientName,
+        accountNumber: client.accountNumber,
+      }
+    );
+  }
 
-    const restoredClient = await prisma.client.update({
-      where: { id: req.params.id },
-      data: { isActive: true },
-    });
+  res.status(200).json({
+    message: "Client successfully restored",
+    client: restoredClient,
+  });
+});
 
-    if (req.user?.id) {
-      await createActivityLog(
-        client.id,
-        req.user.id,
-        "Restored",
-        `Client "${client.clientName}" was restored/reactivated`,
-        {
-          clientName: client.clientName,
-          accountNumber: client.accountNumber,
-        }
-      );
-    }
+export const getClientActivityLog = asyncHandler(async (req: Request, res: Response) => {
+  const { page = 1, limit = 20 } = req.query;
+  const skip = (Number(page) - 1) * Number(limit);
 
-    res.status(200).json({
-      message: "Client successfully restored",
-      client: restoredClient,
-    });
-};
-
-export const getClientActivityLog = async (req: Request, res: Response) => {
-const { page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
-
-    const activities = await prisma.activityLog.findMany({
-      where: { clientId: req.params.id },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
+  const activities = await prisma.activityLog.findMany({
+    where: { clientId: req.params.id },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
       },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: Number(limit),
-    });
+    },
+    orderBy: { createdAt: "desc" },
+    skip,
+    take: Number(limit),
+  });
 
-    res.status(200).json(activities);
-};
+  res.status(200).json(activities);
+});
 
-export const getClientContactHistory = async (req: Request, res: Response) => {
-const { page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+export const getClientContactHistory = asyncHandler(async (req: Request, res: Response) => {
+  const { page = 1, limit = 20 } = req.query;
+  const skip = (Number(page) - 1) * Number(limit);
 
-    const contactHistory = await prisma.contactHistory.findMany({
-      where: { clientId: req.params.id },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
+  const contactHistory = await prisma.contactHistory.findMany({
+    where: { clientId: req.params.id },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
       },
-      orderBy: { timestamp: "desc" },
-      skip,
-      take: Number(limit),
-    });
+    },
+    orderBy: { timestamp: "desc" },
+    skip,
+    take: Number(limit),
+  });
 
-    const totalCount = await prisma.contactHistory.count({
-      where: { clientId: req.params.id },
-    });
+  const totalCount = await prisma.contactHistory.count({
+    where: { clientId: req.params.id },
+  });
 
-    res.status(200).json(contactHistory);
-};
-export const logContactHistory = async (
+  res.status(200).json(contactHistory);
+});
+
+export const logContactHistory = asyncHandler(async (
   req: Request,
   res: Response
 ): Promise<void> => {
-    const { id } = req.params;
-    const userId = (req as any).user?.id;
-    if (!userId) {
-      res.status(401).json({ error: "Unauthorized: User not authenticated." });
-      return;
-    }
-    const dataToValidate = {
-      ...req.body,
+  const { id } = req.params;
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized: User not authenticated." });
+    return;
+  }
+  const dataToValidate = {
+    ...req.body,
+    entityId: id,
+  };
+
+  const validatedData: LogContactHistoryInput =
+    LogContactHistorySchema.parse(dataToValidate);
+
+  const { method, summary, outcome, timestamp, entityType } = validatedData;
+
+  const parsedTimestamp = new Date(timestamp);
+
+  const newContactData = {
+    method,
+    summary,
+    outcome,
+    timestamp: parsedTimestamp,
+    entity: {
       entityId: id,
-    };
+      entityType: entityType,
+    },
+    userId: userId,
+  };
 
-    const validatedData: LogContactHistoryInput =
-      LogContactHistorySchema.parse(dataToValidate);
+  let createdContact = await addContactHistory(id, newContactData);
 
-    const { method, summary, outcome, timestamp, entityType } = validatedData;
-
-    const parsedTimestamp = new Date(timestamp);
-
-    const newContactData = {
-      method,
-      summary,
-      outcome,
-      timestamp: parsedTimestamp,
-      entity: {
-        entityId: id,
-        entityType: entityType,
-      },
-      userId: userId,
-    };
-
-    let createdContact = await addContactHistory(id, newContactData);
-
-    res.status(201).json(createdContact);
-};
+  res.status(201).json(createdContact);
+});

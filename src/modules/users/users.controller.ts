@@ -1,37 +1,38 @@
 import { prisma } from "../../config/prisma";
 import { Request, Response } from "express";
+import asyncHandler from "../../utils/asyncHandler";
 import bcrypt from "bcryptjs";
 import { CreateUserSchema } from "./user.schema";
 import { handleZodError } from "../../utils/zod";
 
-export const getUsers = async (req: Request, res: Response) => {
+export const getUsers = asyncHandler(async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
     include: {
       role: true,
     },
   });
   res.status(200).json(users);
-};
+});
 
-export const getRoles = async (req: Request, res: Response) => {
+export const getRoles = asyncHandler(async (req: Request, res: Response) => {
   const roles = await prisma.role.findMany({
     select: { id: true, name: true },
   });
   res.status(200).json(roles);
-};
+});
 
-export const createNewUser = async (req: Request, res: Response) => {
+export const createNewUser = asyncHandler(async (req: Request, res: Response) => {
   const result = CreateUserSchema.safeParse(req.body);
 
   if (!result.success) {
-   res.status(400).json({
+    res.status(400).json({
       message: "Validation failed",
       error: handleZodError(result.error),
     });
     return;
   }
+  
   const { name, email, password, role } = result.data;
-
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const newUser = await prisma.user.create({
@@ -48,14 +49,15 @@ export const createNewUser = async (req: Request, res: Response) => {
   });
 
   res.status(201).json({ newUser, message: "Successfully created the user" });
-};
+});
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.params.id;
   const { name, email, role } = req.body;
 
   if (!name && !email && !role) {
     res.status(400).json({ error: "No fields provided to update." });
+    return;
   }
 
   const updatedUser = await prisma.user.update({
@@ -74,9 +76,9 @@ export const updateUser = async (req: Request, res: Response) => {
   res
     .status(200)
     .json({ updatedUser, message: "User updated successfully." });
-};
+});
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.params.id;
 
   const user = await prisma.user.findUnique({
@@ -85,6 +87,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 
   if (!user) {
     res.status(404).json({ error: "User not found." });
+    return;
   }
 
   await prisma.user.delete({
@@ -92,20 +95,19 @@ export const deleteUser = async (req: Request, res: Response) => {
   });
 
   res.status(200).json({ message: "User deleted successfully." });
-};
+});
 
-export const createRole = async (req: Request, res: Response) => {
+export const createRole = asyncHandler(async (req: Request, res: Response) => {
   const { name, permissions } = req.body;
+  
   if (!name || !permissions) {
-    return res
-      .status(400)
-      .json({ error: "Name and permissions are required." });
+    res.status(400).json({ error: "Name and permissions are required." });
+    return;
   }
 
   if (permissions.length === 0) {
-    return res
-      .status(400)
-      .json({ error: "At least one permission is required." });
+    res.status(400).json({ error: "At least one permission is required." });
+    return;
   }
 
   const existingRole = await prisma.role.findUnique({
@@ -113,7 +115,8 @@ export const createRole = async (req: Request, res: Response) => {
   });
 
   if (existingRole) {
-    return res.status(400).json({ error: "Role already exists." });
+    res.status(400).json({ error: "Role already exists." });
+    return;
   }
 
   const newRole = await prisma.role.create({
@@ -126,17 +129,17 @@ export const createRole = async (req: Request, res: Response) => {
       },
     },
   });
+  
   res.status(201).json(newRole);
-};
+});
 
-export const editRole = async (req: Request, res: Response) => {
+export const editRole = asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
   const { name, permissions } = req.body;
 
   if (!name || !permissions) {
-    return res
-      .status(400)
-      .json({ error: "Name and permissions are required." });
+    res.status(400).json({ error: "Name and permissions are required." });
+    return;
   }
 
   const updatedRole = await prisma.role.update({
@@ -152,9 +155,9 @@ export const editRole = async (req: Request, res: Response) => {
   });
 
   res.status(200).json(updatedRole);
-};
+});
 
-export const deleteRole = async (req: Request, res: Response) => {
+export const deleteRole = asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
 
   const deletedRole = await prisma.role.delete({
@@ -162,9 +165,9 @@ export const deleteRole = async (req: Request, res: Response) => {
   });
 
   res.status(200).json(deletedRole);
-};
+});
 
-export const getAllPermissions = async (req: Request, res: Response) => {
+export const getAllPermissions = asyncHandler(async (req: Request, res: Response) => {
   const permissions = await prisma.permission.findMany();
 
   const grouped = permissions.reduce((acc, permission) => {
@@ -186,15 +189,14 @@ export const getAllPermissions = async (req: Request, res: Response) => {
   );
 
   res.status(200).json(groupedArray);
-};
+});
 
-export const togglePermission = async (req: Request, res: Response) => {
+export const togglePermission = asyncHandler(async (req: Request, res: Response) => {
   const { roleId, permissionId } = req.body;
 
   if (!roleId || !permissionId) {
-    return res
-      .status(400)
-      .json({ error: "Role ID and Permission ID are required." });
+    res.status(400).json({ error: "Role ID and Permission ID are required." });
+    return;
   }
 
   const role = await prisma.role.findUnique({
@@ -203,7 +205,8 @@ export const togglePermission = async (req: Request, res: Response) => {
   });
 
   if (!role) {
-    return res.status(404).json({ error: "Role not found." });
+    res.status(404).json({ error: "Role not found." });
+    return;
   }
 
   const permissionExists = role.permissions.some(
@@ -231,4 +234,4 @@ export const togglePermission = async (req: Request, res: Response) => {
   }
 
   res.status(200).json({ message: "Permission toggled successfully." });
-};
+});

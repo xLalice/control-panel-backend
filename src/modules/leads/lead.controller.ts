@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import asyncHandler from "../../utils/asyncHandler";
 import { LeadService } from "./lead.service";
 import {
   assignLeadSchema,
@@ -17,7 +18,7 @@ import {
 const leadService = new LeadService(prisma);
 
 export class LeadController {
-  async createLead(req: Request, res: Response) {
+  createLead = asyncHandler(async (req: Request, res: Response) => {
     info("Creating lead");
     const validatedData = createLeadSchema.parse(req.body);
     info(validatedData);
@@ -27,9 +28,9 @@ export class LeadController {
     );
     info("Created lead: ", lead);
     res.status(201).json(lead);
-  }
+  });
 
-  async updateLead(req: Request, res: Response) {
+  updateLead = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!req.user) {
@@ -50,9 +51,9 @@ export class LeadController {
       userId
     );
     res.json(lead);
-  }
+  });
 
-  async updateLeadStatus(req: Request, res: Response) {
+  updateLeadStatus = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const validatedData = updateLeadStatusSchema.parse(req.body);
     const lead = await leadService.updateLeadStatus(
@@ -61,15 +62,15 @@ export class LeadController {
       req.user!.id
     );
     res.json(lead);
-  }
+  });
 
-  async deleteLead(req: Request, res: Response) {
+  deleteLead = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     await leadService.deleteLead(id);
     res.status(204).send();
-  }
+  });
 
-  async getLead(req: Request, res: Response) {
+  getLead = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const lead = await leadService.getLead(id);
     if (!lead) {
@@ -77,9 +78,9 @@ export class LeadController {
       return;
     }
     res.json(lead);
-  }
+  });
 
-  async getLeads(req: Request, res: Response) {
+  getLeads = asyncHandler(async (req: Request, res: Response) => {
     const filters = req.query;
     const filteredFilters = Object.fromEntries(
       Object.entries(filters).filter(([, v]) => v !== undefined)
@@ -87,34 +88,34 @@ export class LeadController {
 
     const leads = await leadService.getLeads(filteredFilters);
     res.json(leads);
-  }
+  });
 
-  async getCompanies(req: Request, res: Response) {
+  getCompanies = asyncHandler(async (req: Request, res: Response) => {
     const companies = await leadService.getCompanies();
     res.json(companies);
-  }
+  });
 
-  async assignLead(req: Request, res: Response) {
+  assignLead = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const validatedData = assignLeadSchema.parse(req.body);
     const userId = req.user!.id;
     const lead = await leadService.assignLead(id, validatedData, userId);
     res.json(lead);
-  }
+  });
 
-  async getLeadActivities(req: Request, res: Response) {
+  getLeadActivities = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const activities = await leadService.getLeadActivities(id);
     res.json(activities);
-  }
+  });
 
-  async getContactHistory(req: Request, res: Response) {
+  getContactHistory = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const contactHistory = await leadService.getContactHistory(id);
     res.json(contactHistory);
-  }
+  });
 
-  async logContactHistory(req: Request, res: Response) {
+  logContactHistory = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -153,9 +154,9 @@ export class LeadController {
     );
 
     res.status(201).json(createdContact);
-  }
+  });
 
-  async convertLeadToClient(req: Request, res: Response) {
+  convertLeadToClient = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const convertedClient = await leadService.convertLeadToClient(
@@ -164,5 +165,5 @@ export class LeadController {
     );
 
     res.status(201).json(convertedClient);
-  }
+  });
 }

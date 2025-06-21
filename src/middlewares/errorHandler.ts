@@ -37,7 +37,7 @@ export const errorHandler = (
       errorResponse = { error: err.message }; 
     }
     else if (err.message.includes("forbidden") || err.message.includes("unauthorized")) {
-      statusCode = 403; // Forbidden
+      statusCode = 403; 
       errorResponse = { error: err.message };
     }
     else if (err.message.includes("invalid input") || err.message.includes("bad request")) {

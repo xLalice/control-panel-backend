@@ -1,85 +1,12 @@
 import { Request, Response } from "express";
+import asyncHandler from "../../utils/asyncHandler";
 import { prisma } from "../../config/prisma";
 import { ProductCreateInput, ProductUpdateInput } from "./product.types";
 import { Category, Prisma } from "@prisma/client";
 import { generateSKU } from "./product.utils";
-import { subWeeks } from "date-fns";
 
 export class ProductController {
-  async getAllProducts(req: Request, res: Response): Promise<any> {
-    const products = await prisma.product.findMany({
-      where: {isActive: true},
-      include: {
-        aggregate: true,
-        heavyEquipment: true,
-        steel: true,
-      },
-    });
-
-    const transformedProducts = products.map((product) => {
-      let extendedData = {};
-
-      if (product.category === Category.AGGREGATE && product.aggregate) {
-        extendedData = {
-          source: product.aggregate.source,
-          weightPerUnit: product.aggregate.weightPerUnit,
-        };
-      } else if (
-        product.category === Category.HEAVY_EQUIPMENT &&
-        product.heavyEquipment
-      ) {
-        extendedData = {
-          equipmentType: product.heavyEquipment.equipmentType,
-        };
-      } else if (product.category === Category.STEEL && product.steel) {
-        extendedData = {
-          grade: product.steel.grade,
-          length: product.steel.length,
-          type: product.steel.type,
-          color: product.steel.color,
-          size: product.steel.size,
-          additionalAttributes: product.steel.additionalAttributes,
-        };
-      }
-
-      return {
-        id: product.id,
-        category: product.category,
-        name: product.name,
-        sku: product.sku,
-        description: product.description,
-        basePrice: product.basePrice,
-        pricingUnit: product.pricingUnit,
-        pricingDetails: product.pricingDetails,
-        unit: product.unit,
-        pickUpPrice: product.pickUpPrice,
-        deliveryPrice: product.deliveryPrice,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-        ...extendedData,
-      };
-    });
-
-    return res.status(200).json(transformedProducts);
-  }
-
-  // Get a single product by ID
-  async getProductById(req: Request, res: Response): Promise<any> {
-    const { id } = req.params;
-
-    const product = await prisma.product.findUnique({
-      where: { id, isActive: true },
-      include: {
-        aggregate: true,
-        heavyEquipment: true,
-        steel: true,
-      },
-    });
-
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-
+  private transformProduct(product: any) {
     let extendedData = {};
 
     if (product.category === Category.AGGREGATE && product.aggregate) {
@@ -105,7 +32,7 @@ export class ProductController {
       };
     }
 
-    const transformedProduct = {
+    return {
       id: product.id,
       category: product.category,
       name: product.name,
@@ -121,14 +48,48 @@ export class ProductController {
       updatedAt: product.updatedAt,
       ...extendedData,
     };
-
-    return res.status(200).json(transformedProduct);
   }
 
-  // Create a new product
-  async createProduct(req: Request, res: Response): Promise<any> {
-    const productData: ProductCreateInput = req.body;
+  getAllProducts = asyncHandler(async (req: Request, res: Response) => {
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      include: {
+        aggregate: true,
+        heavyEquipment: true,
+        steel: true,
+      },
+    });
 
+    const transformedProducts = products.map((product) =>
+      this.transformProduct(product)
+    );
+
+    res.status(200).json(transformedProducts);
+  });
+
+  getProductById = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const product = await prisma.product.findUnique({
+      where: { id, isActive: true },
+      include: {
+        aggregate: true,
+        heavyEquipment: true,
+        steel: true,
+      },
+    });
+
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    const transformedProduct = this.transformProduct(product);
+    res.status(200).json(transformedProduct);
+  });
+
+  createProduct = asyncHandler(async (req: Request, res: Response) => {
+    const productData: ProductCreateInput = req.body;
     const sku = generateSKU(productData.category);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -180,14 +141,13 @@ export class ProductController {
       return newProduct;
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       message: "Product created successfully",
       productId: result.id,
     });
-  }
+  });
 
-  // Update an existing product
-  async updateProduct(req: Request, res: Response): Promise<any> {
+  updateProduct = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const productData: ProductUpdateInput = req.body;
 
@@ -202,7 +162,8 @@ export class ProductController {
     });
 
     if (!existingProduct) {
-      return res.status(404).json({ error: "Product not found" });
+      res.status(404).json({ error: "Product not found" });
+      return;
     }
 
     await prisma.$transaction(async (tx) => {
@@ -269,13 +230,12 @@ export class ProductController {
       }
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       message: "Product updated successfully",
     });
-  }
+  });
 
-  // Delete a product
-  async deleteProduct(req: Request, res: Response): Promise<any> {
+  deleteProduct = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Check if product exists
@@ -284,7 +244,8 @@ export class ProductController {
     });
 
     if (!existingProduct) {
-      return res.status(404).json({ error: "Product not found" });
+      res.status(404).json({ error: "Product not found" });
+      return;
     }
 
     // Delete the product (cascade will handle related records)
@@ -292,16 +253,15 @@ export class ProductController {
       where: { id },
       data: {
         isActive: false,
-      }
+      },
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       message: "Product deleted successfully",
     });
-  }
+  });
 
-  // Get products filtered by category
-  async getProductsByCategory(req: Request, res: Response): Promise<any> {
+  getProductsByCategory = asyncHandler(async (req: Request, res: Response) => {
     const { category } = req.params;
     const validCategories = [
       Category.AGGREGATE,
@@ -310,7 +270,8 @@ export class ProductController {
     ];
 
     if (!validCategories.includes(category as Category)) {
-      return res.status(400).json({ error: "Invalid category" });
+      res.status(400).json({ error: "Invalid category" });
+      return;
     }
 
     const products = await prisma.product.findMany({
@@ -322,59 +283,19 @@ export class ProductController {
       },
     });
 
-    // Transform the data for the frontend
-    const transformedProducts = products.map((product) => {
-      let extendedData = {};
+    const transformedProducts = products.map((product) =>
+      this.transformProduct(product)
+    );
 
-      if (product.category === Category.AGGREGATE && product.aggregate) {
-        extendedData = {
-          source: product.aggregate.source,
-          weightPerUnit: product.aggregate.weightPerUnit,
-        };
-      } else if (
-        product.category === Category.HEAVY_EQUIPMENT &&
-        product.heavyEquipment
-      ) {
-        extendedData = {
-          equipmentType: product.heavyEquipment.equipmentType,
-        };
-      } else if (product.category === Category.STEEL && product.steel) {
-        extendedData = {
-          grade: product.steel.grade,
-          length: product.steel.length,
-          type: product.steel.type,
-          color: product.steel.color,
-          size: product.steel.size,
-          additionalAttributes: product.steel.additionalAttributes,
-        };
-      }
+    res.status(200).json(transformedProducts);
+  });
 
-      return {
-        id: product.id,
-        category: product.category,
-        name: product.name,
-        description: product.description,
-        basePrice: product.basePrice,
-        pricingUnit: product.pricingUnit,
-        pricingDetails: product.pricingDetails,
-        unit: product.unit,
-        pickUpPrice: product.pickUpPrice,
-        deliveryPrice: product.deliveryPrice,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-        ...extendedData,
-      };
-    });
-
-    return res.status(200).json(transformedProducts);
-  }
-
-  // Search products
-  async searchProducts(req: Request, res: Response): Promise<any> {
+  searchProducts = asyncHandler(async (req: Request, res: Response) => {
     const { query } = req.query;
 
     if (!query || typeof query !== "string") {
-      return res.status(400).json({ error: "Search query is required" });
+      res.status(400).json({ error: "Search query is required" });
+      return;
     }
 
     const products = await prisma.product.findMany({
@@ -393,51 +314,10 @@ export class ProductController {
       },
     });
 
-    // Transform the data for the frontend
-    const transformedProducts = products.map((product) => {
-      let extendedData = {};
+    const transformedProducts = products.map((product) =>
+      this.transformProduct(product)
+    );
 
-      if (product.category === Category.AGGREGATE && product.aggregate) {
-        extendedData = {
-          source: product.aggregate.source,
-          weightPerUnit: product.aggregate.weightPerUnit,
-        };
-      } else if (
-        product.category === Category.HEAVY_EQUIPMENT &&
-        product.heavyEquipment
-      ) {
-        extendedData = {
-          equipmentType: product.heavyEquipment.equipmentType,
-        };
-      } else if (product.category === Category.STEEL && product.steel) {
-        extendedData = {
-          grade: product.steel.grade,
-          length: product.steel.length,
-          type: product.steel.type,
-          color: product.steel.color,
-          size: product.steel.size,
-          additionalAttributes: product.steel.additionalAttributes,
-        };
-      }
-
-      return {
-        id: product.id,
-        category: product.category,
-        name: product.name,
-        sku: product.sku,
-        description: product.description,
-        basePrice: product.basePrice,
-        pricingUnit: product.pricingUnit,
-        pricingDetails: product.pricingDetails,
-        unit: product.unit,
-        pickUpPrice: product.pickUpPrice,
-        deliveryPrice: product.deliveryPrice,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-        ...extendedData,
-      };
-    });
-
-    return res.status(200).json(transformedProducts);
-  }
+    res.status(200).json(transformedProducts);
+  });
 }

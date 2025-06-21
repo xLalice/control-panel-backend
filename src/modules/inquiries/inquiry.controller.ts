@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { InquiryService } from "./inquiry.service";
 import {
   createInquirySchema,
@@ -13,6 +13,7 @@ import {
 } from "./inquiry.schema";
 import { z } from "zod";
 import { Inquiry, InquiryStatus, Priority } from "@prisma/client";
+import asyncHandler from "../../utils/asyncHandler";
 
 const inquiryService = new InquiryService();
 
@@ -20,7 +21,7 @@ export class InquiryController {
   /**
    * Get all inquiries with pagination and filtering
    */
-  async getInquiries(req: Request, res: Response): Promise<void> {
+  getInquiries = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = filterInquirySchema.safeParse(req.query);
 
     if (!validationResult.success) {
@@ -44,12 +45,12 @@ export class InquiryController {
     const inquiries = await inquiryService.findAll(processedFilter);
 
     res.json(inquiries);
-  }
+  });
 
   /**
    * Get a single inquiry by ID
    */
-  async getInquiryById(req: Request, res: Response): Promise<void> {
+  getInquiryById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = inquiryIdSchema.safeParse(req.params);
 
     if (!validationResult.success) {
@@ -69,12 +70,12 @@ export class InquiryController {
     }
 
     res.json(inquiry);
-  }
+  });
 
   /**
    * Check if customer exists
    */
-  async checkCustomerExists(req: Request, res: Response): Promise<void> {
+  checkCustomerExists = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = z
       .object({
         email: z.string().email().optional(),
@@ -102,12 +103,12 @@ export class InquiryController {
     });
 
     res.json(result);
-  }
+  });
 
   /**
    * Create a new inquiry
    */
-  async createInquiry(req: Request, res: Response): Promise<void> {
+  createInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = createInquirySchema.safeParse(req.body);
 
     if (!validationResult.success) {
@@ -131,12 +132,12 @@ export class InquiryController {
     );
 
     res.status(201).json(inquiry);
-  }
+  });
 
   /**
    * Update an existing inquiry
    */
-  async updateInquiry(req: Request, res: Response): Promise<void> {
+  updateInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const idValidation = inquiryIdSchema.safeParse(req.params);
 
     if (!idValidation.success) {
@@ -179,12 +180,12 @@ export class InquiryController {
     );
 
     res.json(inquiry);
-  }
+  });
 
   /**
    * Schedule an inquiry
    */
-  async scheduleInquiry(req: Request, res: Response): Promise<void> {
+  scheduleInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const idValidation = inquiryIdSchema.safeParse(req.params);
 
     if (!idValidation.success) {
@@ -226,12 +227,12 @@ export class InquiryController {
     );
 
     res.json(updatedInquiry);
-  }
+  });
 
   /**
    * Cancel an inquiry
    */
-  async cancelInquiry(req: Request, res: Response): Promise<void> {
+  cancelInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = rejectInquirySchema.safeParse(req.params);
 
     if (!validationResult.success) {
@@ -257,12 +258,12 @@ export class InquiryController {
     );
 
     res.json(updatedInquiry);
-  }
+  });
 
   /**
    * Delete an inquiry
    */
-  async deleteInquiry(req: Request, res: Response): Promise<void> {
+  deleteInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = inquiryIdSchema.safeParse(req.params);
 
     if (!validationResult.success) {
@@ -285,9 +286,9 @@ export class InquiryController {
     await inquiryService.delete(id);
 
     res.json({ message: "Inquiry deleted successfully" });
-  }
+  });
 
-  async associateInquiry(req: Request, res: Response): Promise<void> {
+  associateInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = inquiryIdSchema.safeParse(req.params);
 
     if (!validationResult.success) {
@@ -327,12 +328,12 @@ export class InquiryController {
     );
 
     res.json(updatedInquiry);
-  }
+  });
 
   /**
    * Get inquiry statistics
    */
-  async getInquiryStatistics(req: Request, res: Response): Promise<void> {
+  getInquiryStatistics = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { startDate, endDate } = req.query;
 
     const statistics = await inquiryService.getStatistics(
@@ -341,12 +342,12 @@ export class InquiryController {
     );
 
     res.json(statistics);
-  }
+  });
 
   /**
    * Convert inquiry to lead
    */
-  async convertToLead(req: Request, res: Response): Promise<void> {
+  convertToLead = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const validationResult = inquiryIdSchema.safeParse(req.params);
 
     if (!validationResult.success) {
@@ -366,12 +367,12 @@ export class InquiryController {
       message: "Inquiry successfully converted to lead",
       data: result,
     });
-  }
+  });
 
   /**
    * Update inquiry priority
    */
-  async updatePriority(req: Request, res: Response): Promise<void> {
+  updatePriority = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const idValidation = inquiryIdSchema.safeParse(req.params);
 
     if (!idValidation.success) {
@@ -413,12 +414,12 @@ export class InquiryController {
     );
 
     res.json(updatedInquiry);
-  }
+  });
 
   /**
    * Update inquiry due date
    */
-  async updateDueDate(req: Request, res: Response): Promise<void> {
+  updateDueDate = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const idValidation = inquiryIdSchema.safeParse(req.params);
 
     if (!idValidation.success) {
@@ -462,12 +463,12 @@ export class InquiryController {
     );
 
     res.json(updatedInquiry);
-  }
+  });
 
   /**
    * Assign inquiry to user
    */
-  async assignInquiry(req: Request, res: Response): Promise<void> {
+  assignInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const idValidation = inquiryIdSchema.safeParse(req.params);
 
     if (!idValidation.success) {
@@ -509,9 +510,9 @@ export class InquiryController {
     );
 
     res.json(updatedInquiry);
-  }
+  });
 
-  async reviewInquiry(req: Request, res: Response): Promise<void> {
+  reviewInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const idValidation = inquiryIdSchema.safeParse(req.params);
 
     if (!idValidation.success) {
@@ -537,9 +538,9 @@ export class InquiryController {
     );
 
     res.json(reviewedInquiry);
-  }
+  });
 
-  async closeInquiry(req: Request, res: Response): Promise<void> {
+  closeInquiry = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const idValidation = inquiryIdSchema.safeParse(req.params);
 
     if (!idValidation.success) {
@@ -565,12 +566,12 @@ export class InquiryController {
     );
 
     res.json(closedInquiry);
-  }
+  });
 
   /**
    * Get inquiry statistics by type
    */
-  async getInquiryStatisticsByType(req: Request, res: Response): Promise<void> {
+  getInquiryStatisticsByType = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { startDate, endDate } = req.query;
 
     const statistics = await inquiryService.getStatistics(
@@ -579,5 +580,5 @@ export class InquiryController {
     );
 
     res.json(statistics);
-  }
+  });
 }
