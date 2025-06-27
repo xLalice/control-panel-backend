@@ -14,6 +14,7 @@ import documentRoutes from "./modules/documents/documents.routes"
 import attendanceRoutes from "./modules/attendance/attendance.routes"
 import userRoutes from "./modules/users/users.routes"
 import clientRoutes from "./modules/clients/client.routes"
+import dashboardRoutes from "./modules/dashboard/dashboard.routes"
 import { info } from "./utils/logger";
 import { errorHandler } from "./middlewares/errorHandler";
 require("dotenv").config();
@@ -78,6 +79,7 @@ app.use("/api/inquiries", inquiryRoutes);
 app.use('/api/documents', documentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use('/api/clients', clientRoutes);
+app.use("/api/dashboard", dashboardRoutes)
 
 app.use(errorHandler)
 
