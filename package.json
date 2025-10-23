@@ -43,13 +43,13 @@
   "main": "dist/app.js",
   "scripts": {
     "test": "vitest",
-    "dev": "nodemon -r tsconfig-paths/register ./src/app.ts",
+    "dev": "nodemon ./src/server.ts",
     "build": "npx prisma generate && tsc",
     "start": "node dist/app.js",
     "db:seed": "ts-node prisma/seed.ts && ts-node prisma/seedClients.ts"
   },
   "prisma": {
-    "seed": "node dist/prisma/seed.js"
+    "seed": "node dist/prisma/seed.ts"
   },
   "author": "",
   "license": "ISC",
@@ -68,6 +68,7 @@
     "globals": "^15.14.0",
     "prisma": "^6.10.0",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.19.1",

@@ -19,14 +19,11 @@ const leadService = new LeadService(prisma);
 
 export class LeadController {
   createLead = asyncHandler(async (req: Request, res: Response) => {
-    info("Creating lead");
     const validatedData = createLeadSchema.parse(req.body);
-    info(validatedData);
     const lead = await leadService.createLead(
       { ...validatedData, status: validatedData.status as LeadStatus },
       req.user!.id
     );
-    info("Created lead: ", lead);
     res.status(201).json(lead);
   });
 

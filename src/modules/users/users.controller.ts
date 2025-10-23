@@ -42,7 +42,7 @@ export const createNewUser = asyncHandler(async (req: Request, res: Response) =>
       password: hashedPassword,
       role: {
         connect: {
-          name: role,
+          name: role.name,
         },
       },
     },

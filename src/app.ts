@@ -15,9 +15,8 @@ import attendanceRoutes from "./modules/attendance/attendance.routes"
 import userRoutes from "./modules/users/users.routes"
 import clientRoutes from "./modules/clients/client.routes"
 import dashboardRoutes from "./modules/dashboard/dashboard.routes"
-import { info } from "./utils/logger";
 import { errorHandler } from "./middlewares/errorHandler";
-require("dotenv").config();
+import "dotenv/config";
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "QWERTY";
 
@@ -83,6 +82,4 @@ app.use("/api/dashboard", dashboardRoutes)
 
 app.use(errorHandler)
 
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => info(`Server running on port ${PORT}`));
+export default app;
