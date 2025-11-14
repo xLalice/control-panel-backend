@@ -1,15 +1,8 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
-import { PrismaClient, User as PrismaUser } from "@prisma/client";
+import { prisma } from "./prisma";
 
-const prisma = new PrismaClient();
-
-declare global {
-  namespace Express {
-    interface User extends PrismaUser {}
-  }
-}
 
 passport.use(
   new LocalStrategy(
@@ -21,7 +14,6 @@ passport.use(
           include: { role: { include: { permissions: true } } },
         });
         if (!user) {
-          console.log("No user found with the email:", email);
           return done(null, false, { message: "Email does not exist." });
         }
 
@@ -31,7 +23,6 @@ passport.use(
         }
         return done(null, user);
       } catch (error) {
-        console.error("Error during authentication:", error);
         return done(error);
       }
     }
@@ -39,13 +30,13 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  done(null, { id: user.id, roleId: user.roleId });
+  done(null, { id: user.id, roleId: user.roleId, role: user.role });
 });
 
 passport.deserializeUser(async (obj: { id: string; roleId: number }, done) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: obj.id }, 
+      where: { id: obj.id },
       include: { role: true },
     });
 
