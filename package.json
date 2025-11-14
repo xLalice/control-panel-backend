@@ -43,7 +43,7 @@
   "main": "dist/app.js",
   "scripts": {
     "test": "vitest",
-    "dev": "nodemon ./src/server.ts",
+    "dev": "nodemon --exec ts-node --files -r tsconfig-paths/register ./src/server.ts",
     "build": "npx prisma generate && tsc",
     "start": "node dist/app.js",
     "db:seed": "ts-node prisma/seed.ts && ts-node prisma/seedClients.ts"
