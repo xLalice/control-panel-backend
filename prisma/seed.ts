@@ -1,7 +1,8 @@
 import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, ClientStatus, Report, Lead } from '@prisma/client';
 import { faker } from '@faker-js/faker';
-import bcrypt from "bcryptjs" 
-import {Decimal} from "decimal.js"
+import bcrypt from "bcryptjs"
+import { Decimal } from "decimal.js"
+import { permissions } from '../src/config/permissions';
 
 const prisma = new PrismaClient();
 
@@ -16,77 +17,10 @@ function getRandomElement<T>(arr: T[]): T {
 async function main() {
   console.log('Start seeding...');
 
-  // --- Define Permissions ---
-  const permissions = [
-    // User Management
-    { name: 'read:users', module: 'User Management' },
-    { name: 'manage:users', module: 'User Management' }, // create, update, delete users
-
-    // Role & Permission Management
-    { name: 'read:roles', module: 'Role Management' },
-    { name: 'manage:roles', module: 'Role Management' }, // create, update, delete roles + assign permissions
-
-    // Lead Management
-    { name: 'create:lead', module: 'Lead Management' },
-    { name: 'read:own_leads', module: 'Lead Management' },
-    { name: 'read:assigned_leads', module: 'Lead Management' },
-    { name: 'read:all_leads', module: 'Lead Management' },
-    { name: 'update:own_leads', module: 'Lead Management' },
-    { name: 'update:assigned_leads', module: 'Lead Management' },
-    { name: 'update:all_leads', module: 'Lead Management' },
-    { name: 'delete:all_leads', module: 'Lead Management' },
-    { name: 'assign:leads', module: 'Lead Management' },
-
-    // Inquiry Management
-    { name: 'create:inquiry', module: 'Inquiry Management' },
-    { name: 'read:own_inquiries', module: 'Inquiry Management' },
-    { name: 'read:assigned_inquiries', module: 'Inquiry Management' },
-    { name: 'read:all_inquiries', module: 'Inquiry Management' },
-    { name: 'update:own_inquiries', module: 'Inquiry Management' },
-    { name: 'update:assigned_inquiries', module: 'Inquiry Management' },
-    { name: 'update:all_inquiries', module: 'Inquiry Management' },
-    { name: 'delete:all_inquiries', module: 'Inquiry Management' },
-    { name: 'assign:inquiries', module: 'Inquiry Management' },
-    { name: 'quote:inquiry', module: 'Inquiry Management' },
-
-    // Report Management
-    { name: 'create:report', module: 'Report Management' },
-    { name: 'read:own_reports', module: 'Report Management' },
-    { name: 'read:all_reports', module: 'Report Management' },
-    { name: 'update:own_reports', module: 'Report Management' },
-    { name: 'update:all_reports', module: 'Report Management' },
-    { name: 'delete:all_reports', module: 'Report Management' },
-
-    // Product Management
-    { name: 'read:products', module: 'Product Management' },
-    { name: 'manage:products', module: 'Product Management' }, // create, update, delete products
-
-    // Document Management
-    { name: 'upload:document', module: 'Document Management' },
-    { name: 'read:documents', module: 'Document Management' },
-    { name: 'manage:documents', module: 'Document Management' }, // update, delete documents
-
-    // Attendance & DTR
-    { name: 'log:attendance', module: 'Attendance Management' }, // User logs their own
-    { name: 'read:own_attendance', module: 'Attendance Management' },
-    { name: 'read:all_attendance', module: 'Attendance Management' },
-    { name: 'manage:attendance', module: 'Attendance Management' }, // Correct/edit entries
-    { name: 'manage:dtr_settings', module: 'Attendance Management' },
-    { name: 'manage:allowed_ips', module: 'Attendance Management' },
-
-    // System Settings
-    { name: 'manage:system_settings', module: 'System Settings' },
-
-    // Company Management
-    { name: 'read:companies', module: 'Company Management' },
-    { name: 'manage:companies', module: 'Company Management' },
-  ];
-
   for (const p of permissions) {
     await prisma.permission.upsert({
       where: { name: p.name },
-      update: { module: p.module }, // Also update module if permission exists
-      create: {
+      update: { module: p.module },
         name: p.name,
         module: p.module,
       },
@@ -94,7 +28,7 @@ async function main() {
   }
   console.log('Permissions seeded.');
 
-  
+
   const basicRole = await prisma.role.upsert({
     where: { name: 'Basic' },
     update: {},
@@ -133,11 +67,11 @@ async function main() {
           { name: 'create:lead' },
           { name: 'read:assigned_leads' },
           { name: 'update:assigned_leads' },
-          { name: 'read:all_leads'}, // Or maybe just assigned + own
+          { name: 'read:all_leads' }, // Or maybe just assigned + own
           { name: 'create:inquiry' },
           { name: 'read:assigned_inquiries' },
           { name: 'update:assigned_inquiries' },
-          { name: 'read:all_inquiries'}, // Or maybe just assigned + own
+          { name: 'read:all_inquiries' }, // Or maybe just assigned + own
           { name: 'quote:inquiry' },
           { name: 'create:report' },
           { name: 'read:own_reports' },
@@ -147,8 +81,8 @@ async function main() {
           { name: 'read:documents' },
           { name: 'log:attendance' },
           { name: 'read:own_attendance' },
-          { name: 'read:companies'},
-          { name: 'manage:companies'}, // Usually sales can create/update companies
+          { name: 'read:companies' },
+          { name: 'manage:companies' }, // Usually sales can create/update companies
         ],
       },
     },
@@ -156,7 +90,7 @@ async function main() {
   console.log('Sales Role created/updated.');
 
   // Role: Manager
-   const managerRole = await prisma.role.upsert({
+  const managerRole = await prisma.role.upsert({
     where: { name: 'Manager' },
     update: {},
     create: {
@@ -187,8 +121,8 @@ async function main() {
           { name: 'read:all_attendance' },
           { name: 'manage:attendance' }, // Can manage team attendance
           { name: 'manage:allowed_ips' }, // Can set IPs for team
-          { name: 'read:companies'},
-          { name: 'manage:companies'},
+          { name: 'read:companies' },
+          { name: 'manage:companies' },
         ],
       },
     },
@@ -209,7 +143,7 @@ async function main() {
   console.log('Admin Role created/updated.');
 
   // Create Users
-  const hashedPassword = await bcrypt.hash("12345678", 10); 
+  const hashedPassword = await bcrypt.hash("12345678", 10);
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
@@ -221,7 +155,7 @@ async function main() {
       roleId: adminRole.id,
     }
   });
-  
+
   console.log('Admin user created/updated.');
 
   // Create more users with different roles
@@ -230,19 +164,19 @@ async function main() {
     update: {},
     create: {
       email: 'sales@example.com',
-      password: hashedPassword, 
+      password: hashedPassword,
       name: 'Sales Rep',
       roleId: salesRole.id,
     }
   });
-  
+
 
   const managerUser = await prisma.user.upsert({
     where: { email: 'manager@example.com' },
     update: {},
     create: {
       email: 'manager@example.com',
-      password: hashedPassword, 
+      password: hashedPassword,
       name: 'Manager User',
       roleId: managerRole.id,
     }
@@ -253,7 +187,7 @@ async function main() {
     update: {},
     create: {
       email: 'ojt@example.com',
-      password: hashedPassword, 
+      password: hashedPassword,
       name: 'OJT User',
       roleId: basicRole.id,
       isOJT: true,
@@ -261,7 +195,7 @@ async function main() {
       ojtEndDate: new Date('2025-04-30'),
     }
   });
-  
+
   console.log('Additional users created/updated.');
 
   // Create allowed IPs for OJT user
@@ -306,7 +240,7 @@ async function main() {
   for (const setting of systemSettings) {
     await prisma.systemSettings.upsert({
       where: { key: setting.key },
-      update: { 
+      update: {
         value: setting.value,
         updatedBy: setting.updatedBy
       },
@@ -337,11 +271,11 @@ async function main() {
 
   // Fetch document categories for later use
   const categories = await prisma.documentCategory.findMany();
-  
+
   // Create sample documents
   const documents = [
-    { 
-      title: 'Sample Invoice Template', 
+    {
+      title: 'Sample Invoice Template',
       filename: 'invoice_template.pdf',
       fileType: 'application/pdf',
       fileSize: 250000,
@@ -349,8 +283,8 @@ async function main() {
       uploadedById: adminUser.id,
       categoryId: categories.find(c => c.name === 'Invoices')?.id || 1,
     },
-    { 
-      title: 'Product Catalog 2024', 
+    {
+      title: 'Product Catalog 2024',
       filename: 'catalog_2024.pdf',
       fileType: 'application/pdf',
       fileSize: 5000000,
@@ -358,8 +292,8 @@ async function main() {
       uploadedById: salesUser.id,
       categoryId: categories.find(c => c.name === 'Marketing')?.id || 4,
     },
-    { 
-      title: 'Steel Grade Reference', 
+    {
+      title: 'Steel Grade Reference',
       filename: 'steel_grades.xlsx',
       fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       fileSize: 350000,
@@ -450,7 +384,7 @@ async function main() {
 
   // Create Leads
   const leadStatuses = Object.values(LeadStatus);
-  
+
   const leads: Lead[] = [];
 
   for (let i = 0; i < 20; i++) {
@@ -467,7 +401,7 @@ async function main() {
       status: (['New', 'Contacted', 'Qualified', 'ProposalSent', 'Negotiation', 'Won', 'Lost', 'Archived'] as const)[i % 8], // Cast to ensure correct string literal type
       source: ['Website', 'Referral', 'Trade Show', 'Cold Call', 'LinkedIn'][i % 5],
       campaign: i % 3 === 0 ? 'Q1 2025 Campaign' : null,
-      
+
       assignedToId: i % 3 === 0 ? salesUser.id : (i % 3 === 1 ? managerUser.id : null),
       createdById: i % 2 === 0 ? adminUser.id : salesUser.id,
       notes: faker.lorem.paragraph(),
@@ -477,11 +411,11 @@ async function main() {
       leadScore: faker.number.int({ min: 0, max: 100 }),
       referredBy: i % 5 === 0 ? 'Existing client' : null,
       isActive: true,
-      createdAt: faker.date.past(), 
+      createdAt: faker.date.past(),
       originatingInquiryId: null,
-      updatedAt: faker.date.recent(), 
+      updatedAt: faker.date.recent(),
     });
-}
+  }
 
   for (const lead of leads) {
     await prisma.lead.upsert({
@@ -500,18 +434,18 @@ async function main() {
   for (let i = 0; i < leads.length; i++) {
     // Add 1-3 contact history entries per lead
     const entryCount = faker.number.int({ min: 1, max: 3 });
-    
+
     for (let j = 0; j < entryCount; j++) {
       contactHistories.push({
-              id: faker.string.uuid(),
-              userId: salesUser.id, // Assign a valid userId
-              leadId: leads[i].id,
-              clientId: null, // Set to null if not applicable
-              method: contactMethods[faker.number.int({ min: 0, max: contactMethods.length - 1 })],
-              summary: faker.lorem.sentence(),
-              outcome: ['Interested', 'Follow-up Scheduled', 'Not Interested', 'Left Message'][j % 4],
-              timestamp: faker.date.recent({ days: 30 }),
-            });
+        id: faker.string.uuid(),
+        userId: salesUser.id, // Assign a valid userId
+        leadId: leads[i].id,
+        clientId: null, // Set to null if not applicable
+        method: contactMethods[faker.number.int({ min: 0, max: contactMethods.length - 1 })],
+        summary: faker.lorem.sentence(),
+        outcome: ['Interested', 'Follow-up Scheduled', 'Not Interested', 'Left Message'][j % 4],
+        timestamp: faker.date.recent({ days: 30 }),
+      });
     }
   }
 
@@ -554,7 +488,7 @@ async function main() {
   for (let i = 0; i < leads.length; i += 5) {
     const clientId = faker.string.uuid();
     const lead = leads[i];
-    
+
     clients.push({
       id: clientId,
       companyId: lead.companyId!,
@@ -599,7 +533,7 @@ async function main() {
   for (const client of clients) {
     // Add 2-4 contact history entries per client
     const entryCount = faker.number.int({ min: 2, max: 4 });
-    
+
     for (let j = 0; j < entryCount; j++) {
       await prisma.contactHistory.create({
         data: {
@@ -621,10 +555,10 @@ async function main() {
   // Create activity logs for leads and clients
   for (let i = 0; i < leads.length; i++) {
     const lead = leads[i];
-    
+
     // Create 1-3 activity logs per lead
     const logCount = faker.number.int({ min: 1, max: 3 });
-    
+
     for (let j = 0; j < logCount; j++) {
       await prisma.activityLog.create({
         data: {
@@ -634,7 +568,7 @@ async function main() {
           userId: lead.createdById,
           action: ['LeadCreated', 'LeadStatusChanged', 'LeadAssigned', 'NoteAdded'][j % 4],
           description: faker.lorem.sentence(),
-          metadata: { 
+          metadata: {
             field: j % 4 === 1 ? 'status' : (j % 4 === 2 ? 'assignedTo' : 'notes'),
             old: j % 4 === 1 ? 'New' : (j % 4 === 2 ? null : ''),
             new: j % 4 === 1 ? 'Contacted' : (j % 4 === 2 ? lead.assignedToId : faker.lorem.sentence())
@@ -646,10 +580,10 @@ async function main() {
   }
 
   // Create activity logs for clients
-  for (const client of clients) {    
+  for (const client of clients) {
     // Create 2-4 activity logs per client
     const logCount = faker.number.int({ min: 2, max: 4 });
-    
+
     for (let j = 0; j < logCount; j++) {
       await prisma.activityLog.create({
         data: {
@@ -659,7 +593,7 @@ async function main() {
           userId: adminUser.id,
           action: ['clientCreated', 'clientStatusChanged', 'AddressUpdated', 'NoteAdded'][j % 4],
           description: faker.lorem.sentence(),
-          metadata: { 
+          metadata: {
             field: j % 4 === 1 ? 'status' : (j % 4 === 2 ? 'address' : 'notes'),
             old: j % 4 === 1 ? 'Active' : (j % 4 === 2 ? '123 Old St' : ''),
             new: j % 4 === 1 ? 'OnHold' : (j % 4 === 2 ? '456 New Ave' : faker.lorem.sentence())
@@ -676,7 +610,7 @@ async function main() {
   for (const client of clients) {
     // Create 2-5 invoices per client
     const invoiceCount = faker.number.int({ min: 2, max: 5 });
-    
+
     for (let j = 0; j < invoiceCount; j++) {
       await prisma.invoice.create({
         data: {
@@ -693,7 +627,7 @@ async function main() {
   for (const client of clients) {
     // Create 1-3 sales orders per client
     const orderCount = faker.number.int({ min: 1, max: 3 });
-    
+
     for (let j = 0; j < orderCount; j++) {
       await prisma.salesOrder.create({
         data: {
@@ -891,14 +825,14 @@ async function main() {
   // Insert products with their specific type data
   for (const product of products) {
     const { aggregateData, heavyEquipmentData, steelData, ...baseProduct } = product;
-    
+
     // Create the base product
     const createdProduct = await prisma.product.upsert({
       where: { sku: baseProduct.sku },
       update: baseProduct,
       create: baseProduct,
     });
-    
+
     // Create the specific product type record
     if (aggregateData) {
       await prisma.aggregate.upsert({
@@ -954,14 +888,14 @@ async function main() {
   console.log('Products created.');
 
 
-  const allProductsId = (await prisma.product.findMany({ select: {id: true}}));
+  const allProductsId = (await prisma.product.findMany({ select: { id: true } }));
   // Create Inquiries
   const inquiryStatuses = Object.values(InquiryStatus);
   const inquiryTypes = Object.values(InquiryType);
   const deliveryMethods = Object.values(DeliveryMethod);
   const referenceSources = Object.values(ReferenceSource);
   const priorities = Object.values(Priority);
-  
+
   const inquiries: Inquiry[] = [];
 
   const getRandomItem = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -972,29 +906,29 @@ async function main() {
     const randomProduct = getRandomItem(products);
 
     inquiries.push({
-          id: faker.string.uuid(),
-          clientName: faker.person.fullName(),
-          phoneNumber: faker.phone.number(),
-          email: faker.internet.email(),
-          isCompany: isCompanyInquiry,
-          companyName: isCompanyInquiry ? companies[i % companies.length].name : null,
-          companyAddress: isCompanyInquiry ? `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}` : null,
-          inquiryType: inquiryTypes[i % inquiryTypes.length],
-          deliveryMethod: deliveryMethods[i % deliveryMethods.length],
-          deliveryLocation: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}`,
-          preferredDate: faker.date.soon({ days: 30 }),
-          referenceSource: referenceSources[i % referenceSources.length],
-          remarks: faker.lorem.paragraph(),
-          status: inquiryStatuses[i % inquiryStatuses.length],
-          priority: priorities[i % priorities.length],
-          dueDate: faker.date.soon({ days: 15 }),
-          leadId: relatedLeadId,
-          createdById: i % 2 === 0 ? adminUser.id : salesUser.id,
-          assignedToId: i % 3 === 0 ? salesUser.id : (i % 3 === 1 ? managerUser.id : null),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          clientId: null
-        });
+      id: faker.string.uuid(),
+      clientName: faker.person.fullName(),
+      phoneNumber: faker.phone.number(),
+      email: faker.internet.email(),
+      isCompany: isCompanyInquiry,
+      companyName: isCompanyInquiry ? companies[i % companies.length].name : null,
+      companyAddress: isCompanyInquiry ? `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}` : null,
+      inquiryType: inquiryTypes[i % inquiryTypes.length],
+      deliveryMethod: deliveryMethods[i % deliveryMethods.length],
+      deliveryLocation: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}`,
+      preferredDate: faker.date.soon({ days: 30 }),
+      referenceSource: referenceSources[i % referenceSources.length],
+      remarks: faker.lorem.paragraph(),
+      status: inquiryStatuses[i % inquiryStatuses.length],
+      priority: priorities[i % priorities.length],
+      dueDate: faker.date.soon({ days: 15 }),
+      leadId: relatedLeadId,
+      createdById: i % 2 === 0 ? adminUser.id : salesUser.id,
+      assignedToId: i % 3 === 0 ? salesUser.id : (i % 3 === 1 ? managerUser.id : null),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      clientId: null
+    });
   }
 
   for (const inquiry of inquiries) {
@@ -1018,12 +952,12 @@ async function main() {
 
   // Create Reports
   const reports: Report[] = [];
-  
+
   // Create 10 reports across different users
   for (let i = 0; i < 10; i++) {
     const reportUser = i % 3 === 0 ? adminUser : (i % 3 === 1 ? salesUser : managerUser);
     const reportDate = faker.date.recent({ days: 30 });
-    
+
     reports.push({
       id: faker.string.uuid(),
       date: reportDate,
@@ -1047,16 +981,16 @@ async function main() {
   // Create Attendance Records
   const attendanceStatuses = ['PRESENT', 'LATE', 'ON_BREAK', 'LOGGED_OUT'];
   const users = [adminUser, salesUser, managerUser, ojtUser];
-  
+
   // Create 30 days of attendance records for each user
   for (let i = 0; i < 30; i++) {
     const recordDate = new Date();
     recordDate.setDate(recordDate.getDate() - i);
-    
+
     // Skip weekends
     const dayOfWeek = recordDate.getDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-    
+
     for (const user of users) {
       // Randomize if this user has a record for this day (80% chance)
       if (faker.number.int({ min: 1, max: 10 }) <= 8) {
@@ -1064,15 +998,15 @@ async function main() {
         const timeIn = new Date(recordDate);
         timeIn.setHours(isLate ? 8 + faker.number.int({ min: 1, max: 2 }) : 8);
         timeIn.setMinutes(isLate ? faker.number.int({ min: 0, max: 59 }) : faker.number.int({ min: 0, max: 15 }));
-        
+
         const timeOut = new Date(recordDate);
         timeOut.setHours(17 + faker.number.int({ min: 0, max: 2 }));
         timeOut.setMinutes(faker.number.int({ min: 0, max: 59 }));
-        
+
         const totalHours = (timeOut.getTime() - timeIn.getTime()) / (1000 * 60 * 60);
-        
+
         const attendanceId = faker.string.uuid();
-        
+
         await prisma.attendance.upsert({
           where: { id: attendanceId },
           update: {
@@ -1099,19 +1033,19 @@ async function main() {
             notes: isLate ? 'Employee was late due to traffic' : null,
           },
         });
-        
+
         // Add break logs (50% chance)
         if (faker.number.int({ min: 1, max: 10 }) <= 5) {
           const breakStart = new Date(recordDate);
           breakStart.setHours(12);
           breakStart.setMinutes(faker.number.int({ min: 0, max: 30 }));
-          
+
           const breakEnd = new Date(recordDate);
           breakEnd.setHours(13);
           breakEnd.setMinutes(faker.number.int({ min: 0, max: 30 }));
-          
+
           const breakDuration = (breakEnd.getTime() - breakStart.getTime()) / (1000 * 60 * 60);
-          
+
           await prisma.breakLog.create({
             data: {
               id: faker.string.uuid(),
