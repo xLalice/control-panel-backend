@@ -479,9 +479,11 @@ model Quotation {
   clientId         String?
   client           Client?         @relation(fields: [clientId], references: [id])
 
-  subtotal         Decimal         @db.Decimal(10, 2) // Precision for currency
-  discount         Decimal?        @db.Decimal(10, 2) // Fixed amount discount
-  tax              Decimal?        @db.Decimal(10, 2) // Calculated tax amount
+  
+  
+  subtotal         Decimal         @db.Decimal(10, 2) 
+  discount         Decimal?        @db.Decimal(10, 2) 
+  tax              Decimal?        @db.Decimal(10, 2)
   total            Decimal         @db.Decimal(10, 2)
 
   notesToCustomer  String?         @db.Text
@@ -608,4 +610,9 @@ model DTRSettings {
   autoRemindersActive Boolean  @default(true)
   updatedById         String
   updatedAt           DateTime @updatedAt
+}
+
+model Sequence {
+  name      String  @id
+  current   Int     @default(0)
 }
