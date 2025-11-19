@@ -52,7 +52,7 @@ export class QuotationService {
         } else if (quotation.leadId && quotation.lead) {
             customerData = transformLeadToCustomer(quotation.lead);
         } else {
-            throw new Error("Quotation missing Client/Lead linkage");
+            throw new Error("Quotation must be linked to a Client or Lead");
         }
 
         const pdfData = {
