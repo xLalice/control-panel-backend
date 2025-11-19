@@ -4,8 +4,6 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import Handlebars from "handlebars";
 
-const templatePath = path.join(__dirname, "..", 'templates', 'quotation.hbs');
-
 export function transformLeadToCustomer(lead: Lead): QuotationViewModel {
     return {
         client: {
@@ -34,10 +32,11 @@ export function transformClientToCustomer(client: Client): QuotationViewModel {
     };
 }
 
-export const compileHandlebarsTemplate = async (data: any): Promise<string> => {
-    const source = await fs.readFile(templatePath, 'utf-8');
-
+export const compileTemplate = async (templateName: string, data: any): Promise<string> => {
+    const filePath = path.join(process.cwd(), 'src', 'templates', templateName);
+    
+    const source = await fs.readFile(filePath, 'utf8');
     const template = Handlebars.compile(source);
-
+    
     return template(data);
-}
+};
