@@ -36,6 +36,7 @@
     "passport-local": "^1.0.0",
     "puppeteer": "^24.30.0",
     "redis": "^4.7.1",
+    "resend": "^6.5.1",
     "supertest": "^7.0.0",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2"
@@ -44,8 +45,8 @@
   "version": "1.0.0",
   "main": "dist/app.js",
   "scripts": {
-    "test": "vitest",              
-    "test:run": "vitest run",      
+    "test": "vitest",
+    "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "dev": "nodemon --exec ts-node --files -r tsconfig-paths/register ./src/server.ts",
     "build": "npx prisma generate && tsc",
