@@ -46,8 +46,8 @@ export const createActivityLogSchema = z.object({
   action: z.string().min(1, 'Action is required'),
   description: z.string().optional(),
   metadata: z.any().optional(),
-  oldStatus: z.enum(['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost']).optional(),
-  newStatus: z.enum(['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost']).optional(),
+  oldStatus: z.nativeEnum(LeadStatus).optional(),
+  newStatus: z.nativeEnum(LeadStatus).optional(),
 });
 
 
