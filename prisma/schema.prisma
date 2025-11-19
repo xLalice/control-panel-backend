@@ -497,14 +497,15 @@ model Quotation {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  // Indexes for performance
+  pdfUrl           String?
+
   @@index([status])
   @@index([issueDate])
   @@index([validUntil])
   @@index([leadId])
   @@index([clientId])
   @@index([preparedById])
-  @@index([quotationNumber]) // Good for direct lookups
+  @@index([quotationNumber]) 
 }
 
 model QuotationItem {
