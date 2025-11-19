@@ -1,12 +1,68 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, QuotationStatus } from "@prisma/client";
 import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
-import { compileHandlebarsTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
+import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
 import puppeteer from "puppeteer";
+import { StorageService } from "modules/storage/storage.service";
+import { EmailService } from "modules/email/email.service";
 
 
 export class QuotationService {
-    constructor(private prisma: PrismaClient) { }
+    constructor(
+        private prisma: PrismaClient,
+        private storageService: StorageService,
+        private emailService: EmailService
+    ) { }
+
+    async createDraft(data: CreateQuotationDTO, userId: string) {
+        return this.prisma.quotation.create({
+            data: {
+                ...data,
+                status: QuotationStatus.Draft,
+                quotationNumber: await this.generateQuotationNumber(),
+                items: {
+                    create: data.items
+                },
+                preparedById: userId
+            }
+        });
+    }
+
+    async sendQuotation(quotationId: string) {
+        const quotation = await this.prisma.quotation.findUnique({
+            where: { id: quotationId },
+            include: { client: true, lead: true, items: true }
+        });
+
+        if (!quotation) throw new Error("Not found");
+        if (quotation.status === QuotationStatus.Sent) throw new Error("Quotation already sent.");
+
+        const pdfBuffer = await this.generatePdfFromData(quotation);
+
+        const fileName = `${quotation.quotationNumber}.pdf`;
+        const publicUrl = await this.storageService.uploadQuotationPdf(fileName, pdfBuffer);
+
+        const recipientEmail = quotation.client?.primaryEmail || quotation.lead?.email;
+        const recipientName = quotation.client?.clientName || quotation.lead?.name;
+
+        if (!recipientEmail) throw new Error("Client/Lead has no email address");
+
+        await this.emailService.sendQuotation(
+            recipientEmail,
+            recipientName!,
+            quotation.quotationNumber,
+            pdfBuffer
+        );
+
+        return this.prisma.quotation.update({
+            where: { id: quotationId },
+            data: { 
+                status: QuotationStatus.Sent,
+                issueDate: new Date(),
+                pdfUrl: publicUrl
+            }
+        });
+    }
 
     async createQuotation(data: CreateQuotationDTO) {
         const quotationNumber = await this.generateQuotationNumber();
@@ -62,11 +118,11 @@ export class QuotationService {
             customer: customerData,
         };
 
-        const htmlContent = await compileHandlebarsTemplate(pdfData);
+        const htmlContent = await compileTemplate('quotation', pdfData);
         return this.generatePdfBuffer(htmlContent);
     }
 
-    async generatePdfBuffer(html: string) {
+    async generatePdfBuffer(html: string): Promise<Buffer> {
         const browser = await puppeteer.launch({
             headless: true
         });
@@ -77,7 +133,7 @@ export class QuotationService {
             waitUntil: 'networkidle0'
         });
 
-        const pdfBuffer = await page.pdf({
+        const pdfUint8Array = await page.pdf({
             format: 'A4',
             printBackground: true,
             margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
@@ -85,7 +141,7 @@ export class QuotationService {
 
         await browser.close();
 
-        return pdfBuffer;
+        return Buffer.from(pdfUint8Array);
     };
 
     private async generateQuotationNumber() {
