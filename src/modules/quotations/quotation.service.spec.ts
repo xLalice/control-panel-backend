@@ -1,17 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QuotationService } from './quotation.service';
+import { EmailService } from '../email/email.service';
+import { StorageService } from "../storage/storage.service"
 import { mockDeep, DeepMockProxy } from 'vitest-mock-extended';
 import { PrismaClient } from '@prisma/client';
 
 vi.mock('puppeteer', () => ({
     default: {
-      launch: () => ({
-        newPage: () => ({
-          setContent: vi.fn(),
-          pdf: vi.fn().mockResolvedValue(Buffer.from('fake-pdf')),
+        launch: () => ({
+            newPage: () => ({
+                setContent: vi.fn(),
+                pdf: vi.fn().mockResolvedValue(Buffer.from('fake-pdf')),
+            }),
+            close: vi.fn(),
         }),
-        close: vi.fn(),
-      }),
     },
 }));
 
@@ -21,12 +23,18 @@ vi.mock('fs/promises', () => ({
 
 describe("Quotation Service", () => {
     let prismaMock: DeepMockProxy<PrismaClient>;
+    let emailMock: DeepMockProxy<EmailService>;
+    let storageMock: DeepMockProxy<StorageService>;
+
     let service: QuotationService;
 
     beforeEach(() => {
         prismaMock = mockDeep<PrismaClient>();
-        service = new QuotationService(prismaMock);
-        
+        emailMock = mockDeep<EmailService>();
+        storageMock = mockDeep<StorageService>();
+
+        service = new QuotationService(prismaMock, storageMock, emailMock);
+
         prismaMock.sequence.upsert.mockResolvedValue({
             name: 'QUOTATION',
             current: 1
@@ -34,14 +42,14 @@ describe("Quotation Service", () => {
     });
 
     it('should generate a sequential ID and create quotation with PDF', async () => {
-        const inputData: any = { 
-            leadId: 'lead-123', 
-            items: [{ productId: 'p1', quantity: 1, unitPrice: 100 }] 
+        const inputData: any = {
+            leadId: 'lead-123',
+            items: [{ productId: 'p1', quantity: 1, unitPrice: 100 }]
         };
 
         prismaMock.quotation.create.mockResolvedValue({
             id: 'quote-1',
-            quotationNumber: 'QTN-2025-0001', 
+            quotationNumber: 'QTN-2025-0001',
             leadId: 'lead-123',
             lead: { name: 'John Doe', email: 'john@example.com' },
             client: null,
@@ -53,10 +61,10 @@ describe("Quotation Service", () => {
         const result = await service.createQuotation(inputData);
 
         expect(prismaMock.sequence.upsert).toHaveBeenCalled();
-        
+
         expect(prismaMock.quotation.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
-                quotationNumber: expect.stringMatching(/QTN-\d{4}-0001/) 
+                quotationNumber: expect.stringMatching(/QTN-\d{4}-0001/)
             })
         }));
 
@@ -85,7 +93,7 @@ describe("Quotation Service", () => {
         const orphanQuote = {
             id: 'quote-orphan',
             client: null,
-            lead: null,   
+            lead: null,
             items: [],
             issueDate: new Date(),
             validUntil: new Date(),
