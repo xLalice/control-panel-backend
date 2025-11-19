@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotation #{{quotationNumber}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20mm; 
+            color: #333;
+            font-size: 10pt;
+        }
+
+        .container {
+            max-width: 210mm; 
+            margin: 0 auto;
+            border: 1px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+            font-size: 10pt;
+            line-height: 1.6;
+            color: #555;
+            padding: 20mm;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20mm;
+        }
+
+        .header .logo {
+            max-width: 150px;
+            height: auto;
+        }
+
+        .header .company-info {
+            text-align: right;
+        }
+        .header .company-info h2 {
+            margin: 0 0 5px 0;
+            color: #2c3e50;
+        }
+        .header .company-info p {
+            margin: 0;
+        }
+
+        .quotation-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20mm;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15mm;
+        }
+        .quotation-details div {
+            flex: 1;
+        }
+        .quotation-details strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20mm;
+        }
+
+        .item-table thead tr {
+            background-color: #f2f2f2;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .item-table th, .item-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .totals-section {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end; 
+            margin-top: 15mm;
+        }
+
+        .totals-table {
+            width: 40%;
+            border-collapse: collapse;
+        }
+
+        .totals-table td {
+            padding: 5px 12px;
+            text-align: right;
+            border-bottom: 1px solid #eee;
+        }
+
+        .totals-table .highlight {
+            font-weight: bold;
+            background-color: #f2f2f2;
+        }
+        .totals-table .total-amount {
+            font-size: 12pt;
+            color: #2c3e50;
+        }
+
+        .notes {
+            margin-top: 20mm;
+            padding-top: 10mm;
+            border-top: 1px dashed #ddd;
+        }
+        .notes h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .footer {
+            margin-top: 40mm;
+            text-align: center;
+            font-size: 8pt;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 10mm;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
+            .container {
+                box-shadow: none;
+                border: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img class="logo" src="data:image/png;base64,YOUR_BASE64_LOGO_HERE" alt="Aicon Logo">
+            <div class="company-info">
+                <h2>Aicon Construction Supplies and Trading</h2>
+                <p>LA Street, Brookside, Cainta, Rizal</p>
+                <p>+1 (555) 123-4567 | info@aicon.com</p>
+            </div>
+        </div>
+
+        <h1>QUOTATION</h1>
+
+        <div class="quotation-details">
+            <div>
+                <strong>Quotation For:</strong>
+                <p>{{client.name}}</p>
+                {{#if client.address}}
+                    <p>{{client.address}}</p>
+                    <p>{{client.city}}, {{client.state}} {{client.zip}}</p>
+                {{/if}}
+                <p>{{client.email}}</p>
+                <p>{{client.phone}}</p>
+            </div>
+            <div>
+                <strong>Quotation #:</strong> {{quotationNumber}}<br>
+                <strong>Issue Date:</strong> {{issueDateFormatted}}<br>
+                <strong>Valid Until:</strong> {{validUntilFormatted}}<br>
+                {{#if preparedBy.name}}
+                    <strong>Prepared By:</strong> {{preparedBy.name}}<br>
+                {{/if}}
+            </div>
+        </div>
+
+        <table class="item-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td>{{this.productId}}</td> <td>{{this.description}}</td>
+                    <td>{{this.quantity}}</td>
+                    <td>{{this.unitPriceFormatted}}</td>
+                    <td>{{this.lineTotalFormatted}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <div class="totals-section">
+            <table class="totals-table">
+                <tr>
+                    <td>Subtotal</td>
+                    <td>{{subtotalFormatted}}</td>
+                </tr>
+                {{#if discount}}
+                <tr>
+                    <td>Discount</td>
+                    <td>({{discountFormatted}})</td>
+                </tr>
+                {{/if}}
+                {{#if tax}}
+                <tr>
+                    <td>Tax</td>
+                    <td>{{taxFormatted}}</td>
+                </tr>
+                {{/if}}
+                <tr class="highlight">
+                    <td><strong>TOTAL</strong></td>
+                    <td class="total-amount"><strong>{{totalFormatted}}</strong></td>
+                </tr>
+            </table>
+        </div>
+
+        {{#if notesToCustomer}}
+        <div class="notes">
+            <h3>Notes to Customer:</h3>
+            <p>{{notesToCustomer}}</p>
+        </div>
+        {{/if}}
+
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p>&copy; {{currentYear}} Aicon Technologies. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
