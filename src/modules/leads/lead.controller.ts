@@ -8,8 +8,7 @@ import {
   updateLeadStatusSchema,
 } from "./lead.schema";
 import { prisma } from "../../config/prisma";
-import { LeadStatus, User } from "@prisma/client";
-import { info } from "console";
+import { LeadStatus } from "@prisma/client";
 import {
   LogContactHistoryInput,
   LogContactHistorySchema,
@@ -145,7 +144,7 @@ export class LeadController {
       userId: userId,
     };
 
-    let createdContact = await leadService.addContactHistory(
+    const createdContact = await leadService.addContactHistory(
       id,
       newContactData
     );

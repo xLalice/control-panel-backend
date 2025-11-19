@@ -140,7 +140,7 @@ export class LeadService {
         updateData.company = { connect: { id: companyId } };
       }
     } else if (companyName && companyName.trim() !== "") {
-      let existingCompany = await this.prisma.company.findUnique({
+      const existingCompany = await this.prisma.company.findUnique({
         where: { name: companyName.trim() },
       });
 
@@ -172,12 +172,12 @@ export class LeadService {
     });
 
     const changes: { field: string; old: any; new: any }[] = [];
-    let descriptionParts: string[] = [];
+    const descriptionParts: string[] = [];
 
     const addChange = (
       field: string,
-      oldVal: any,
-      newVal: any,
+      oldVal: string | null | undefined | number,
+      newVal: string | null | undefined | number,
       label: string
     ) => {
       if (oldVal !== newVal) {
