@@ -10,7 +10,7 @@ type UserWithRole = Prisma.UserGetPayload<{
 export const getCurrentUser = async (
   req: Request,
   res: Response
-): Promise<any> => {
+) => {
   try {
     const userId = req.user?.id;
 
@@ -66,7 +66,7 @@ export const loginUser = (req: Request, res: Response, next: NextFunction) => {
         req.session.save((err: Error) => {
           if (err) return next(err);
 
-          const { password: _, ...userWithoutPassword } = user;
+          const { ...userWithoutPassword } = user;
           const transformedUser = {
             ...userWithoutPassword,
             role: {

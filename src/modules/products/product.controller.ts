@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import asyncHandler from "../../utils/asyncHandler";
 import { prisma } from "../../config/prisma";
 import { ProductCreateInput, ProductUpdateInput } from "./product.types";
 import { Category, Prisma } from "@prisma/client";
@@ -50,7 +49,7 @@ export class ProductController {
     };
   }
 
-  getAllProducts = asyncHandler(async (req: Request, res: Response) => {
+  getAllProducts = async (req: Request, res: Response) => {
     const products = await prisma.product.findMany({
       where: { isActive: true },
       include: {
@@ -65,9 +64,9 @@ export class ProductController {
     );
 
     res.status(200).json(transformedProducts);
-  });
+  };
 
-  getProductById = asyncHandler(async (req: Request, res: Response) => {
+  getProductById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const product = await prisma.product.findUnique({
@@ -86,9 +85,9 @@ export class ProductController {
 
     const transformedProduct = this.transformProduct(product);
     res.status(200).json(transformedProduct);
-  });
+  };
 
-  createProduct = asyncHandler(async (req: Request, res: Response) => {
+  createProduct = async (req: Request, res: Response) => {
     const productData: ProductCreateInput = req.body;
     const sku = generateSKU(productData.category);
 
@@ -111,7 +110,7 @@ export class ProductController {
       if (productData.category === Category.AGGREGATE) {
         await tx.aggregate.create({
           data: {
-            source: productData.source || "", // Fix for error #1 - providing default value
+            source: productData.source || "",
             weightPerUnit: productData.weightPerUnit,
             product: { connect: { id: newProduct.id } },
           },
@@ -145,13 +144,12 @@ export class ProductController {
       message: "Product created successfully",
       productId: result.id,
     });
-  });
+  };
 
-  updateProduct = asyncHandler(async (req: Request, res: Response) => {
+  updateProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
     const productData: ProductUpdateInput = req.body;
 
-    // Check if product exists
     const existingProduct = await prisma.product.findUnique({
       where: { id, isActive: true },
       include: {
@@ -233,12 +231,11 @@ export class ProductController {
     res.status(200).json({
       message: "Product updated successfully",
     });
-  });
+  };
 
-  deleteProduct = asyncHandler(async (req: Request, res: Response) => {
+  deleteProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
 
-    // Check if product exists
     const existingProduct = await prisma.product.findUnique({
       where: { id },
     });
@@ -248,7 +245,6 @@ export class ProductController {
       return;
     }
 
-    // Delete the product (cascade will handle related records)
     await prisma.product.update({
       where: { id },
       data: {
@@ -259,9 +255,9 @@ export class ProductController {
     res.status(200).json({
       message: "Product deleted successfully",
     });
-  });
+  };
 
-  getProductsByCategory = asyncHandler(async (req: Request, res: Response) => {
+  getProductsByCategory = async (req: Request, res: Response) => {
     const { category } = req.params;
     const validCategories = [
       Category.AGGREGATE,
@@ -288,9 +284,9 @@ export class ProductController {
     );
 
     res.status(200).json(transformedProducts);
-  });
+  };
 
-  searchProducts = asyncHandler(async (req: Request, res: Response) => {
+  searchProducts = async (req: Request, res: Response) => {
     const { query } = req.query;
 
     if (!query || typeof query !== "string") {
@@ -319,5 +315,5 @@ export class ProductController {
     );
 
     res.status(200).json(transformedProducts);
-  });
+  };
 }

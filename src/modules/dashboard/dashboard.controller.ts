@@ -184,13 +184,11 @@ export class DashboardController {
     }
   }
 
-  // Get revenue trend data
   getRevenueData = async (req: Request, res: Response) => {
     try {
       const timeRange = req.query.timeRange as string || '7d';
-      const { startDate, endDate } = this.getDateRange(timeRange);
+      const { endDate } = this.getDateRange(timeRange);
 
-      // Get monthly revenue data for the past 6 months
       const monthlyRevenue = await prisma.$queryRaw`
         SELECT 
           TO_CHAR(DATE_TRUNC('month', "createdAt"), 'Mon') as month,

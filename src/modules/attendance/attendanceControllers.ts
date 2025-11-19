@@ -4,11 +4,10 @@ import {
   differenceInHours,
   differenceInMinutes,
   startOfDay,
-  format,
 } from "date-fns";
 
 export const attendanceController = {
-  async clockIn(req: Request, res: Response): Promise<any> {
+  async clockIn(req: Request, res: Response) {
     try {
       const userId = req.user?.id;
       const { device } = req.body;
@@ -109,7 +108,7 @@ export const attendanceController = {
     }
   },
 
-  async clockOut(req: Request, res: Response): Promise<any> {
+  async clockOut(req: Request, res: Response) {
     try {
       const userId = req.user?.id;
       const { notes } = req.body;
@@ -194,7 +193,7 @@ export const attendanceController = {
     }
   },
 
-  async startBreak(req: Request, res: Response): Promise<any> {
+  async startBreak(req: Request, res: Response) {
     try {
       const userId = req.user?.id;
       const { reason } = req.body;
@@ -257,7 +256,7 @@ export const attendanceController = {
     }
   },
 
-  async endBreak(req: Request, res: Response): Promise<any> {
+  async endBreak(req: Request, res: Response) {
     try {
       const userId = req.user?.id;
 
@@ -321,7 +320,7 @@ export const attendanceController = {
     }
   },
 
-  async getUserAttendance(req: Request, res: Response): Promise<any> {
+  async getUserAttendance(req: Request, res: Response) {
     try {
       const userId = req.user?.id;
       const { startDate, endDate } = req.query;
@@ -362,7 +361,7 @@ export const attendanceController = {
     }
   },
 
-  async getAllAttendance(req: Request, res: Response): Promise<any> {
+  async getAllAttendance(req: Request, res: Response) {
     try {
       const { date, department, status } = req.query;
 
@@ -412,7 +411,7 @@ export const attendanceController = {
     }
   },
 
-  async updateSettings(req: Request, res: Response): Promise<any> {
+  async updateSettings(req: Request, res: Response) {
     try {
       const updatedById = req.user?.id;
       const {
@@ -468,7 +467,7 @@ export const attendanceController = {
     }
   },
 
-  async manageAllowedIPs(req: Request, res: Response): Promise<any> {
+  async manageAllowedIPs(req: Request, res: Response) {
     try {
       const userId = req.user?.id;
       const { ipAddress, description, action } = req.body;

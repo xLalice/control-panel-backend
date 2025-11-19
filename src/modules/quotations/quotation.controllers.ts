@@ -22,14 +22,14 @@ class QuotationController {
 
     async createDraft(req: Request, res: Response) {
         const data = createQuotationSchema.parse(req.body);
-        const quote = await this.service.createDraft(data, req.user.id);
+        const quote = await this.service.createDraft(data, req.user!.id);
         res.json(quote);
 
     }
 
     async sendToCustomer(req: Request, res: Response) {
         const { id } = req.params;
-        const quote = await this.service.sendQuotation(id, req.user.id);
+        const quote = await this.service.sendQuotation(id);
         res.json({ message: "Quotation sent successfully", quote });
     };
 

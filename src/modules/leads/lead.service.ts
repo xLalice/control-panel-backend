@@ -38,7 +38,6 @@ export class LeadService {
       ...leadData
     } = data;
 
-    console.log("Creating lead with data:", data);
 
     const assignedTo =
       assignedToId && assignedToId.trim() !== ""
@@ -99,7 +98,6 @@ export class LeadService {
       },
     });
 
-    console.log("Lead created successfully:", lead);
     return lead;
   }
 
@@ -108,7 +106,6 @@ export class LeadService {
     data: UpdateLeadDto,
     userId: string
   ): Promise<Lead> {
-    console.log("Updating lead with data:", data);
 
     const oldLead = await this.prisma.lead.findUnique({
       where: { id },

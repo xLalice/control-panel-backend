@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
-import { info, error } from "../../utils/logger";
+import { error } from "../../utils/logger";
 import { isAuthenticated } from "../../middlewares/isAuthenticated";
 import { checkPermission } from "../../middlewares/authorization";
 
@@ -79,7 +79,7 @@ router.put(
   checkPermission("update:all_reports"),
   async (req, res) => {
     const { id } = req.params;
-    const { date, department, taskDetails } = req.body;
+    const { date, taskDetails } = req.body;
     try {
       const updatedReport = await prisma.report.update({
         where: { id },

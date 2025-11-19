@@ -9,7 +9,6 @@ import { handleZodError } from "../../utils/zod";
 import { prisma } from "../../config/prisma";
 import { generateNextAccountNumber } from "./client.utils";
 import { addContactHistory } from "./client.service";
-import asyncHandler from "../../utils/asyncHandler";
 
 const createActivityLog = async (
   clientId: string,
@@ -33,7 +32,7 @@ const createActivityLog = async (
   }
 };
 
-export const createClient = asyncHandler(async (req: Request, res: Response) => {
+export const createClient = async (req: Request, res: Response) => {
   const result = CreateClientSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({
@@ -77,18 +76,18 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
   }
 
   res.status(201).json({ client, message: "Successfully created the client" });
-});
+};
 
-export const getClients = asyncHandler(async (req: Request, res: Response) => {
+export const getClients = async (req: Request, res: Response) => {
   const clients = await prisma.client.findMany({
     where: { isActive: true },
     orderBy: { createdAt: "desc" },
   });
 
   res.status(200).json(clients);
-});
+};
 
-export const getClient = asyncHandler(async (req: Request, res: Response) => {
+export const getClient = async (req: Request, res: Response) => {
   const client = await prisma.client.findUnique({
     where: { id: req.params.id },
     include: {
@@ -110,9 +109,9 @@ export const getClient = asyncHandler(async (req: Request, res: Response) => {
   }
 
   res.status(200).json(client);
-});
+};
 
-export const updateClient = asyncHandler(async (req: Request, res: Response) => {
+export const updateClient = async (req: Request, res: Response) => {
   const result = UpdateClientSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({
@@ -164,9 +163,9 @@ export const updateClient = asyncHandler(async (req: Request, res: Response) => 
   res
     .status(200)
     .json({ client, message: "Successfully updated the client" });
-});
+  };
 
-export const deleteClient = asyncHandler(async (req: Request, res: Response) => {
+export const deleteClient = async (req: Request, res: Response) => {
   const client = await prisma.client.findUnique({
     where: { id: req.params.id },
   });
@@ -199,9 +198,9 @@ export const deleteClient = asyncHandler(async (req: Request, res: Response) => 
     message: "Client successfully deactivated",
     client: updatedClient,
   });
-});
+};
 
-export const restoreClient = asyncHandler(async (req: Request, res: Response) => {
+export const restoreClient = async (req: Request, res: Response) => {
   const client = await prisma.client.findUnique({
     where: { id: req.params.id },
   });
@@ -238,9 +237,9 @@ export const restoreClient = asyncHandler(async (req: Request, res: Response) =>
     message: "Client successfully restored",
     client: restoredClient,
   });
-});
+};
 
-export const getClientActivityLog = asyncHandler(async (req: Request, res: Response) => {
+export const getClientActivityLog = async (req: Request, res: Response) => {
   const { page = 1, limit = 20 } = req.query;
   const skip = (Number(page) - 1) * Number(limit);
 
@@ -257,9 +256,9 @@ export const getClientActivityLog = asyncHandler(async (req: Request, res: Respo
   });
 
   res.status(200).json(activities);
-});
+};
 
-export const getClientContactHistory = asyncHandler(async (req: Request, res: Response) => {
+export const getClientContactHistory = async (req: Request, res: Response) => {
   const { page = 1, limit = 20 } = req.query;
   const skip = (Number(page) - 1) * Number(limit);
 
@@ -280,9 +279,9 @@ export const getClientContactHistory = asyncHandler(async (req: Request, res: Re
   });
 
   res.status(200).json(contactHistory);
-});
+};
 
-export const logContactHistory = asyncHandler(async (
+export const logContactHistory = async (
   req: Request,
   res: Response
 ): Promise<void> => {
@@ -316,7 +315,7 @@ export const logContactHistory = asyncHandler(async (
     userId: userId,
   };
 
-  let createdContact = await addContactHistory(id, newContactData);
+  const createdContact = await addContactHistory(id, newContactData);
 
   res.status(201).json(createdContact);
-});
+};

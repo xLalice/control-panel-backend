@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import asyncHandler from "../../utils/asyncHandler";
 import { LeadService } from "./lead.service";
 import {
   assignLeadSchema,
@@ -17,16 +16,16 @@ import {
 const leadService = new LeadService(prisma);
 
 export class LeadController {
-  createLead = asyncHandler(async (req: Request, res: Response) => {
+  createLead = async (req: Request, res: Response) => {
     const validatedData = createLeadSchema.parse(req.body);
     const lead = await leadService.createLead(
       { ...validatedData, status: validatedData.status as LeadStatus },
       req.user!.id
     );
     res.status(201).json(lead);
-  });
+  };
 
-  updateLead = asyncHandler(async (req: Request, res: Response) => {
+  updateLead = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     if (!req.user) {
@@ -47,9 +46,9 @@ export class LeadController {
       userId
     );
     res.json(lead);
-  });
+  };
 
-  updateLeadStatus = asyncHandler(async (req: Request, res: Response) => {
+  updateLeadStatus = async (req: Request, res: Response) => {
     const { id } = req.params;
     const validatedData = updateLeadStatusSchema.parse(req.body);
     const lead = await leadService.updateLeadStatus(
@@ -58,15 +57,15 @@ export class LeadController {
       req.user!.id
     );
     res.json(lead);
-  });
+  };
 
-  deleteLead = asyncHandler(async (req: Request, res: Response) => {
+  deleteLead = async (req: Request, res: Response) => {
     const { id } = req.params;
     await leadService.deleteLead(id);
     res.status(204).send();
-  });
+  };
 
-  getLead = asyncHandler(async (req: Request, res: Response) => {
+  getLead = async (req: Request, res: Response) => {
     const { id } = req.params;
     const lead = await leadService.getLead(id);
     if (!lead) {
@@ -74,9 +73,9 @@ export class LeadController {
       return;
     }
     res.json(lead);
-  });
+  };
 
-  getLeads = asyncHandler(async (req: Request, res: Response) => {
+  getLeads = async (req: Request, res: Response) => {
     const filters = req.query;
     const filteredFilters = Object.fromEntries(
       Object.entries(filters).filter(([, v]) => v !== undefined)
@@ -84,34 +83,34 @@ export class LeadController {
 
     const leads = await leadService.getLeads(filteredFilters);
     res.json(leads);
-  });
+  };
 
-  getCompanies = asyncHandler(async (req: Request, res: Response) => {
+  getCompanies = async (req: Request, res: Response) => {
     const companies = await leadService.getCompanies();
     res.json(companies);
-  });
+  };
 
-  assignLead = asyncHandler(async (req: Request, res: Response) => {
+  assignLead = async (req: Request, res: Response) => {
     const { id } = req.params;
     const validatedData = assignLeadSchema.parse(req.body);
     const userId = req.user!.id;
     const lead = await leadService.assignLead(id, validatedData, userId);
     res.json(lead);
-  });
+  };
 
-  getLeadActivities = asyncHandler(async (req: Request, res: Response) => {
+  getLeadActivities = async (req: Request, res: Response) => {
     const { id } = req.params;
     const activities = await leadService.getLeadActivities(id);
     res.json(activities);
-  });
+  };
 
-  getContactHistory = asyncHandler(async (req: Request, res: Response) => {
+  getContactHistory = async (req: Request, res: Response) => {
     const { id } = req.params;
     const contactHistory = await leadService.getContactHistory(id);
     res.json(contactHistory);
-  });
+  };
 
-  logContactHistory = asyncHandler(async (req: Request, res: Response) => {
+  logContactHistory = async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -150,16 +149,16 @@ export class LeadController {
     );
 
     res.status(201).json(createdContact);
-  });
+  };
 
-  convertLeadToClient = asyncHandler(async (req: Request, res: Response) => {
+  convertLeadToClient = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const convertedClient = await leadService.convertLeadToClient(
       id,
-      req.user?.id!
+      req.user!.id
     );
 
     res.status(201).json(convertedClient);
-  });
+  };
 }

@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
 import * as documentService from "./document.service"
-import asyncHandler from '../../utils/asyncHandler';
 
 
-export const createCategory = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const createCategory = async (req: Request, res: Response): Promise<void> => {
   const { name, description } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Category name is required' });
@@ -12,14 +11,14 @@ export const createCategory = asyncHandler(async (req: Request, res: Response): 
   
   const category = await documentService.createCategory({ name, description });
   res.status(201).json(category);
-});
+};
 
-export const getCategories = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const getCategories = async (req: Request, res: Response): Promise<void> => {
   const categories = await documentService.getCategories();
   res.json(categories);
-});
+};
 
-export const updateCategory = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const updateCategory = async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: 'Invalid category ID' });
@@ -29,9 +28,9 @@ export const updateCategory = asyncHandler(async (req: Request, res: Response): 
   const { name, description } = req.body;
   const category = await documentService.updateCategory(id, { name, description });
   res.json(category);
-});
+};
 
-export const deleteCategory = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: 'Invalid category ID' });
@@ -49,12 +48,11 @@ export const deleteCategory = asyncHandler(async (req: Request, res: Response): 
       return;
     }
     
-    throw error; // Re-throw to let asyncHandler handle it
+    throw error; 
   }
-});
+};
 
-// Document Controllers
-export const uploadDocument = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const uploadDocument = async (req: Request, res: Response): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: 'No file uploaded' });
     return;
@@ -81,9 +79,9 @@ export const uploadDocument = asyncHandler(async (req: Request, res: Response): 
   });
   
   res.status(201).json(document);
-});
+};
 
-export const downloadDocument = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const downloadDocument = async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: 'Invalid document ID' });
@@ -92,15 +90,13 @@ export const downloadDocument = asyncHandler(async (req: Request, res: Response)
   
   const { filename, fileType, buffer } = await documentService.downloadDocument(id);
   
-  // Set headers for file download
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.setHeader('Content-Type', fileType);
   
-  // Send the file buffer
   res.send(Buffer.from(buffer));
-});
+};
 
-export const previewDocument = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const previewDocument = async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: 'Invalid document ID' });
@@ -120,9 +116,9 @@ export const previewDocument = asyncHandler(async (req: Request, res: Response):
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.send(Buffer.from(buffer));
   }
-});
+};
 
-export const getDocuments = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const getDocuments = async (req: Request, res: Response): Promise<void> => {
   const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
   
   const documents = await documentService.getDocuments({ 
@@ -130,9 +126,9 @@ export const getDocuments = asyncHandler(async (req: Request, res: Response): Pr
   });
   
   res.json(documents);
-});
+};
 
-export const getDocumentById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const getDocumentById = async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: 'Invalid document ID' });
@@ -147,9 +143,9 @@ export const getDocumentById = asyncHandler(async (req: Request, res: Response):
   }
   
   res.json(document);
-});
+};
 
-export const deleteDocument = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+export const deleteDocument = async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: 'Invalid document ID' });
@@ -158,4 +154,4 @@ export const deleteDocument = asyncHandler(async (req: Request, res: Response): 
   
   await documentService.deleteDocument(id);
   res.status(204).end();
-});
+};

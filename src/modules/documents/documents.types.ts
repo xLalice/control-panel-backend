@@ -1,5 +1,4 @@
-// documents.types.ts
-import { Document, DocumentCategory, User } from '@prisma/client';
+import {  DocumentCategory, User } from '@prisma/client';
 
 export interface UploadDocumentDto {
   title: string;
