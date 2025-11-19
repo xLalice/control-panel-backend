@@ -3,12 +3,12 @@ import { createQuotationSchema } from "./quotation.schema";
 import { QuotationService } from "./quotation.service";
 
 class QuotationController {
-    constructor(private quotationService: QuotationService) {}
-    
+    constructor(private service: QuotationService) { }
+
     async createQuotation(req: Request, res: Response) {
         const validatedData = createQuotationSchema.parse(req.body);
 
-        const pdfBuffer = await this.quotationService.createQuotation(validatedData);
+        const pdfBuffer = await this.service.createQuotation(validatedData);
 
         res.set({
             'Content-Type': 'application/pdf',
@@ -20,10 +20,23 @@ class QuotationController {
 
     }
 
+    async createDraft(req: Request, res: Response) {
+        const data = createQuotationSchema.parse(req.body);
+        const quote = await this.service.createDraft(data, req.user.id);
+        res.json(quote);
+
+    }
+
+    async sendToCustomer(req: Request, res: Response) {
+        const { id } = req.params;
+        const quote = await this.service.sendQuotation(id, req.user.id);
+        res.json({ message: "Quotation sent successfully", quote });
+    };
+
     async getQuotationPdf(req: Request, res: Response) {
         const { id } = req.params;
-        
-        const pdfBuffer = await this.quotationService.getQuotationPdfById(id);
+
+        const pdfBuffer = await this.service.getQuotationPdfById(id);
 
         res.set({
             'Content-Type': 'application/pdf',
@@ -33,6 +46,8 @@ class QuotationController {
 
         res.send(pdfBuffer);
     };
+
+
 
 }
 
