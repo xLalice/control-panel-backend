@@ -6,89 +6,89 @@ import { checkPermission } from "../../middlewares/authorization";
 const router = express.Router();
 const inquiryController = new InquiryController();
 
-router.post("/check-customer", (req, res, next) =>
-  inquiryController.checkCustomerExists(req, res, next)
+router.post("/check-customer", (req, res) =>
+  inquiryController.checkCustomerExists(req, res)
 );
 
 router.get(
   "/",
   isAuthenticated,
   checkPermission("read:all_inquiries"),
-  (req, res, next) => inquiryController.getInquiries(req, res, next)
+  (req, res) => inquiryController.getInquiries(req, res)
 );
 
 router.get(
   "/stats-overview",
   isAuthenticated,
   checkPermission("read:all_inquiries"),
-  (req, res, next) => inquiryController.getInquiryStatistics(req, res, next)
+  (req, res) => inquiryController.getInquiryStatistics(req, res)
 );
 
 router.get(
   "/:id",
   isAuthenticated,
   checkPermission("read:all_inquiries"),
-  (req, res, next) => inquiryController.getInquiryById(req, res, next)
+  (req, res) => inquiryController.getInquiryById(req, res)
 );
 
 router.post(
   "/",
   isAuthenticated,
   checkPermission("create:inquiry"),
-  (req, res, next) => inquiryController.createInquiry(req, res, next)
+  (req, res) => inquiryController.createInquiry(req, res)
 );
 
 router.put(
   "/:id",
   isAuthenticated,
   checkPermission("update:all_inquiries"),
-  (req, res, next) => inquiryController.updateInquiry(req, res, next)
+  (req, res) => inquiryController.updateInquiry(req, res)
 );
 
 router.delete(
   "/:id",
   isAuthenticated,
   checkPermission("delete:all_inquiries"),
-  (req, res, next) => inquiryController.deleteInquiry(req, res, next)
+  (req, res) => inquiryController.deleteInquiry(req, res)
 );
 
 router.post(
   "/:id/review",
   isAuthenticated,
-  (req, res, next) => inquiryController.reviewInquiry(req, res, next)
+  (req, res) => inquiryController.reviewInquiry(req, res)
 );
 
 router.post(
   "/:id/close",
   isAuthenticated,
-  (req, res, next) => inquiryController.closeInquiry(req, res, next)
+  (req, res) => inquiryController.closeInquiry(req, res)
 );
 
 router.post(
   "/:id/associate",
   isAuthenticated,
-  (req, res, next) => inquiryController.associateInquiry(req, res, next)
+  (req, res) => inquiryController.associateInquiry(req, res)
 );
 
 router.post(
   "/:id/convert-to-lead",
   isAuthenticated,
   checkPermission("update:all_inquiries"),
-  (req, res, next) => inquiryController.convertToLead(req, res, next)
+  (req, res) => inquiryController.convertToLead(req, res)
 );
 
 router.patch(
   "/:id/assign/",
   isAuthenticated,
   checkPermission("update:all_inquiries"),
-  (req, res, next) => inquiryController.assignInquiry(req, res, next)
+  (req, res) => inquiryController.assignInquiry(req, res)
 );
 
 router.get(
   "/stats/overview",
   isAuthenticated,
   checkPermission("read:all_inquiries"),
-  (req, res, next) => inquiryController.getInquiryStatistics(req, res, next)
+  (req, res) => inquiryController.getInquiryStatistics(req, res)
 );
 
 export default router;
