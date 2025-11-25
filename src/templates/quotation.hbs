@@ -34,6 +34,10 @@
             object-fit: contain;
         }
 
+        .logo-bg {
+            background-color: black;
+        }
+
         .company-info {
             text-align: right;
             font-size: 9pt;
@@ -172,7 +176,9 @@
     <div class="container">
         
         <div class="header">
-            <img class="logo" src="{{logoSrc}}" alt="Aicon Logo">
+            <div class="logo-bg">
+                <img class="logo" src="{{logoSrc}}" alt="Aicon Logo">
+            </div>
             
             <div class="company-info">
                 <h2>Aicon Construction Supplies</h2>

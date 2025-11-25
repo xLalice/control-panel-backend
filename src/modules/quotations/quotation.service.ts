@@ -5,7 +5,7 @@ import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } f
 import puppeteer from "puppeteer";
 import { StorageService } from "modules/storage/storage.service";
 import { EmailService } from "modules/email/email.service";
-import { getBase64Logo } from "utils/common";
+import { formatCurrency, getBase64Logo } from "utils/common";
 
 
 export class QuotationService {
@@ -257,7 +257,6 @@ export class QuotationService {
     }
 
     private async generatePdfFromData(quotation: QuotationWithRelations): Promise<Buffer> {
-        const logoBase64 = await getBase64Logo();
         let customerData: QuotationViewModel;
 
         if (quotation.clientId && quotation.client) {
@@ -268,16 +267,38 @@ export class QuotationService {
             throw new Error("Quotation must be linked to a Client or Lead");
         }
 
+        const logoBase64 = await getBase64Logo();
+
         const pdfData = {
             ...quotation,
-            logoBase64,
-            issueDateFormatted: quotation.issueDate.toLocaleDateString(),
-            validUntilFormatted: quotation.validUntil.toLocaleDateString(),
-            customer: customerData,
+
+            issueDateFormatted: quotation.issueDate.toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            }),
+            validUntilFormatted: quotation.validUntil.toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            }),
+
+            subtotalFormatted: formatCurrency(Number(quotation.subtotal)),
+            taxFormatted: quotation.tax ? formatCurrency(Number(quotation.tax)) : "0.00",
+            discountFormatted: quotation.discount ? formatCurrency(Number(quotation.discount)) : "0.00",
+            totalFormatted: formatCurrency(Number(quotation.total)),
+
+            items: quotation.items.map(item => ({
+                ...item,
+                unitPriceFormatted: formatCurrency(Number(item.unitPrice)),
+                lineTotalFormatted: formatCurrency(Number(item.lineTotal)),
+                productId: item.productId.substring(0, 8).toUpperCase()
+            })),
+
+            client: customerData,
+            logoSrc: logoBase64 ? `data:image/png;base64,${logoBase64}` : "",
+            currentYear: new Date().getFullYear()
         };
 
-        const htmlContent = await compileTemplate('quotation.hbs', pdfData);
+        console.log("PDF DATA SENT TO TEMPLATE:", JSON.stringify(pdfData, null, 2));
 
+        const htmlContent = await compileTemplate('quotation.hbs', pdfData);
         return await this.generatePdfBuffer(htmlContent);
     }
 
