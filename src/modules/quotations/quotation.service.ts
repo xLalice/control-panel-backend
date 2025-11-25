@@ -60,7 +60,7 @@ export class QuotationService {
                 totalPages: Math.ceil(total / sizeNum)
             }
         };
-    }
+    };
 
 
     async sendQuotation(quotationId: string) {
@@ -128,30 +128,90 @@ export class QuotationService {
 
         if (!quotation) throw new Error("Quotation not found");
 
-        return this.generatePdfFromData(quotation);
-    }
+        if (quotation.pdfUrl) {
+            try {
+                const response = await fetch(quotation.pdfUrl);
 
-    private async generatePdfFromData(quotation: QuotationWithRelations) {
-        let customerData: QuotationViewModel;
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    return Buffer.from(arrayBuffer);
+                }
 
-        if (quotation.clientId && quotation.client) {
-            customerData = transformClientToCustomer(quotation.client);
-        } else if (quotation.leadId && quotation.lead) {
-            customerData = transformLeadToCustomer(quotation.lead);
-        } else {
-            throw new Error("Quotation must be linked to a Client or Lead");
+                console.warn("Stored PDF found but failed to download. Regenerating...");
+            } catch (err) {
+                console.error("Error fetching stored PDF", err);
+            }
         }
 
-        const pdfData = {
-            ...quotation,
-            issueDateFormatted: quotation.issueDate.toLocaleDateString(),
-            validUntilFormatted: quotation.validUntil.toLocaleDateString(),
-            customer: customerData,
-        };
+        const pdfBuffer = await this.generatePdfFromData(quotation);
 
-        const htmlContent = await compileTemplate('quotation', pdfData);
-        return this.generatePdfBuffer(htmlContent);
+        const fileName = `${quotation.quotationNumber}.pdf`;
+
+        const publicUrl = await this.storageService.uploadQuotationPdf(fileName, pdfBuffer);
+
+        await this.prisma.quotation.update({
+            where: { id },
+            data: { pdfUrl: publicUrl }
+        });
+
+        return pdfBuffer;
     }
+
+    deleteQuote = async (id: string) => {
+        const current = await this.prisma.quotation.findUnique({
+            where: { id },
+            select: { status: true }
+        });
+
+        if (!current) throw new Error("Quotation not found");
+
+        if (current.status === QuotationStatus.Sent) {
+            throw new Error("Cannot delete a quotation that has already been sent.");
+        }
+
+        return this.prisma.quotation.delete({
+            where: { id }
+        });
+    }
+
+    update = async (id: string, data: Partial<CreateQuotationDTO>) => {
+        const current = await this.prisma.quotation.findUnique({
+            where: { id },
+            select: { status: true }
+        });
+
+        if (!current) throw new Error("Quotation not found");
+        
+        if (current.status === QuotationStatus.Sent) {
+            throw new Error("Cannot edit a quotation that has already been sent. Create a revision instead.");
+        }
+
+        const { leadId, clientId, items, ...scalarData } = data;
+
+        return this.prisma.quotation.update({
+            where: { id },
+            data: {
+                ...scalarData,
+                
+                pdfUrl: null, 
+
+                ...(leadId ? { lead: { connect: { id: leadId } } } : {}),
+                ...(clientId ? { client: { connect: { id: clientId } } } : {}),
+
+                ...(items ? {
+                    items: {
+                        deleteMany: {}, 
+                        create: items  
+                    }
+                } : {})
+            },
+            include: {
+                items: true
+            }
+        });
+    }
+
+
 
     async generatePdfBuffer(html: string): Promise<Buffer> {
         const browser = await puppeteer.launch({
@@ -189,6 +249,29 @@ export class QuotationService {
         const seqString = sequence.current.toString().padStart(4, "0");
 
         return `QTN-${currentYear}-${seqString}`;
+    }
+
+    private async generatePdfFromData(quotation: QuotationWithRelations): Promise<Buffer> {
+        let customerData: QuotationViewModel;
+
+        if (quotation.clientId && quotation.client) {
+            customerData = transformClientToCustomer(quotation.client);
+        } else if (quotation.leadId && quotation.lead) {
+            customerData = transformLeadToCustomer(quotation.lead);
+        } else {
+            throw new Error("Quotation must be linked to a Client or Lead");
+        }
+
+        const pdfData = {
+            ...quotation,
+            issueDateFormatted: quotation.issueDate.toLocaleDateString(),
+            validUntilFormatted: quotation.validUntil.toLocaleDateString(),
+            customer: customerData,
+        };
+
+        const htmlContent = await compileTemplate('quotation', pdfData);
+
+        return await this.generatePdfBuffer(htmlContent);
     }
 
 }

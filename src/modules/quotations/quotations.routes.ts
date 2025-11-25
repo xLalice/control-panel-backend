@@ -40,4 +40,18 @@ router.post(
     quotationController.sendToCustomer
 );
 
+router.delete(
+    "/:id",
+    isAuthenticated,
+    checkPermission("delete:quotations"),
+    quotationController.delete
+);
+
+router.patch( 
+    "/:id",
+    isAuthenticated,
+    checkPermission("update:quotations"),
+    quotationController.update
+);
+
 export default router;

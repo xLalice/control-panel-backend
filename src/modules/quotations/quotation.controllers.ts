@@ -21,6 +21,24 @@ class QuotationController {
         res.json(quotes);
     }
 
+    delete = async (req: Request, res: Response) => {
+        const { id } = req.params;
+
+        await this.service.deleteQuote(id);
+
+        res.status(204).send();
+    }
+
+    update = async (req: Request, res: Response) => {
+        const { id } = req.params;
+        
+        const validatedData = createQuotationSchema.partial().parse(req.body);
+
+        const updatedQuote = await this.service.update(id, validatedData);
+
+        res.json(updatedQuote);
+    }
+
     getPdf = async (req: Request, res: Response) => {
         const { id } = req.params;
         const pdfBuffer = await this.service.getQuotationPdfById(id);
