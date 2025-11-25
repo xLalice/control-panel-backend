@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotation #{{quotationNumber}}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 15mm; 
+            color: #333;
+            font-size: 9pt; 
+        }
+
+        .container {
+            width: 100%;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10mm;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 5mm;
+        }
+
+        .logo {
+            max-width: 180px;
+            max-height: 80px;
+            object-fit: contain;
+        }
+
+        .company-info {
+            text-align: right;
+            font-size: 9pt;
+            line-height: 1.4;
+        }
+        .company-info h2 {
+            margin: 0 0 5px 0;
+            font-size: 14pt;
+            color: #2c3e50;
+            font-weight: 700;
+        }
+
+       
+        .doc-title {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5mm;
+            letter-spacing: 1px;
+        }
+
+        .info-grid {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10mm;
+        }
+
+        .client-box, .meta-box {
+            width: 48%;
+        }
+
+        .box-label {
+            font-size: 8pt;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .box-content p {
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10mm;
+        }
+
+        .item-table th {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 8pt;
+            padding: 8px;
+            border-bottom: 2px solid #ddd;
+            text-align: left;
+        }
+
+        .item-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        .col-item { width: 15%; } 
+        .col-desc { width: 45%; } 
+        .col-qty  { width: 10%; text-align: center; }
+        .col-price{ width: 15%; text-align: right; }
+        .col-total{ width: 15%; text-align: right; }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            page-break-inside: avoid;
+        }
+
+        .totals-table {
+            width: 40%;
+            border-collapse: collapse;
+        }
+
+        .totals-table td {
+            padding: 5px 8px;
+            text-align: right;
+        }
+
+        .totals-table .label {
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+
+        .totals-table .amount {
+            color: #333;
+        }
+
+        .totals-table .grand-total-row td {
+            border-top: 2px solid #2c3e50;
+            padding-top: 8px;
+            font-size: 11pt;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .notes {
+            margin-top: 15mm;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 8pt;
+            page-break-inside: avoid;
+        }
+        .notes h4 { margin: 0 0 5px 0; color: #2c3e50; }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 8pt;
+            color: #aaa;
+            padding: 5mm;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <div class="header">
+            <img class="logo" src="{{logoSrc}}" alt="Aicon Logo">
+            
+            <div class="company-info">
+                <h2>Aicon Construction Supplies</h2>
+                <p>LA Street, Brookside, Cainta, Rizal</p>
+                <p>+1 (555) 123-4567</p>
+                <p>info@aicon.com</p>
+            </div>
+        </div>
+
+        <div class="doc-title">QUOTATION</div>
+
+        <div class="info-grid">
+            <div class="client-box">
+                <span class="box-label">Quotation For</span>
+                <div class="box-content">
+                    <p><strong>{{client.name}}</strong></p>
+                    {{#if client.address}}
+                        <p>{{client.address}}</p>
+                        <p>{{client.city}}, {{client.state}} {{client.zip}}</p>
+                    {{/if}}
+                    <p>{{client.email}}</p>
+                    <p>{{client.phone}}</p>
+                </div>
+            </div>
+            <div class="meta-box text-right">
+                <div class="box-content">
+                    <p><span class="box-label">Quotation #</span> {{quotationNumber}}</p>
+                    <p><span class="box-label">Issue Date</span> {{issueDateFormatted}}</p>
+                    <p><span class="box-label">Valid Until</span> {{validUntilFormatted}}</p>
+                    {{#if preparedBy.name}}
+                        <p style="margin-top:5px;"><span class="box-label">Prepared By</span> {{preparedBy.name}}</p>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+
+        <table class="item-table">
+            <thead>
+                <tr>
+                    <th class="col-item">Item ID</th>
+                    <th class="col-desc">Description</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-price">Unit Price</th>
+                    <th class="col-total">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td>{{this.productId}}</td> 
+                    <td>{{this.description}}</td>
+                    <td class="text-center">{{this.quantity}}</td>
+                    <td class="text-right">{{this.unitPriceFormatted}}</td>
+                    <td class="text-right">{{this.lineTotalFormatted}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <div class="totals-section">
+            <table class="totals-table">
+                <tr>
+                    <td class="label">Subtotal</td>
+                    <td class="amount">{{subtotalFormatted}}</td>
+                </tr>
+                {{#if discount}}
+                <tr>
+                    <td class="label">Discount</td>
+                    <td class="amount">({{discountFormatted}})</td>
+                </tr>
+                {{/if}}
+                {{#if tax}}
+                <tr>
+                    <td class="label">Tax</td>
+                    <td class="amount">{{taxFormatted}}</td>
+                </tr>
+                {{/if}}
+                <tr class="grand-total-row">
+                    <td>TOTAL</td>
+                    <td>{{totalFormatted}}</td>
+                </tr>
+            </table>
+        </div>
+
+        {{#if notesToCustomer}}
+        <div class="notes">
+            <h4>Notes:</h4>
+            <p>{{notesToCustomer}}</p>
+        </div>
+        {{/if}}
+
+        <div class="footer">
+            Thank you for your business! &bull; &copy; {{currentYear}} Aicon Technologies
+        </div>
+    </div>
+</body>
+</html>

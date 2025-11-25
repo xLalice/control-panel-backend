@@ -5,6 +5,7 @@ import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } f
 import puppeteer from "puppeteer";
 import { StorageService } from "modules/storage/storage.service";
 import { EmailService } from "modules/email/email.service";
+import { getBase64Logo } from "utils/common";
 
 
 export class QuotationService {
@@ -181,7 +182,7 @@ export class QuotationService {
         });
 
         if (!current) throw new Error("Quotation not found");
-        
+
         if (current.status === QuotationStatus.Sent) {
             throw new Error("Cannot edit a quotation that has already been sent. Create a revision instead.");
         }
@@ -192,16 +193,16 @@ export class QuotationService {
             where: { id },
             data: {
                 ...scalarData,
-                
-                pdfUrl: null, 
+
+                pdfUrl: null,
 
                 ...(leadId ? { lead: { connect: { id: leadId } } } : {}),
                 ...(clientId ? { client: { connect: { id: clientId } } } : {}),
 
                 ...(items ? {
                     items: {
-                        deleteMany: {}, 
-                        create: items  
+                        deleteMany: {},
+                        create: items
                     }
                 } : {})
             },
@@ -215,7 +216,11 @@ export class QuotationService {
 
     async generatePdfBuffer(html: string): Promise<Buffer> {
         const browser = await puppeteer.launch({
-            headless: true
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox'
+            ]
         });
 
         const page = await browser.newPage();
@@ -252,6 +257,7 @@ export class QuotationService {
     }
 
     private async generatePdfFromData(quotation: QuotationWithRelations): Promise<Buffer> {
+        const logoBase64 = await getBase64Logo();
         let customerData: QuotationViewModel;
 
         if (quotation.clientId && quotation.client) {
@@ -264,12 +270,13 @@ export class QuotationService {
 
         const pdfData = {
             ...quotation,
+            logoBase64,
             issueDateFormatted: quotation.issueDate.toLocaleDateString(),
             validUntilFormatted: quotation.validUntil.toLocaleDateString(),
             customer: customerData,
         };
 
-        const htmlContent = await compileTemplate('quotation', pdfData);
+        const htmlContent = await compileTemplate('quotation.hbs', pdfData);
 
         return await this.generatePdfBuffer(htmlContent);
     }
