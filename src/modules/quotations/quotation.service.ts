@@ -1,4 +1,4 @@
-import { PrismaClient, QuotationStatus } from "@prisma/client";
+import { Prisma, PrismaClient, QuotationStatus } from "@prisma/client";
 import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
 import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
@@ -14,19 +14,54 @@ export class QuotationService {
         private emailService: EmailService
     ) { }
 
-    async createDraft(data: CreateQuotationDTO, userId: string) {
-        return this.prisma.quotation.create({
-            data: {
-                ...data,
-                status: QuotationStatus.Draft,
-                quotationNumber: await this.generateQuotationNumber(),
-                items: {
-                    create: data.items
-                },
-                preparedById: userId
+    fetchQuotations = async (filters: Record<string, string>) => {
+        const {
+            page = '1',
+            pageSize = '20',
+            leadId,
+            clientId,
+            status,
+            search
+        } = filters;
+
+        const pageNum = parseInt(page);
+        const sizeNum = parseInt(pageSize);
+        const skip = (pageNum - 1) * sizeNum;
+
+        const whereClause: Prisma.QuotationWhereInput = {
+            ...(leadId && { leadId }),
+            ...(clientId && { clientId }),
+            ...(status && { status: status as QuotationStatus }),
+            ...(search && {
+                quotationNumber: { contains: search, mode: 'insensitive' }
+            })
+        }
+
+        const [quotations, total] = await Promise.all([
+            this.prisma.quotation.findMany({
+                where: whereClause,
+                skip,
+                take: sizeNum,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    client: { select: { clientName: true } },
+                    lead: { select: { name: true } }
+                }
+            }),
+            this.prisma.quotation.count({ where: whereClause })
+        ]);
+
+        return {
+            data: quotations,
+            meta: {
+                total,
+                page: pageNum,
+                pageSize: sizeNum,
+                totalPages: Math.ceil(total / sizeNum)
             }
-        });
+        };
     }
+
 
     async sendQuotation(quotationId: string) {
         const quotation = await this.prisma.quotation.findUnique({
@@ -56,7 +91,7 @@ export class QuotationService {
 
         return this.prisma.quotation.update({
             where: { id: quotationId },
-            data: { 
+            data: {
                 status: QuotationStatus.Sent,
                 issueDate: new Date(),
                 pdfUrl: publicUrl
@@ -64,25 +99,21 @@ export class QuotationService {
         });
     }
 
-    async createQuotation(data: CreateQuotationDTO) {
+    async createQuotation(data: CreateQuotationDTO, userId: string) {
         const quotationNumber = await this.generateQuotationNumber();
 
-        const quotation = await this.prisma.quotation.create({
+
+        return this.prisma.quotation.create({
             data: {
                 ...data,
+                status: QuotationStatus.Draft,
                 quotationNumber,
-                items: { create: data.items }
-            },
-            include: {
-                client: true,
-                lead: true,
-                items: true
+                items: {
+                    create: data.items
+                },
+                preparedById: userId
             }
         });
-
-        const pdfBuffer = await this.generatePdfFromData(quotation);
-
-        return pdfBuffer;
     }
 
     async getQuotationPdfById(id: string) {

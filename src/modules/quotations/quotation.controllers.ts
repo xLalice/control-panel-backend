@@ -5,37 +5,24 @@ import { QuotationService } from "./quotation.service";
 class QuotationController {
     constructor(private service: QuotationService) { }
 
-    async createQuotation(req: Request, res: Response) {
+    create = async (req: Request, res: Response) => {
         const validatedData = createQuotationSchema.parse(req.body);
 
-        const pdfBuffer = await this.service.createQuotation(validatedData);
+        const quote = await this.service.createQuotation(validatedData, req.user!.id);
 
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment; filename="quotation-new.pdf"',
-            'Content-Length': pdfBuffer.length.toString(),
-        });
-
-        res.send(pdfBuffer);
-
-    }
-
-    async createDraft(req: Request, res: Response) {
-        const data = createQuotationSchema.parse(req.body);
-        const quote = await this.service.createDraft(data, req.user!.id);
-        res.json(quote);
-
-    }
-
-    async sendToCustomer(req: Request, res: Response) {
-        const { id } = req.params;
-        const quote = await this.service.sendQuotation(id);
-        res.json({ message: "Quotation sent successfully", quote });
+        res.status(201).json(quote);
     };
 
-    async getQuotationPdf(req: Request, res: Response) {
-        const { id } = req.params;
+    fetch = async (req: Request, res: Response) => {
+        const filters = req.query as unknown as Record<string, string>;
 
+        const quotes = await this.service.fetchQuotations(filters);
+
+        res.json(quotes);
+    }
+
+    getPdf = async (req: Request, res: Response) => {
+        const { id } = req.params;
         const pdfBuffer = await this.service.getQuotationPdfById(id);
 
         res.set({
@@ -47,9 +34,11 @@ class QuotationController {
         res.send(pdfBuffer);
     };
 
-
-
+    sendToCustomer = async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const quote = await this.service.sendQuotation(id);
+        res.json({ message: "Quotation sent successfully", quote });
+    };
 }
-
 
 export default QuotationController;

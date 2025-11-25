@@ -14,19 +14,30 @@ const emailService = new EmailService();
 const quotationService = new QuotationService(prisma, storageService, emailService);
 const quotationController = new QuotationController(quotationService);
 
-router.get("/", checkPermission("read:quotations"), isAuthenticated);
-
 router.post(
     "/", 
-    isAuthenticated, 
-    checkPermission("create:quotation"), 
-    quotationController.createQuotation
+    isAuthenticated,
+    quotationController.create 
 );
+
+router.get("/",
+    isAuthenticated,
+    checkPermission("read:quotations"),
+    quotationController.fetch
+)
 
 router.get(
     "/:id/pdf", 
     isAuthenticated, 
     checkPermission("read:quotations"), 
-    quotationController.getQuotationPdf
+    quotationController.getPdf
 );
 
+router.post(
+    "/:id/send",
+    isAuthenticated,
+    checkPermission("create:quotation"), 
+    quotationController.sendToCustomer
+);
+
+export default router;
