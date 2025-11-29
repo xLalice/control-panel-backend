@@ -26,6 +26,12 @@ router.get("/",
     quotationController.fetch
 )
 
+router.get("/:id",
+    isAuthenticated,
+    checkPermission("read:quotations"),
+    quotationController.fetchById
+)
+
 router.get(
     "/:id/pdf", 
     isAuthenticated, 

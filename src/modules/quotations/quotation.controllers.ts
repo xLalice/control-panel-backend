@@ -19,7 +19,15 @@ class QuotationController {
         const quotes = await this.service.fetchQuotations(filters);
 
         res.json(quotes);
-    }
+    };
+
+    fetchById = async (req: Request, res: Response) => {
+        const { id } = req.params;
+
+        const quote = await this.service.fetchQuotation(id);
+
+        res.json(quote)
+    };
 
     delete = async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -31,7 +39,7 @@ class QuotationController {
 
     update = async (req: Request, res: Response) => {
         const { id } = req.params;
-        
+
         const validatedData = createQuotationSchema.partial().parse(req.body);
 
         const updatedQuote = await this.service.update(id, validatedData);

@@ -22,12 +22,15 @@ export class QuotationService {
             leadId,
             clientId,
             status,
-            search
+            search,
+            sort
         } = filters;
 
         const pageNum = parseInt(page);
         const sizeNum = parseInt(pageSize);
         const skip = (pageNum - 1) * sizeNum;
+
+        const orderByClause = this.parseSortParams(sort);
 
         const whereClause: Prisma.QuotationWhereInput = {
             ...(leadId && { leadId }),
@@ -43,7 +46,7 @@ export class QuotationService {
                 where: whereClause,
                 skip,
                 take: sizeNum,
-                orderBy: { createdAt: 'desc' },
+                orderBy: orderByClause,
                 include: {
                     client: { select: { clientName: true } },
                     lead: { select: { name: true } }
@@ -63,6 +66,13 @@ export class QuotationService {
         };
     };
 
+    async fetchQuotation(id: string) {
+        const quotation = await this.prisma.quotation.findUnique({
+            where: { id }
+        });
+
+        return quotation;
+    };
 
     async sendQuotation(quotationId: string) {
         const quotation = await this.prisma.quotation.findUnique({
@@ -296,10 +306,36 @@ export class QuotationService {
             currentYear: new Date().getFullYear()
         };
 
-        console.log("PDF DATA SENT TO TEMPLATE:", JSON.stringify(pdfData, null, 2));
-
         const htmlContent = await compileTemplate('quotation.hbs', pdfData);
         return await this.generatePdfBuffer(htmlContent);
     }
 
+    private parseSortParams(sortParam?: string): Prisma.QuotationOrderByWithRelationInput[] {
+        if (!sortParam) {
+            return [{ createdAt: 'desc' }];
+        }
+
+        const sortRules = sortParam.split(',');
+
+        const orderBy = sortRules.map((rule) => {
+            const [field, dir] = rule.split(':');
+            const sort = dir === 'desc' ? 'desc' : 'asc';
+
+            switch (field) {
+                case 'quotationNumber': return { quotationNumber: sort };
+                case 'status': return { status: sort };
+                case 'total': return { total: sort };
+                case 'validUntil': return { validUntil: sort };
+                case 'createdAt': return { createdAt: sort };
+                case 'customer': return [
+                    { client: { clientName: sort } },
+                    { lead: { name: sort } }
+                ];
+
+                default: return undefined;
+            }
+        });
+
+        return orderBy.filter((item) => item !== undefined) as Prisma.QuotationOrderByWithRelationInput[];
+    }
 }
