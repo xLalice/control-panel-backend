@@ -23,7 +23,7 @@ export const createQuotationSchema = z.object({
     notesToCustomer: z.string().optional(),
     internalNotes: z.string().optional(),
     items: z.array(createQuotationItemSchema),
-    status: z.nativeEnum(QuotationStatus)
+    status: z.nativeEnum(QuotationStatus).optional()
 })
 
 export type CreateQuotationDTO = z.infer<typeof createQuotationSchema>
