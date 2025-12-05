@@ -68,7 +68,12 @@ export class QuotationService {
 
     async fetchQuotation(id: string) {
         const quotation = await this.prisma.quotation.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                items: true,
+                client: true,
+                lead: true
+            }
         });
 
         return quotation;
