@@ -198,22 +198,33 @@ export class QuotationService {
 
         if (!current) throw new Error("Quotation not found");
 
+        const { leadId, clientId, items, status, ...scalarData } = data;
+
+        const isContentUpdate =
+            items !== undefined ||
+            leadId !== undefined ||
+            clientId !== undefined ||
+            Object.keys(scalarData).length > 0;
+
         if (current.status === QuotationStatus.Sent) {
-            throw new Error("Cannot edit a quotation that has already been sent. Create a revision instead.");
+            if (isContentUpdate) {
+                throw new Error("Cannot edit content (prices/items) of a Sent quotation. Create a revision instead.");
+            }
         }
 
-        const { leadId, clientId, items, ...scalarData } = data;
+        const shouldClearPdf = isContentUpdate;
 
         return this.prisma.quotation.update({
             where: { id },
             data: {
                 ...scalarData,
 
-                pdfUrl: null,
+                ...(status && { status }),
+
+                ...(shouldClearPdf ? { pdfUrl: null } : {}),
 
                 ...(leadId ? { lead: { connect: { id: leadId } } } : {}),
                 ...(clientId ? { client: { connect: { id: clientId } } } : {}),
-
                 ...(items ? {
                     items: {
                         deleteMany: {},
