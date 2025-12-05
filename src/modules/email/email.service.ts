@@ -1,3 +1,5 @@
+import { companyInfo } from "config/companyInfo";
+import { env } from "config/env";
 import { compileTemplate } from "modules/quotations/quotation.utils";
 import { Resend } from "resend";
 
@@ -15,6 +17,15 @@ export class EmailService {
         pdfBuffer: Buffer,
         publicUrl?: string
     ) {
+
+        const isDev = env.NODE_ENV !== 'production';
+        const recipient = isDev ? env.DEFAULT_EMAIL : to;
+
+        if (isDev) {
+            console.log(`⚠️ DEV MODE: Redirecting email from ${to} to ${recipient}`);
+        }
+
+
         const htmlContent = await compileTemplate('quotationEmail.hbs', {
             customerName,
             quotationNumber,
@@ -22,9 +33,9 @@ export class EmailService {
         });
 
         const { data, error } = await this.resend.emails.send({
-            from: 'Acme Sales <onboarding@resend.dev>',
-            to: [to],
-            subject: `Your Quotation ${quotationNumber} from Acme Corp`,
+            from: `${companyInfo.name} <onboarding@resend.dev>`,
+            to: [recipient],
+            subject: `Your Quotation ${quotationNumber} from ${companyInfo.name}`,
             html: htmlContent,
             attachments: [
                 {

@@ -1,10 +1,8 @@
 import { createClient, RedisClientType } from "redis";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { env } from "./env";
 
 const redisClient = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
+  url: env.REDIS_URL,
 }) as RedisClientType;
 
 redisClient.on("error", (err: any) => {
