@@ -333,22 +333,24 @@ export class QuotationService {
 
         const sortRules = sortParam.split(',');
 
-        const orderBy = sortRules.map((rule) => {
+        const orderBy = sortRules.flatMap((rule): Prisma.QuotationOrderByWithRelationInput[] => {
             const [field, dir] = rule.split(':');
-            const sort = dir === 'desc' ? 'desc' : 'asc';
+            
+            const sort: Prisma.SortOrder = dir === 'desc' ? 'desc' : 'asc';
 
             switch (field) {
-                case 'quotationNumber': return { quotationNumber: sort };
-                case 'status': return { status: sort };
-                case 'total': return { total: sort };
-                case 'validUntil': return { validUntil: sort };
-                case 'createdAt': return { createdAt: sort };
+                case 'quotationNumber': return [{ quotationNumber: sort }];
+                case 'status': return [{ status: sort }];
+                case 'total': return [{ total: sort }];
+                case 'validUntil': return [{ validUntil: sort }];
+                case 'createdAt': return [{ createdAt: sort }];
+                
                 case 'customer': return [
                     { client: { clientName: sort } },
                     { lead: { name: sort } }
                 ];
-
-                default: return undefined;
+                
+                default: return [];
             }
         });
 
