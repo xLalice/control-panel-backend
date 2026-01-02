@@ -248,7 +248,7 @@ model ContactHistory {
 
 model Invoice {
   id       String @id @default(uuid())
-  clientId String // <<< REQUIRED Link to client
+  clientId String 
   client   Client @relation(fields: [clientId], references: [id])
 
   // ... other invoice fields
@@ -257,7 +257,7 @@ model Invoice {
 
 model SalesOrder {
   id       String @id @default(uuid())
-  clientId String // <<< REQUIRED Link to client
+  clientId String // 
   client   Client @relation(fields: [clientId], references: [id])
 
   // ... other sales order fields
