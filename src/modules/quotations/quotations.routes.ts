@@ -6,12 +6,14 @@ import { prisma } from 'config/prisma';
 import QuotationController from './quotation.controllers';
 import { EmailService } from 'modules/email/email.service';
 import { StorageService } from 'modules/storage/storage.service';
+import { LeadService } from 'modules/leads/lead.service';
 
 
 const router = express.Router();
 const storageService = new StorageService();
 const emailService = new EmailService();
-const quotationService = new QuotationService(prisma, storageService, emailService);
+const leadService = new LeadService(prisma);
+const quotationService = new QuotationService(prisma, storageService, emailService, leadService);
 const quotationController = new QuotationController(quotationService);
 
 router.post(

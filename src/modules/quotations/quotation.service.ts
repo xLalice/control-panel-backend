@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient, QuotationStatus } from "@prisma/client";
+import { LeadStatus, Prisma, PrismaClient, QuotationStatus } from "@prisma/client";
 import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
 import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
@@ -6,13 +6,15 @@ import puppeteer from "puppeteer";
 import { StorageService } from "modules/storage/storage.service";
 import { EmailService } from "modules/email/email.service";
 import { formatCurrency, getBase64Logo } from "utils/common";
+import { LeadService } from "modules/leads/lead.service";
 
 
 export class QuotationService {
     constructor(
         private prisma: PrismaClient,
         private storageService: StorageService,
-        private emailService: EmailService
+        private emailService: EmailService,
+        private leadService: LeadService
     ) { }
 
     fetchQuotations = async (filters: Record<string, string>) => {
@@ -190,10 +192,14 @@ export class QuotationService {
         });
     }
 
-    update = async (id: string, data: Partial<CreateQuotationDTO>) => {
+    update = async (id: string, data: Partial<CreateQuotationDTO>, userId: string) => {
         const current = await this.prisma.quotation.findUnique({
             where: { id },
-            select: { status: true }
+            select: {
+                status: true,
+                leadId: true,
+                clientId: true
+            }
         });
 
         if (!current) throw new Error("Quotation not found");
@@ -209,6 +215,13 @@ export class QuotationService {
         if (current.status === QuotationStatus.Sent) {
             if (isContentUpdate) {
                 throw new Error("Cannot edit content (prices/items) of a Sent quotation. Create a revision instead.");
+            }
+
+            if (status === QuotationStatus.Accepted) {
+                if (current.leadId) {
+                    await this.leadService.updateLeadStatus(current.leadId, {status: LeadStatus.Won}, userId)
+                    await this.leadService.convertLeadToClient(current.leadId, userId);
+                }
             }
         }
 
@@ -335,7 +348,7 @@ export class QuotationService {
 
         const orderBy = sortRules.flatMap((rule): Prisma.QuotationOrderByWithRelationInput[] => {
             const [field, dir] = rule.split(':');
-            
+
             const sort: Prisma.SortOrder = dir === 'desc' ? 'desc' : 'asc';
 
             switch (field) {
@@ -344,12 +357,12 @@ export class QuotationService {
                 case 'total': return [{ total: sort }];
                 case 'validUntil': return [{ validUntil: sort }];
                 case 'createdAt': return [{ createdAt: sort }];
-                
+
                 case 'customer': return [
                     { client: { clientName: sort } },
                     { lead: { name: sort } }
                 ];
-                
+
                 default: return [];
             }
         });
