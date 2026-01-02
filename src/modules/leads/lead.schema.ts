@@ -29,7 +29,7 @@ export const updateLeadSchema = createLeadSchema.partial().extend({
 
 
 export const updateLeadStatusSchema = z.object({
-  status: z.enum(Object.values(LeadStatus) as [string, ...string[]]).optional(),
+  status: z.nativeEnum(LeadStatus).optional(),
   notes: z.string().optional(),
   method: z.string().optional(),
 });
