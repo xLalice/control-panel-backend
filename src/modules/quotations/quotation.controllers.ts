@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { createQuotationSchema } from "./quotation.schema";
 import { QuotationService } from "./quotation.service";
+import { getAuthUser } from "utils/auth.utils";
 
 class QuotationController {
     constructor(private service: QuotationService) { }
@@ -40,9 +41,11 @@ class QuotationController {
     update = async (req: Request, res: Response) => {
         const { id } = req.params;
 
+        const user = getAuthUser(req);
+
         const validatedData = createQuotationSchema.partial().parse(req.body);
 
-        const updatedQuote = await this.service.update(id, validatedData);
+        const updatedQuote = await this.service.update(id, validatedData, user.id);
 
         res.json(updatedQuote);
     }
