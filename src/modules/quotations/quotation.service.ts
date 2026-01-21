@@ -1,4 +1,4 @@
-import { LeadStatus, Prisma, PrismaClient, QuotationStatus } from "@prisma/client";
+import { LeadStatus, MovementType, Prisma, PrismaClient, Quotation, QuotationStatus, SalesOrderStatus } from "@prisma/client";
 import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
 import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
@@ -194,12 +194,7 @@ export class QuotationService {
 
     update = async (id: string, data: Partial<CreateQuotationDTO>, userId: string) => {
         const current = await this.prisma.quotation.findUnique({
-            where: { id },
-            select: {
-                status: true,
-                leadId: true,
-                clientId: true
-            }
+            where: { id }
         });
 
         if (!current) throw new Error("Quotation not found");
@@ -219,10 +214,14 @@ export class QuotationService {
 
             if (status === QuotationStatus.Accepted) {
                 if (current.leadId) {
-                    await this.leadService.updateLeadStatus(current.leadId, {status: LeadStatus.Won}, userId)
+                    await this.leadService.updateLeadStatus(current.leadId, { status: LeadStatus.Won }, userId)
                     await this.leadService.convertLeadToClient(current.leadId, userId);
                 }
             }
+        }
+
+        if (data.status === QuotationStatus.Converted) {
+            await this.convertToSalesOrder(current, data, userId);
         }
 
         const shouldClearPdf = isContentUpdate;
@@ -368,5 +367,78 @@ export class QuotationService {
         });
 
         return orderBy.filter((item) => item !== undefined) as Prisma.QuotationOrderByWithRelationInput[];
+    }
+
+    private async convertToSalesOrder(quotation: Quotation, data: Partial<CreateQuotationDTO>, userId: string) {
+        if (quotation.status !== QuotationStatus.Accepted) {
+            throw new Error("Cannot convert a quotation to sales order without being accepted");
+        }
+
+        const { clientId, items } = data;
+        if (!items || items.length === 0) {
+            throw new Error("Quotation items cannot be empty");
+        }
+
+        if (!clientId) {
+            throw new Error("Cannot create a Sales Order without a valid Client ID.");
+        }
+
+        const productIds = items.map(i => i.productId);
+        const products = await this.prisma.product.findMany({
+            where: { id: { in: productIds } }
+        });
+
+        for (const item of items) {
+            const product = products.find((p) => p.id === item.productId);
+
+            if (!product) {
+                throw new Error(`Product ID ${item.productId} does not exist in database`);
+            }
+
+            if (item.quantity > product.quantityOnHand.toNumber()) {
+                throw new Error(`Insufficient stock for product: ${product.name}`);
+            }
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+
+            const salesOrder = await tx.salesOrder.create({
+                data: {
+                    client: { connect: { id: clientId } },
+                    quoteReference: { connect: { id: quotation.id } },
+                    status: SalesOrderStatus.Pending,
+                    items: {
+                        create: items.map((item) => ({
+                            product: { connect: { id: item.productId } },
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                            totalPrice: item.lineTotal
+                        }))
+                    }
+                }
+            });
+
+            for (const item of items) {
+                await tx.product.update({
+                    where: { id: item.productId },
+                    data: {
+                        quantityOnHand: {
+                            decrement: item.quantity
+                        }
+                    }
+                });
+
+                await tx.stockMovement.create({
+                    data: {
+                        productId: item.productId,
+                        type: MovementType.OUT,
+                        quantity: item.quantity,
+                        createdById: userId,
+                    }
+                })
+            }
+
+            return salesOrder;
+        });
     }
 }
