@@ -11,8 +11,8 @@ datasource db {
 model Role {
   id          Int          @id @default(autoincrement())
   name        String       @unique
-  permissions Permission[] @relation("RolePermissions")
   users       User[]       @relation("RoleUsers")
+  permissions Permission[] @relation("RolePermissions")
 }
 
 model Permission {
@@ -23,54 +23,38 @@ model Permission {
 }
 
 model User {
-  id       String @id @default(cuid())
-  email    String @unique
-  password String
-  roleId   Int    @default(1)
-  role     Role   @relation(fields: [roleId], references: [id], name: "RoleUsers")
-  name     String
-
-  isOJT        Boolean   @default(false)
-  ojtStartDate DateTime?
-  ojtEndDate   DateTime?
-
-  assignedInquiryies Inquiry[]  @relation("assignedInquiries")
-  assignedLeads      Lead[]     @relation("assignedLeads")
-  createdLeads       Lead[]     @relation("createdLeads")
-  reports            Report[]
-  inquiries          Inquiry[]
+  id                 String           @id @default(cuid())
+  email              String           @unique
+  password           String
+  roleId             Int              @default(1)
+  name               String
+  isOJT              Boolean          @default(false)
+  ojtStartDate       DateTime?
+  ojtEndDate         DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  activityLog        ActivityLog[]
+  allowedIPs         AllowedIP[]
+  attendanceRecords  Attendance[]
+  contactHistory     ContactHistory[]
   documents          Document[]
+  assignedInquiryies Inquiry[]        @relation("assignedInquiries")
+  inquiries          Inquiry[]
+  assignedLeads      Lead[]           @relation("assignedLeads")
+  createdLeads       Lead[]           @relation("createdLeads")
   quotations         Quotation[]
-
-  attendanceRecords Attendance[]
-  allowedIPs        AllowedIP[]
-
-  activityLog    ActivityLog[]
-  contactHistory ContactHistory[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  reports            Report[]
+  role               Role             @relation("RoleUsers", fields: [roleId], references: [id])
 }
 
 model Report {
   id           String   @id @default(uuid())
   date         DateTime
   reportedById String
-  reportedBy   User     @relation(fields: [reportedById], references: [id])
   location     String   @default("Remote")
   taskDetails  String
   createdAt    DateTime @default(now())
-}
-
-enum LeadStatus {
-  New
-  Contacted
-  Qualified
-  ProposalSent
-  Negotiation
-  Won
-  Lost
-  Archived
+  reportedBy   User     @relation(fields: [reportedById], references: [id])
 }
 
 model Company {
@@ -85,9 +69,8 @@ model Company {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  leads   Lead[]
-  clients Client[]
+  clients   Client[]
+  leads     Lead[]
 
   @@index([name])
   @@index([email])
@@ -96,51 +79,39 @@ model Company {
 }
 
 model Lead {
-  id   String @id @default(uuid())
-  name String 
+  id                   String           @id @default(uuid())
+  companyId            String?
+  contactPerson        String?
+  email                String
+  phone                String?
+  status               LeadStatus       @default(New)
+  source               String?
+  campaign             String?
+  assignedToId         String?
+  createdById          String
+  notes                String?
+  lastContactDate      DateTime?
+  followUpDate         DateTime?
+  estimatedValue       Decimal?
+  leadScore            Int?
+  referredBy           String?
+  isActive             Boolean          @default(true)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  name                 String
+  originatingInquiryId String?          @unique
+  activityLog          ActivityLog[]
+  client               Client?
+  contactHistory       ContactHistory[]
+  inquiries            Inquiry[]        @relation("LeadInquiries")
+  assignedTo           User?            @relation("assignedLeads", fields: [assignedToId], references: [id])
+  company              Company?         @relation(fields: [companyId], references: [id])
+  createdBy            User             @relation("createdLeads", fields: [createdById], references: [id])
+  originatingInquiry   Inquiry?         @relation("OriginatingInquiry", fields: [originatingInquiryId], references: [id])
+  quotations           Quotation[]
 
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-
-  contactPerson String? 
-  email         String 
-  phone         String?
-
-  status   LeadStatus @default(New) 
-  source   String?
-  campaign String?
-
-  assignedToId String?
-  assignedTo   User?   @relation(fields: [assignedToId], references: [id], name: "assignedLeads")
-
-  createdById String 
-  createdBy   User   @relation(fields: [createdById], references: [id], name: "createdLeads")
-
-  notes           String?   @db.Text 
-  lastContactDate DateTime?
-  followUpDate    DateTime?
-
-  estimatedValue Decimal? 
-  leadScore      Int? 
-
-  referredBy String?
-
-  isActive  Boolean  @default(true) 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  originatingInquiryId String? @unique
-  originatingInquiry   Inquiry? @relation("OriginatingInquiry", fields: [originatingInquiryId], references: [id])
-
-  inquiries Inquiry[] @relation("LeadInquiries")
-
-  client         Client? 
-  contactHistory ContactHistory[]
-  activityLog    ActivityLog[] 
-  quotations    Quotation[]
-
-  @@index([email]) 
-  @@index([phone]) 
+  @@index([email])
+  @@index([phone])
   @@index([companyId])
   @@index([assignedToId])
   @@index([createdById])
@@ -148,51 +119,37 @@ model Lead {
   @@index([isActive])
 }
 
-enum ClientStatus {
-  Active
-  Inactive
-  OnHold
-}
-
 model Client {
-  id        String   @id @default(uuid())
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-
-  clientName String
-
-  accountNumber String? @unique
-  primaryEmail  String?
-  primaryPhone  String?
-
-  billingAddressStreet     String?
-  billingAddressCity       String?
-  billingAddressRegion     String?
-  billingAddressPostalCode String?
-  billingAddressCountry    String?
-
+  id                        String           @id @default(uuid())
+  companyId                 String?
+  clientName                String
+  accountNumber             String?          @unique
+  primaryEmail              String?
+  primaryPhone              String?
+  billingAddressStreet      String?
+  billingAddressCity        String?
+  billingAddressRegion      String?
+  billingAddressPostalCode  String?
+  billingAddressCountry     String?
   shippingAddressStreet     String?
   shippingAddressCity       String?
   shippingAddressRegion     String?
   shippingAddressPostalCode String?
   shippingAddressCountry    String?
-
-  status ClientStatus @default(Active)
-  notes  String?
-
-  convertedFromLeadId String? @unique
-  convertedFromLead   Lead?   @relation(fields: [convertedFromLeadId], references: [id])
-
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  invoices       Invoice[]
-  salesOrders    SalesOrder[]
-  contactHistory ContactHistory[]
-  activityLog    ActivityLog[]
-  quotations    Quotation[]
-  inquiries     Inquiry[]   @relation("ClientInquiries")
+  status                    ClientStatus     @default(Active)
+  notes                     String?
+  convertedFromLeadId       String?          @unique
+  isActive                  Boolean          @default(true)
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  activityLog               ActivityLog[]
+  company                   Company?         @relation(fields: [companyId], references: [id])
+  convertedFromLead         Lead?            @relation(fields: [convertedFromLeadId], references: [id])
+  contactHistory            ContactHistory[]
+  inquiries                 Inquiry[]        @relation("ClientInquiries")
+  invoices                  Invoice[]
+  quotations                Quotation[]
+  salesOrders               SalesOrder[]
 
   @@index([clientName])
   @@index([companyId])
@@ -205,20 +162,17 @@ model Client {
 model ActivityLog {
   id          String   @id @default(uuid())
   leadId      String?
-  inquiryId   String?
-  clientId    String?
   userId      String
   action      String
   description String
-  metadata    Json? 
+  metadata    Json?
   createdAt   DateTime @default(now())
-
-  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  user   User    @relation(fields: [userId], references: [id])
-  inquiry Inquiry? @relation(fields: [inquiryId], references: [id])
-
-
+  clientId    String?
+  inquiryId   String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  inquiry     Inquiry? @relation(fields: [inquiryId], references: [id])
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
 
   @@index([leadId])
   @@index([clientId])
@@ -228,17 +182,16 @@ model ActivityLog {
 
 model ContactHistory {
   id        String   @id @default(uuid())
-  leadId    String? 
-  clientId  String? 
-  userId    String 
-  method    String 
+  leadId    String?
+  userId    String
+  method    String
   summary   String
   outcome   String?
   timestamp DateTime @default(now())
-
-  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull) 
-  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull) 
-  user   User    @relation(fields: [userId], references: [id]) 
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([leadId])
   @@index([clientId])
@@ -248,19 +201,17 @@ model ContactHistory {
 
 model Invoice {
   id       String @id @default(uuid())
-  clientId String 
+  clientId String
   client   Client @relation(fields: [clientId], references: [id])
 
-  // ... other invoice fields
   @@index([clientId])
 }
 
 model SalesOrder {
   id       String @id @default(uuid())
-  clientId String // 
+  clientId String
   client   Client @relation(fields: [clientId], references: [id])
 
-  // ... other sales order fields
   @@index([clientId])
 }
 
@@ -280,6 +231,262 @@ model Session {
   expiresAt DateTime
 }
 
+model Product {
+  id             String          @id @default(uuid())
+  category       Category
+  sku            String          @unique
+  name           String
+  description    String
+  basePrice      Decimal
+  pricingUnit    PricingUnit
+  pricingDetails Json?
+  unit           String?
+  pickUpPrice    Decimal?
+  deliveryPrice  Decimal?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  aggregate      Aggregate?
+  heavyEquipment HeavyEquipment?
+  inquiries      InquiryItem[]
+  quotation      QuotationItem[]
+  steel          Steel?
+}
+
+model Aggregate {
+  id            String  @id @default(uuid())
+  source        String
+  weightPerUnit Float?
+  productId     String  @unique
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model HeavyEquipment {
+  id            String  @id @default(uuid())
+  equipmentType String?
+  productId     String  @unique
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Steel {
+  id                   String  @id @default(uuid())
+  grade                String?
+  length               String?
+  type                 String?
+  color                String?
+  size                 String?
+  additionalAttributes Json?
+  productId            String  @unique
+  product              Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Inquiry {
+  id               String          @id @default(uuid())
+  phoneNumber      String
+  email            String
+  isCompany        Boolean         @default(false)
+  companyName      String?
+  companyAddress   String?
+  inquiryType      InquiryType
+  deliveryMethod   DeliveryMethod
+  deliveryLocation String?
+  preferredDate    DateTime?
+  referenceSource  ReferenceSource
+  remarks          String?
+  status           InquiryStatus   @default(New)
+  priority         Priority?
+  dueDate          DateTime?
+  createdById      String
+  assignedToId     String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  clientName       String
+  leadId           String?
+  clientId         String?
+  activityLog      ActivityLog[]
+  assignedTo       User?           @relation("assignedInquiries", fields: [assignedToId], references: [id])
+  client           Client?         @relation("ClientInquiries", fields: [clientId], references: [id])
+  createdBy        User            @relation(fields: [createdById], references: [id])
+  lead             Lead?           @relation("LeadInquiries", fields: [leadId], references: [id])
+  items            InquiryItem[]
+  leadOriginated   Lead?           @relation("OriginatingInquiry")
+
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([dueDate])
+  @@index([priority])
+  @@index([clientName])
+  @@index([phoneNumber])
+  @@index([email])
+  @@index([inquiryType])
+}
+
+model InquiryItem {
+  id        String   @id @default(uuid())
+  inquiryId String
+  productId String
+  quantity  Int
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  inquiry   Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@index([inquiryId])
+  @@index([productId])
+}
+
+model Quotation {
+  id              String          @id @default(uuid())
+  quotationNumber String          @unique
+  status          QuotationStatus @default(Draft)
+  issueDate       DateTime        @default(now())
+  validUntil      DateTime
+  leadId          String?
+  clientId        String?
+  subtotal        Decimal         @db.Decimal(10, 2)
+  discount        Decimal?        @db.Decimal(10, 2)
+  tax             Decimal?        @db.Decimal(10, 2)
+  total           Decimal         @db.Decimal(10, 2)
+  notesToCustomer String?
+  internalNotes   String?
+  preparedById    String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  pdfUrl          String?
+  client          Client?         @relation(fields: [clientId], references: [id])
+  lead            Lead?           @relation(fields: [leadId], references: [id])
+  preparedBy      User            @relation(fields: [preparedById], references: [id])
+  items           QuotationItem[]
+
+  @@index([status])
+  @@index([issueDate])
+  @@index([validUntil])
+  @@index([leadId])
+  @@index([clientId])
+  @@index([preparedById])
+  @@index([quotationNumber])
+}
+
+model QuotationItem {
+  id          String    @id @default(uuid())
+  quotationId String
+  productId   String
+  description String
+  quantity    Int
+  unitPrice   Decimal   @db.Decimal(10, 2)
+  lineTotal   Decimal   @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  product     Product   @relation(fields: [productId], references: [id])
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@index([quotationId])
+  @@index([productId])
+}
+
+model DocumentCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  documents   Document[]
+}
+
+model Document {
+  id           Int              @id @default(autoincrement())
+  title        String
+  filename     String
+  fileType     String
+  fileSize     Int
+  filePath     String
+  uploadedById String
+  categoryId   Int
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  category     DocumentCategory @relation(fields: [categoryId], references: [id])
+  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
+}
+
+model Attendance {
+  id         String     @id @default(uuid())
+  userId     String
+  date       DateTime   @default(now())
+  timeIn     DateTime   @default(now())
+  timeOut    DateTime?
+  status     String
+  totalHours Float?
+  ipAddress  String?
+  device     String?
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  user       User       @relation(fields: [userId], references: [id])
+  breakLogs  BreakLog[]
+
+  @@index([userId])
+  @@index([date])
+  @@index([status])
+}
+
+model AllowedIP {
+  id          String   @id @default(uuid())
+  userId      String
+  ipAddress   String
+  description String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, ipAddress])
+}
+
+model BreakLog {
+  id           String     @id @default(uuid())
+  attendanceId String
+  startTime    DateTime   @default(now())
+  endTime      DateTime?
+  duration     Float?
+  reason       String?
+  attendance   Attendance @relation(fields: [attendanceId], references: [id])
+
+  @@index([attendanceId])
+}
+
+model DTRSettings {
+  id                  String   @id @default(cuid())
+  workStartTime       String   @default("08:00")
+  lateThreshold       Int      @default(15)
+  allowRemoteLogin    Boolean  @default(false)
+  autoRemindersActive Boolean  @default(true)
+  updatedById         String
+  updatedAt           DateTime @updatedAt
+}
+
+model Sequence {
+  name    String @id
+  current Int    @default(0)
+}
+
+enum LeadStatus {
+  New
+  Contacted
+  Qualified
+  ProposalSent
+  Negotiation
+  Won
+  Lost
+  Archived
+}
+
+enum ClientStatus {
+  Active
+  Inactive
+  OnHold
+}
+
 enum Category {
   AGGREGATE
   HEAVY_EQUIPMENT
@@ -293,62 +500,6 @@ enum PricingUnit {
   TON
 }
 
-model Product {
-  id             String      @id @default(uuid())
-  category       Category 
-  sku            String      @unique
-  name           String
-  description    String
-  basePrice      Decimal 
-  pricingUnit    PricingUnit 
-  pricingDetails Json? 
-  unit           String? 
-  pickUpPrice    Decimal?
-  deliveryPrice  Decimal?
-  isActive       Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  aggregate      Aggregate?
-  heavyEquipment HeavyEquipment?
-  steel          Steel?
-
-  inquiries     InquiryItem[]
-  quotation    QuotationItem[]
-
-}
-
-model Aggregate {
-  id            String @id @default(uuid())
-  source        String
-  weightPerUnit Float?
-
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-}
-
-model HeavyEquipment {
-  id            String  @id @default(uuid())
-  equipmentType String? // e.g., "Crane", "Bulldozer"
-
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-}
-
-model Steel {
-  id                   String  @id @default(uuid())
-  grade                String? // e.g., "Grade 60"
-  length               String? // e.g., "6m"
-  type                 String? // e.g., "Angle Bar", "GI Pipe"
-  color                String? // e.g., "Silver"
-  size                 String? // e.g., "2x2"
-  additionalAttributes Json? // e.g., { "thickness": "2mm" }
-
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-}
-
-// Inquiry
 enum DeliveryMethod {
   Delivery
   Pickup
@@ -379,75 +530,6 @@ enum InquiryType {
   Other
 }
 
-model Inquiry {
-  id               String          @id @default(uuid())
-  clientName       String
-  phoneNumber      String
-  email            String
-  isCompany        Boolean         @default(false)
-  companyName      String?
-  companyAddress   String?
-  inquiryType      InquiryType
-  deliveryMethod   DeliveryMethod
-  deliveryLocation String?
-  preferredDate    DateTime?
-  referenceSource  ReferenceSource
-  remarks          String?
-  status           InquiryStatus   @default(New)
-  priority         Priority?
-  dueDate          DateTime?
-
-  leadOriginated Lead? @relation("OriginatingInquiry") 
-
-  lead           Lead? @relation("LeadInquiries", fields: [leadId], references: [id])
-  leadId         String?
-  client          Client? @relation("ClientInquiries", fields: [clientId], references: [id])
-  clientId      String?
-
-  items   InquiryItem[]
-
-  createdById String
-  createdBy   User   @relation(fields: [createdById], references: [id])
-
-  assignedToId String?
-  assignedTo   User?   @relation(fields: [assignedToId], references: [id], name: "assignedInquiries")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  activityLog   ActivityLog[]
-
-  @@index([createdById])
-  @@index([assignedToId])
-  @@index([status])
-  @@index([createdAt])
-  @@index([dueDate])
-  @@index([priority])
-  @@index([clientName])
-  @@index([phoneNumber])
-  @@index([email])
-  @@index([inquiryType])
-}
-
-model InquiryItem {
-  id          String   @id @default(uuid())
-  inquiryId   String
-  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
-
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-
-  quantity    Int
-
-  remarks     String?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([inquiryId])
-  @@index([productId])
-}
-
 enum InquiryStatus {
   New
   Reviewed
@@ -464,92 +546,7 @@ enum QuotationStatus {
   Accepted
   Rejected
   Expired
-}
-
-model Quotation {
-  id               String          @id @default(uuid())
-  quotationNumber  String          @unique 
-  status           QuotationStatus @default(Draft) 
-  issueDate        DateTime        @default(now()) 
-  validUntil       DateTime        
-
-  leadId           String?
-  lead             Lead?           @relation(fields: [leadId], references: [id])
-  
-  clientId         String?
-  client           Client?         @relation(fields: [clientId], references: [id])
-
-  
-  
-  subtotal         Decimal         @db.Decimal(10, 2) 
-  discount         Decimal?        @db.Decimal(10, 2) 
-  tax              Decimal?        @db.Decimal(10, 2)
-  total            Decimal         @db.Decimal(10, 2)
-
-  notesToCustomer  String?         @db.Text
-  internalNotes    String?         @db.Text
-
-  preparedById     String
-  preparedBy       User            @relation(fields: [preparedById], references: [id])
-
-  items            QuotationItem[]
-
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-
-  pdfUrl           String?
-
-  @@index([status])
-  @@index([issueDate])
-  @@index([validUntil])
-  @@index([leadId])
-  @@index([clientId])
-  @@index([preparedById])
-  @@index([quotationNumber]) 
-}
-
-model QuotationItem {
-  id          String   @id @default(uuid())
-  quotationId String
-  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade) // Cascade delete items with quote
-
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id]) 
-
-  description String   
-  quantity    Int
-  unitPrice   Decimal  @db.Decimal(10, 2) 
-  lineTotal   Decimal  @db.Decimal(10, 2) 
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([quotationId])
-  @@index([productId])
-}
-
-model DocumentCategory {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
-  description String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  documents   Document[]
-}
-
-model Document {
-  id           Int              @id @default(autoincrement())
-  title        String
-  filename     String
-  fileType     String
-  fileSize     Int
-  filePath     String
-  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
-  uploadedById String
-  category     DocumentCategory @relation(fields: [categoryId], references: [id])
-  categoryId   Int
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  Converted
 }
 
 enum AttendanceStatus {
@@ -557,63 +554,4 @@ enum AttendanceStatus {
   LATE
   ON_BREAK
   LOGGED_OUT
-}
-
-model Attendance {
-  id         String     @id @default(uuid())
-  userId     String
-  user       User       @relation(fields: [userId], references: [id])
-  date       DateTime   @default(now())
-  timeIn     DateTime   @default(now())
-  timeOut    DateTime?
-  status     String
-  totalHours Float?
-  ipAddress  String?
-  device     String?
-  notes      String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  breakLogs  BreakLog[]
-
-  @@index([userId])
-  @@index([date])
-  @@index([status])
-}
-
-model AllowedIP {
-  id          String   @id @default(uuid())
-  userId      String // Changed from ojtId to userId
-  user        User     @relation(fields: [userId], references: [id]) // Changed from ojt to user
-  ipAddress   String
-  description String?
-  createdAt   DateTime @default(now())
-
-  @@unique([userId, ipAddress])
-}
-
-model BreakLog {
-  id           String     @id @default(uuid())
-  attendanceId String
-  attendance   Attendance @relation(fields: [attendanceId], references: [id])
-  startTime    DateTime   @default(now())
-  endTime      DateTime?
-  duration     Float?
-  reason       String?
-
-  @@index([attendanceId])
-}
-
-model DTRSettings {
-  id                  String   @id @default(cuid())
-  workStartTime       String   @default("08:00")
-  lateThreshold       Int      @default(15)
-  allowRemoteLogin    Boolean  @default(false)
-  autoRemindersActive Boolean  @default(true)
-  updatedById         String
-  updatedAt           DateTime @updatedAt
-}
-
-model Sequence {
-  name      String  @id
-  current   Int     @default(0)
 }
