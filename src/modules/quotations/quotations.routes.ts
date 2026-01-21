@@ -7,19 +7,21 @@ import QuotationController from './quotation.controllers';
 import { EmailService } from 'modules/email/email.service';
 import { StorageService } from 'modules/storage/storage.service';
 import { LeadService } from 'modules/leads/lead.service';
+import { SalesOrderService } from 'modules/saleOrders/salesOrder.service';
 
 
 const router = express.Router();
 const storageService = new StorageService();
 const emailService = new EmailService();
 const leadService = new LeadService(prisma);
-const quotationService = new QuotationService(prisma, storageService, emailService, leadService);
+const salesService = new SalesOrderService(prisma);
+const quotationService = new QuotationService(prisma, storageService, emailService, leadService, salesService);
 const quotationController = new QuotationController(quotationService);
 
 router.post(
-    "/", 
+    "/",
     isAuthenticated,
-    quotationController.create 
+    quotationController.create
 );
 
 router.get("/",
@@ -35,16 +37,16 @@ router.get("/:id",
 )
 
 router.get(
-    "/:id/pdf", 
-    isAuthenticated, 
-    checkPermission("read:quotations"), 
+    "/:id/pdf",
+    isAuthenticated,
+    checkPermission("read:quotations"),
     quotationController.getPdf
 );
 
 router.post(
     "/:id/send",
     isAuthenticated,
-    checkPermission("create:quotation"), 
+    checkPermission("create:quotation"),
     quotationController.sendToCustomer
 );
 
@@ -55,7 +57,7 @@ router.delete(
     quotationController.delete
 );
 
-router.patch( 
+router.patch(
     "/:id",
     isAuthenticated,
     checkPermission("update:quotations"),
