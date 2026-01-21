@@ -1,4 +1,4 @@
-import { LeadStatus, MovementType, Prisma, PrismaClient, Quotation, QuotationStatus, SalesOrderStatus } from "@prisma/client";
+import { LeadStatus, Prisma, PrismaClient, Quotation, QuotationStatus } from "@prisma/client";
 import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
 import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
@@ -7,6 +7,7 @@ import { StorageService } from "modules/storage/storage.service";
 import { EmailService } from "modules/email/email.service";
 import { formatCurrency, getBase64Logo } from "utils/common";
 import { LeadService } from "modules/leads/lead.service";
+import { SalesOrderService } from "modules/saleOrders/salesOrder.service";
 
 
 export class QuotationService {
@@ -14,7 +15,8 @@ export class QuotationService {
         private prisma: PrismaClient,
         private storageService: StorageService,
         private emailService: EmailService,
-        private leadService: LeadService
+        private leadService: LeadService,
+        private salesOrder: SalesOrderService
     ) { }
 
     fetchQuotations = async (filters: Record<string, string>) => {
@@ -373,8 +375,9 @@ export class QuotationService {
         if (quotation.status !== QuotationStatus.Accepted) {
             throw new Error("Cannot convert a quotation to sales order without being accepted");
         }
+        const clientId = data.clientId || quotation.clientId;
+        const items = data.items;
 
-        const { clientId, items } = data;
         if (!items || items.length === 0) {
             throw new Error("Quotation items cannot be empty");
         }
@@ -400,45 +403,11 @@ export class QuotationService {
             }
         }
 
-        await this.prisma.$transaction(async (tx) => {
-
-            const salesOrder = await tx.salesOrder.create({
-                data: {
-                    client: { connect: { id: clientId } },
-                    quoteReference: { connect: { id: quotation.id } },
-                    status: SalesOrderStatus.Pending,
-                    items: {
-                        create: items.map((item) => ({
-                            product: { connect: { id: item.productId } },
-                            quantity: item.quantity,
-                            unitPrice: item.unitPrice,
-                            totalPrice: item.lineTotal
-                        }))
-                    }
-                }
-            });
-
-            for (const item of items) {
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: {
-                        quantityOnHand: {
-                            decrement: item.quantity
-                        }
-                    }
-                });
-
-                await tx.stockMovement.create({
-                    data: {
-                        productId: item.productId,
-                        type: MovementType.OUT,
-                        quantity: item.quantity,
-                        createdById: userId,
-                    }
-                })
-            }
-
-            return salesOrder;
+        await this.salesOrder.create({
+            quotationId: quotation.id,
+            clientId: clientId,
+            items: items,
+            userId: userId
         });
     }
 }
