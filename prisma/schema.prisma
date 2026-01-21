@@ -212,7 +212,28 @@ model SalesOrder {
   clientId String
   client   Client @relation(fields: [clientId], references: [id])
 
+  quoteReferenceId String?    @unique
+  quoteReference   Quotation? @relation(fields: [quoteReferenceId], references: [id])
+
+  status SalesOrderStatus @default(Pending)
+
+  items SalesOrderItem[]
+
   @@index([clientId])
+}
+
+model SalesOrderItem {
+  id String @id @default(uuid())
+
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity   Int
+  unitPrice  Decimal
+  totalPrice Decimal
 }
 
 model SystemSettings {
@@ -231,10 +252,30 @@ model Session {
   expiresAt DateTime
 }
 
+model StockMovement {
+  id String @id @default(uuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  type     MovementType
+  quantity Decimal
+
+  reason      String?
+  referenceId String?
+
+  createdById String
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
 model Product {
-  id             String          @id @default(uuid())
+  id             String      @id @default(uuid())
   category       Category
-  sku            String          @unique
+  sku            String      @unique
   name           String
   description    String
   basePrice      Decimal
@@ -243,6 +284,12 @@ model Product {
   unit           String?
   pickUpPrice    Decimal?
   deliveryPrice  Decimal?
+
+  quantityOnHand  Decimal          @default(0)
+  reorderLevel    Decimal          @default(10)
+  stockMovements  StockMovement[]
+  salesOrderItems SalesOrderItem[]
+
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -360,6 +407,7 @@ model Quotation {
   lead            Lead?           @relation(fields: [leadId], references: [id])
   preparedBy      User            @relation(fields: [preparedById], references: [id])
   items           QuotationItem[]
+  salesOrder      SalesOrder?
 
   @@index([status])
   @@index([issueDate])
@@ -554,4 +602,19 @@ enum AttendanceStatus {
   LATE
   ON_BREAK
   LOGGED_OUT
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum SalesOrderStatus {
+  Pending
+  Processing
+  ReadyForPickup
+  OutForDelivery
+  Completed
+  Cancelled
 }

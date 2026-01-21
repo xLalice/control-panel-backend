@@ -2,7 +2,7 @@
 CREATE TYPE "LeadStatus" AS ENUM ('New', 'Contacted', 'Qualified', 'ProposalSent', 'Negotiation', 'Won', 'Lost', 'Archived');
 
 -- CreateEnum
-CREATE TYPE "CustomerStatus" AS ENUM ('Active', 'Inactive', 'OnHold');
+CREATE TYPE "ClientStatus" AS ENUM ('Active', 'Inactive', 'OnHold');
 
 -- CreateEnum
 CREATE TYPE "Category" AS ENUM ('AGGREGATE', 'HEAVY_EQUIPMENT', 'STEEL');
@@ -23,7 +23,10 @@ CREATE TYPE "Priority" AS ENUM ('Low', 'Medium', 'High', 'Urgent');
 CREATE TYPE "InquiryType" AS ENUM ('PricingRequest', 'ProductAvailability', 'TechnicalQuestion', 'DeliveryInquiry', 'Other');
 
 -- CreateEnum
-CREATE TYPE "InquiryStatus" AS ENUM ('New', 'Quoted', 'Approved', 'Scheduled', 'Fulfilled', 'Cancelled');
+CREATE TYPE "InquiryStatus" AS ENUM ('New', 'Reviewed', 'ConvertedToLead', 'AssociatedToClient', 'Closed', 'QuotationGenerated', 'DeliveryScheduled');
+
+-- CreateEnum
+CREATE TYPE "QuotationStatus" AS ENUM ('Draft', 'Sent', 'Accepted', 'Rejected', 'Expired');
 
 -- CreateEnum
 CREATE TYPE "AttendanceStatus" AS ENUM ('PRESENT', 'LATE', 'ON_BREAK', 'LOGGED_OUT');
@@ -95,12 +98,10 @@ CREATE TABLE "Lead" (
     "id" TEXT NOT NULL,
     "companyId" TEXT,
     "contactPerson" TEXT,
-    "email" TEXT,
+    "email" TEXT NOT NULL,
     "phone" TEXT,
-    "position" TEXT,
     "status" "LeadStatus" NOT NULL DEFAULT 'New',
     "source" TEXT,
-    "subSource" TEXT,
     "campaign" TEXT,
     "assignedToId" TEXT,
     "createdById" TEXT NOT NULL,
@@ -108,20 +109,22 @@ CREATE TABLE "Lead" (
     "lastContactDate" TIMESTAMP(3),
     "followUpDate" TIMESTAMP(3),
     "estimatedValue" DECIMAL(65,30),
-    "leadScore" DOUBLE PRECISION,
+    "leadScore" INTEGER,
     "referredBy" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "name" TEXT NOT NULL,
+    "originatingInquiryId" TEXT,
 
     CONSTRAINT "Lead_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Customer" (
+CREATE TABLE "Client" (
     "id" TEXT NOT NULL,
     "companyId" TEXT,
-    "customerName" TEXT NOT NULL,
+    "clientName" TEXT NOT NULL,
     "accountNumber" TEXT,
     "primaryEmail" TEXT,
     "primaryPhone" TEXT,
@@ -135,26 +138,27 @@ CREATE TABLE "Customer" (
     "shippingAddressRegion" TEXT,
     "shippingAddressPostalCode" TEXT,
     "shippingAddressCountry" TEXT,
-    "status" "CustomerStatus" NOT NULL DEFAULT 'Active',
+    "status" "ClientStatus" NOT NULL DEFAULT 'Active',
     "notes" TEXT,
     "convertedFromLeadId" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Customer_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ActivityLog" (
     "id" TEXT NOT NULL,
     "leadId" TEXT,
-    "customerId" TEXT,
     "userId" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "clientId" TEXT,
+    "inquiryId" TEXT,
 
     CONSTRAINT "ActivityLog_pkey" PRIMARY KEY ("id")
 );
@@ -163,12 +167,12 @@ CREATE TABLE "ActivityLog" (
 CREATE TABLE "ContactHistory" (
     "id" TEXT NOT NULL,
     "leadId" TEXT,
-    "customerId" TEXT,
     "userId" TEXT NOT NULL,
     "method" TEXT NOT NULL,
     "summary" TEXT NOT NULL,
     "outcome" TEXT,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "clientId" TEXT,
 
     CONSTRAINT "ContactHistory_pkey" PRIMARY KEY ("id")
 );
@@ -176,7 +180,7 @@ CREATE TABLE "ContactHistory" (
 -- CreateTable
 CREATE TABLE "Invoice" (
     "id" TEXT NOT NULL,
-    "customerId" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
 
     CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
 );
@@ -184,7 +188,7 @@ CREATE TABLE "Invoice" (
 -- CreateTable
 CREATE TABLE "SalesOrder" (
     "id" TEXT NOT NULL,
-    "customerId" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
 
     CONSTRAINT "SalesOrder_pkey" PRIMARY KEY ("id")
 );
@@ -267,33 +271,80 @@ CREATE TABLE "Steel" (
 -- CreateTable
 CREATE TABLE "Inquiry" (
     "id" TEXT NOT NULL,
-    "customerName" TEXT NOT NULL,
     "phoneNumber" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "isCompany" BOOLEAN NOT NULL DEFAULT false,
     "companyName" TEXT,
     "companyAddress" TEXT,
-    "productType" TEXT NOT NULL,
     "inquiryType" "InquiryType" NOT NULL,
-    "quantity" INTEGER NOT NULL,
     "deliveryMethod" "DeliveryMethod" NOT NULL,
-    "deliveryLocation" TEXT NOT NULL,
-    "preferredDate" TIMESTAMP(3) NOT NULL,
+    "deliveryLocation" TEXT,
+    "preferredDate" TIMESTAMP(3),
     "referenceSource" "ReferenceSource" NOT NULL,
     "remarks" TEXT,
     "status" "InquiryStatus" NOT NULL DEFAULT 'New',
     "priority" "Priority",
     "dueDate" TIMESTAMP(3),
-    "quotedPrice" DOUBLE PRECISION,
-    "quotedBy" TEXT,
-    "quotedAt" TIMESTAMP(3),
-    "relatedLeadId" TEXT,
     "createdById" TEXT NOT NULL,
     "assignedToId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "clientName" TEXT NOT NULL,
+    "leadId" TEXT,
+    "clientId" TEXT,
 
     CONSTRAINT "Inquiry_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InquiryItem" (
+    "id" TEXT NOT NULL,
+    "inquiryId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "remarks" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "InquiryItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Quotation" (
+    "id" TEXT NOT NULL,
+    "quotationNumber" TEXT NOT NULL,
+    "status" "QuotationStatus" NOT NULL DEFAULT 'Draft',
+    "issueDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validUntil" TIMESTAMP(3) NOT NULL,
+    "leadId" TEXT,
+    "clientId" TEXT,
+    "subtotal" DECIMAL(10,2) NOT NULL,
+    "discount" DECIMAL(10,2),
+    "tax" DECIMAL(10,2),
+    "total" DECIMAL(10,2) NOT NULL,
+    "notesToCustomer" TEXT,
+    "internalNotes" TEXT,
+    "preparedById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "pdfUrl" TEXT,
+
+    CONSTRAINT "Quotation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuotationItem" (
+    "id" TEXT NOT NULL,
+    "quotationId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "unitPrice" DECIMAL(10,2) NOT NULL,
+    "lineTotal" DECIMAL(10,2) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "QuotationItem_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -378,6 +429,14 @@ CREATE TABLE "DTRSettings" (
 );
 
 -- CreateTable
+CREATE TABLE "Sequence" (
+    "name" TEXT NOT NULL,
+    "current" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "Sequence_pkey" PRIMARY KEY ("name")
+);
+
+-- CreateTable
 CREATE TABLE "_RolePermissions" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
@@ -410,6 +469,9 @@ CREATE INDEX "Company_phone_idx" ON "Company"("phone");
 CREATE INDEX "Company_isActive_idx" ON "Company"("isActive");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Lead_originatingInquiryId_key" ON "Lead"("originatingInquiryId");
+
+-- CreateIndex
 CREATE INDEX "Lead_email_idx" ON "Lead"("email");
 
 -- CreateIndex
@@ -431,31 +493,34 @@ CREATE INDEX "Lead_status_idx" ON "Lead"("status");
 CREATE INDEX "Lead_isActive_idx" ON "Lead"("isActive");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Customer_accountNumber_key" ON "Customer"("accountNumber");
+CREATE UNIQUE INDEX "Client_accountNumber_key" ON "Client"("accountNumber");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Customer_convertedFromLeadId_key" ON "Customer"("convertedFromLeadId");
+CREATE UNIQUE INDEX "Client_convertedFromLeadId_key" ON "Client"("convertedFromLeadId");
 
 -- CreateIndex
-CREATE INDEX "Customer_companyId_idx" ON "Customer"("companyId");
+CREATE INDEX "Client_clientName_idx" ON "Client"("clientName");
 
 -- CreateIndex
-CREATE INDEX "Customer_status_idx" ON "Customer"("status");
+CREATE INDEX "Client_companyId_idx" ON "Client"("companyId");
 
 -- CreateIndex
-CREATE INDEX "Customer_isActive_idx" ON "Customer"("isActive");
+CREATE INDEX "Client_status_idx" ON "Client"("status");
 
 -- CreateIndex
-CREATE INDEX "Customer_primaryEmail_idx" ON "Customer"("primaryEmail");
+CREATE INDEX "Client_isActive_idx" ON "Client"("isActive");
 
 -- CreateIndex
-CREATE INDEX "Customer_primaryPhone_idx" ON "Customer"("primaryPhone");
+CREATE INDEX "Client_primaryEmail_idx" ON "Client"("primaryEmail");
+
+-- CreateIndex
+CREATE INDEX "Client_primaryPhone_idx" ON "Client"("primaryPhone");
 
 -- CreateIndex
 CREATE INDEX "ActivityLog_leadId_idx" ON "ActivityLog"("leadId");
 
 -- CreateIndex
-CREATE INDEX "ActivityLog_customerId_idx" ON "ActivityLog"("customerId");
+CREATE INDEX "ActivityLog_clientId_idx" ON "ActivityLog"("clientId");
 
 -- CreateIndex
 CREATE INDEX "ActivityLog_userId_idx" ON "ActivityLog"("userId");
@@ -467,7 +532,7 @@ CREATE INDEX "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");
 CREATE INDEX "ContactHistory_leadId_idx" ON "ContactHistory"("leadId");
 
 -- CreateIndex
-CREATE INDEX "ContactHistory_customerId_idx" ON "ContactHistory"("customerId");
+CREATE INDEX "ContactHistory_clientId_idx" ON "ContactHistory"("clientId");
 
 -- CreateIndex
 CREATE INDEX "ContactHistory_userId_idx" ON "ContactHistory"("userId");
@@ -476,10 +541,10 @@ CREATE INDEX "ContactHistory_userId_idx" ON "ContactHistory"("userId");
 CREATE INDEX "ContactHistory_timestamp_idx" ON "ContactHistory"("timestamp");
 
 -- CreateIndex
-CREATE INDEX "Invoice_customerId_idx" ON "Invoice"("customerId");
+CREATE INDEX "Invoice_clientId_idx" ON "Invoice"("clientId");
 
 -- CreateIndex
-CREATE INDEX "SalesOrder_customerId_idx" ON "SalesOrder"("customerId");
+CREATE INDEX "SalesOrder_clientId_idx" ON "SalesOrder"("clientId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SystemSettings_key_key" ON "SystemSettings"("key");
@@ -518,10 +583,7 @@ CREATE INDEX "Inquiry_dueDate_idx" ON "Inquiry"("dueDate");
 CREATE INDEX "Inquiry_priority_idx" ON "Inquiry"("priority");
 
 -- CreateIndex
-CREATE INDEX "Inquiry_relatedLeadId_idx" ON "Inquiry"("relatedLeadId");
-
--- CreateIndex
-CREATE INDEX "Inquiry_customerName_idx" ON "Inquiry"("customerName");
+CREATE INDEX "Inquiry_clientName_idx" ON "Inquiry"("clientName");
 
 -- CreateIndex
 CREATE INDEX "Inquiry_phoneNumber_idx" ON "Inquiry"("phoneNumber");
@@ -531,6 +593,42 @@ CREATE INDEX "Inquiry_email_idx" ON "Inquiry"("email");
 
 -- CreateIndex
 CREATE INDEX "Inquiry_inquiryType_idx" ON "Inquiry"("inquiryType");
+
+-- CreateIndex
+CREATE INDEX "InquiryItem_inquiryId_idx" ON "InquiryItem"("inquiryId");
+
+-- CreateIndex
+CREATE INDEX "InquiryItem_productId_idx" ON "InquiryItem"("productId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Quotation_quotationNumber_key" ON "Quotation"("quotationNumber");
+
+-- CreateIndex
+CREATE INDEX "Quotation_status_idx" ON "Quotation"("status");
+
+-- CreateIndex
+CREATE INDEX "Quotation_issueDate_idx" ON "Quotation"("issueDate");
+
+-- CreateIndex
+CREATE INDEX "Quotation_validUntil_idx" ON "Quotation"("validUntil");
+
+-- CreateIndex
+CREATE INDEX "Quotation_leadId_idx" ON "Quotation"("leadId");
+
+-- CreateIndex
+CREATE INDEX "Quotation_clientId_idx" ON "Quotation"("clientId");
+
+-- CreateIndex
+CREATE INDEX "Quotation_preparedById_idx" ON "Quotation"("preparedById");
+
+-- CreateIndex
+CREATE INDEX "Quotation_quotationNumber_idx" ON "Quotation"("quotationNumber");
+
+-- CreateIndex
+CREATE INDEX "QuotationItem_quotationId_idx" ON "QuotationItem"("quotationId");
+
+-- CreateIndex
+CREATE INDEX "QuotationItem_productId_idx" ON "QuotationItem"("productId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DocumentCategory_name_key" ON "DocumentCategory"("name");
@@ -560,43 +658,49 @@ ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFE
 ALTER TABLE "Report" ADD CONSTRAINT "Report_reportedById_fkey" FOREIGN KEY ("reportedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Lead" ADD CONSTRAINT "Lead_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Lead" ADD CONSTRAINT "Lead_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Lead" ADD CONSTRAINT "Lead_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Customer" ADD CONSTRAINT "Customer_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Lead" ADD CONSTRAINT "Lead_originatingInquiryId_fkey" FOREIGN KEY ("originatingInquiryId") REFERENCES "Inquiry"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Customer" ADD CONSTRAINT "Customer_convertedFromLeadId_fkey" FOREIGN KEY ("convertedFromLeadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Client" ADD CONSTRAINT "Client_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Client" ADD CONSTRAINT "Client_convertedFromLeadId_fkey" FOREIGN KEY ("convertedFromLeadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_inquiryId_fkey" FOREIGN KEY ("inquiryId") REFERENCES "Inquiry"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ContactHistory" ADD CONSTRAINT "ContactHistory_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ContactHistory" ADD CONSTRAINT "ContactHistory_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ContactHistory" ADD CONSTRAINT "ContactHistory_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "ContactHistory" ADD CONSTRAINT "ContactHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SalesOrder" ADD CONSTRAINT "SalesOrder_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SalesOrder" ADD CONSTRAINT "SalesOrder_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Aggregate" ADD CONSTRAINT "Aggregate_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -608,19 +712,43 @@ ALTER TABLE "HeavyEquipment" ADD CONSTRAINT "HeavyEquipment_productId_fkey" FORE
 ALTER TABLE "Steel" ADD CONSTRAINT "Steel_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Inquiry" ADD CONSTRAINT "Inquiry_relatedLeadId_fkey" FOREIGN KEY ("relatedLeadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Inquiry" ADD CONSTRAINT "Inquiry_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Inquiry" ADD CONSTRAINT "Inquiry_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Inquiry" ADD CONSTRAINT "Inquiry_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Inquiry" ADD CONSTRAINT "Inquiry_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Inquiry" ADD CONSTRAINT "Inquiry_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Document" ADD CONSTRAINT "Document_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "InquiryItem" ADD CONSTRAINT "InquiryItem_inquiryId_fkey" FOREIGN KEY ("inquiryId") REFERENCES "Inquiry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InquiryItem" ADD CONSTRAINT "InquiryItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Quotation" ADD CONSTRAINT "Quotation_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Quotation" ADD CONSTRAINT "Quotation_leadId_fkey" FOREIGN KEY ("leadId") REFERENCES "Lead"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Quotation" ADD CONSTRAINT "Quotation_preparedById_fkey" FOREIGN KEY ("preparedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuotationItem" ADD CONSTRAINT "QuotationItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuotationItem" ADD CONSTRAINT "QuotationItem_quotationId_fkey" FOREIGN KEY ("quotationId") REFERENCES "Quotation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Document" ADD CONSTRAINT "Document_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "DocumentCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Document" ADD CONSTRAINT "Document_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Attendance" ADD CONSTRAINT "Attendance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -636,3 +764,4 @@ ALTER TABLE "_RolePermissions" ADD CONSTRAINT "_RolePermissions_A_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "_RolePermissions" ADD CONSTRAINT "_RolePermissions_B_fkey" FOREIGN KEY ("B") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
