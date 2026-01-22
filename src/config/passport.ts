@@ -30,7 +30,7 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  done(null, { id: user.id, roleId: user.roleId, role: user.role });
+  done(null, { id: user.id, role: user.role });
 });
 
 passport.deserializeUser(async (obj: { id: string; roleId: number }, done) => {
