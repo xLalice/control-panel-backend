@@ -1,22 +1,35 @@
-import { PrismaClient, SalesOrderStatus, MovementType } from "@prisma/client";
-import { CreateSalesOrderPayload } from "./salesOrder.schema";
+import { MovementType, PrismaClient, SalesOrderStatus } from "../../../prisma/generated/prisma/client";
+import { ConvertToSalesOrderPayLoadType } from "./salesOrder.schema";
 
 export class SalesOrderService {
     constructor(private prisma: PrismaClient) { }
 
-    async create(payload: CreateSalesOrderPayload) {
-        
-        if (!payload.clientId) {
+    async create(payload: ConvertToSalesOrderPayLoadType, userId: string) {
+        const quotationExists = await this.prisma.quotation.findUnique({
+            where: { id: payload.quotationId },
+            include: {
+                items: true
+            }
+        });
+
+        if (!quotationExists) {
+            throw new Error(`Quotation with ID ${payload.quotationId} does not exist in this database.`);
+        }
+
+        if (!quotationExists) throw new Error("Quotation not found");
+
+        const { clientId, items } = quotationExists;
+        const { deliveryDate, deliveryAddress, paymentTerms } = payload;
+
+        if (!clientId) {
             throw new Error("Sales Order creation failed: Missing Client ID");
         }
-        const { quotationId, clientId, items, userId } = payload;
 
         return await this.prisma.$transaction(async (tx) => {
-            
             const salesOrder = await tx.salesOrder.create({
                 data: {
-                    client: { connect: { id: clientId } }, 
-                    quoteReference: { connect: { id: quotationId } },
+                    clientId: clientId,
+                    quoteReferenceId: payload.quotationId,
                     status: SalesOrderStatus.Pending,
                     items: {
                         create: items.map((item) => ({
@@ -25,7 +38,11 @@ export class SalesOrderService {
                             unitPrice: item.unitPrice,
                             totalPrice: item.lineTotal
                         }))
-                    }
+                    },
+                    deliveryDate: deliveryDate,
+                    deliveryAddress: deliveryAddress,
+                    paymentTerms: paymentTerms
+
                 }
             });
 
@@ -40,7 +57,7 @@ export class SalesOrderService {
                         productId: item.productId,
                         type: MovementType.OUT,
                         quantity: item.quantity,
-                        createdById: userId, 
+                        createdById: userId,
                         reason: `Sales Order ${salesOrder.id}`
                     }
                 })

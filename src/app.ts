@@ -15,6 +15,7 @@ import userRoutes from "./modules/users/users.routes"
 import clientRoutes from "./modules/clients/client.routes"
 import quoteRoutes from "./modules/quotations/quotations.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes"
+import salesOrderRoutes from "./modules/saleOrders/salesOrder.routes";
 import { errorHandler } from "./middlewares/errorHandler";
 import "dotenv/config";
 import { prisma } from "config/prisma";
@@ -79,8 +80,9 @@ app.use("/api/inquiries", inquiryRoutes);
 app.use('/api/documents', documentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use('/api/clients', clientRoutes);
-app.use("/api/quotes", quoteRoutes)
-app.use("/api/dashboard", dashboardRoutes)
+app.use("/api/quotes", quoteRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/sales-order", salesOrderRoutes);
 
 app.use(errorHandler)
 
