@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { createQuotationSchema } from "./quotation.schema";
 import { QuotationService } from "./quotation.service";
 import { getAuthUser } from "utils/auth.utils";
+import { convertToSalesOrderPayload } from "modules/saleOrders/salesOrder.schema";
 
 class QuotationController {
     constructor(private service: QuotationService) { }
@@ -68,6 +69,12 @@ class QuotationController {
         const quote = await this.service.sendQuotation(id);
         res.json({ message: "Quotation sent successfully", quote });
     };
+
+    convertToSalesOrder = async (req: Request, res: Response) => {
+        const validatedData = convertToSalesOrderPayload.parse(req.body);
+        const salesOrder = this.service.convertToSalesOrder(validatedData, req.user!.id);
+        res.status(201).json(salesOrder);
+    }
 }
 
 export default QuotationController;

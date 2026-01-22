@@ -64,4 +64,11 @@ router.patch(
     quotationController.update
 );
 
+router.post(
+    "/:id/convert",
+    isAuthenticated,
+    checkPermission("update:quotations"),
+    quotationController.convertToSalesOrder
+)
+
 export default router;
