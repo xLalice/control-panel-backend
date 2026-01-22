@@ -6,7 +6,7 @@ import {
   Company,
   Client,
   ContactHistory as PrismaContactHistory
-} from "@prisma/client";
+} from "../../../prisma/generated/prisma/client";
 import {
   AssignLeadDto,
   SearchLeadsParams,
