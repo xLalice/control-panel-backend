@@ -1,4 +1,4 @@
-import { LeadStatus, Prisma, PrismaClient, Quotation, QuotationStatus } from "@prisma/client";
+import { LeadStatus, Prisma, PrismaClient, QuotationStatus } from "../../../prisma/generated/prisma/client";
 import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
 import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
@@ -8,6 +8,7 @@ import { EmailService } from "modules/email/email.service";
 import { formatCurrency, getBase64Logo } from "utils/common";
 import { LeadService } from "modules/leads/lead.service";
 import { SalesOrderService } from "modules/saleOrders/salesOrder.service";
+import { ConvertToSalesOrderPayLoadType } from "modules/saleOrders/salesOrder.schema";
 
 
 export class QuotationService {
@@ -222,10 +223,6 @@ export class QuotationService {
             }
         }
 
-        if (data.status === QuotationStatus.Converted) {
-            await this.convertToSalesOrder(current, data, userId);
-        }
-
         const shouldClearPdf = isContentUpdate;
 
         return this.prisma.quotation.update({
@@ -250,6 +247,54 @@ export class QuotationService {
                 items: true
             }
         });
+    }
+
+    convertToSalesOrder = async (data: ConvertToSalesOrderPayLoadType, userId: string) => {
+        const quotation = await this.prisma.quotation.findUnique({
+            where: { id: data.quotationId }, include: {
+                items: true
+            }
+        });
+
+        if (!quotation) throw new Error("Quotation not found");
+        const { status, items, clientId } = quotation;
+
+        if (status !== QuotationStatus.Accepted) {
+            throw new Error("Cannot convert a quotation to sales order without being accepted");
+        }
+
+        if (!items || items.length === 0) {
+            throw new Error("Quotation items cannot be empty");
+        }
+
+        if (!clientId) {
+            throw new Error("Cannot create a Sales Order without a valid Client ID.");
+        }
+
+        const productIds = items.map(i => i.productId);
+        const products = await this.prisma.product.findMany({
+            where: { id: { in: productIds } }
+        });
+
+        for (const item of items) {
+            const product = products.find((p) => p.id === item.productId);
+
+            if (!product) {
+                throw new Error(`Product ID ${item.productId} does not exist in database`);
+            }
+
+            if (item.quantity > product.quantityOnHand.toNumber()) {
+                throw new Error(`Insufficient stock for product: ${product.name}`);
+            }
+        }
+
+        await this.salesOrder.create({
+            quotationId: quotation.id,
+            deliveryDate: data.deliveryDate,
+            deliveryAddress: data.deliveryAddress,
+            paymentTerms: data.paymentTerms,
+            notes: data.notes
+        }, userId);
     }
 
 
@@ -369,45 +414,5 @@ export class QuotationService {
         });
 
         return orderBy.filter((item) => item !== undefined) as Prisma.QuotationOrderByWithRelationInput[];
-    }
-
-    private async convertToSalesOrder(quotation: Quotation, data: Partial<CreateQuotationDTO>, userId: string) {
-        if (quotation.status !== QuotationStatus.Accepted) {
-            throw new Error("Cannot convert a quotation to sales order without being accepted");
-        }
-        const clientId = data.clientId || quotation.clientId;
-        const items = data.items;
-
-        if (!items || items.length === 0) {
-            throw new Error("Quotation items cannot be empty");
-        }
-
-        if (!clientId) {
-            throw new Error("Cannot create a Sales Order without a valid Client ID.");
-        }
-
-        const productIds = items.map(i => i.productId);
-        const products = await this.prisma.product.findMany({
-            where: { id: { in: productIds } }
-        });
-
-        for (const item of items) {
-            const product = products.find((p) => p.id === item.productId);
-
-            if (!product) {
-                throw new Error(`Product ID ${item.productId} does not exist in database`);
-            }
-
-            if (item.quantity > product.quantityOnHand.toNumber()) {
-                throw new Error(`Insufficient stock for product: ${product.name}`);
-            }
-        }
-
-        await this.salesOrder.create({
-            quotationId: quotation.id,
-            clientId: clientId,
-            items: items,
-            userId: userId
-        });
     }
 }
