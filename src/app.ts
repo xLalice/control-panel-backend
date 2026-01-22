@@ -4,7 +4,6 @@ import passport from "./config/passport";
 import flash from "connect-flash";
 import cors from "cors";
 import { PrismaSessionStore } from "@quixo3/prisma-session-store";
-import { PrismaClient } from "@prisma/client";
 import authRoutes from "./modules/auth/auth.routes";
 import leadRoutes from "./modules/leads/lead.router"
 import reportRoutes from "./modules/reports/reports.router";
@@ -18,6 +17,7 @@ import quoteRoutes from "./modules/quotations/quotations.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes"
 import { errorHandler } from "./middlewares/errorHandler";
 import "dotenv/config";
+import { prisma } from "config/prisma";
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "QWERTY";
 
@@ -51,7 +51,7 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: new PrismaSessionStore(new PrismaClient(), {
+    store: new PrismaSessionStore(prisma, {
       checkPeriod: 2 * 60 * 1000, //ms
       dbRecordIdIsSessionId: true,
       dbRecordIdFunction: undefined,

@@ -1,7 +1,5 @@
-import { PrismaClient, ContactHistory as PrismaContactHistory } from '@prisma/client';
+import { prisma } from "config/prisma";
 import {AddContactHistoryData, ContactHistory} from "./client.types";
-
-const prisma = new PrismaClient();
 
 export const addContactHistory = async (
   clientId: string, 

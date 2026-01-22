@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { startOfDay, endOfDay, subDays, subMonths, } from 'date-fns';
-
-const prisma = new PrismaClient();
+import { prisma } from 'config/prisma';
 
 interface TimeRangeFilter {
   startDate: Date;
