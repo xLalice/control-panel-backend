@@ -72,7 +72,7 @@ class QuotationController {
 
     convertToSalesOrder = async (req: Request, res: Response) => {
         const validatedData = convertToSalesOrderPayload.parse(req.body);
-        const salesOrder = this.service.convertToSalesOrder(validatedData, req.user!.id);
+        const salesOrder = await this.service.convertToSalesOrder(validatedData, req.user!.id);
         res.status(201).json(salesOrder);
     }
 }

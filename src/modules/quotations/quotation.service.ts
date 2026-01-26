@@ -288,7 +288,7 @@ export class QuotationService {
             }
         }
 
-        await this.salesOrder.create({
+        return await this.salesOrder.create({
             quotationId: quotation.id,
             deliveryDate: data.deliveryDate,
             deliveryAddress: data.deliveryAddress,
