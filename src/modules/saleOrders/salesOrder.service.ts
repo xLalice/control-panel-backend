@@ -1,4 +1,4 @@
-import { MovementType, PrismaClient, SalesOrderStatus } from "../../../prisma/generated/prisma/client";
+import { MovementType, PrismaClient, QuotationStatus, SalesOrderStatus } from "../../../prisma/generated/prisma/client";
 import { ConvertToSalesOrderPayLoadType } from "./salesOrder.schema";
 
 export class SalesOrderService {
@@ -62,6 +62,13 @@ export class SalesOrderService {
                     }
                 })
             }
+
+            await tx.quotation.update({
+                where: { id: payload.quotationId },
+                data: {
+                    status: QuotationStatus.Converted
+                }
+            })
 
             return salesOrder;
         });
