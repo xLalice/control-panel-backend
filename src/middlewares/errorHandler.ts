@@ -1,26 +1,15 @@
-// src/middlewares/errorHandler.ts
+import { Request, Response } from 'express';
+import { z } from 'zod'; 
 
-import { Request, Response, NextFunction } from 'express';
-import { z } from 'zod'; // Make sure to import Zod
-
-/**
- * Global error handling middleware for Express.
- * Catches errors, logs them, and sends an appropriate JSON response.
- * @param err The error object.
- * @param req The Express request object.
- * @param res The Express response object.
- * @param next The Express next middleware function.
- */
 export const errorHandler = (
   err: unknown, 
   req: Request,
   res: Response,
-  next: NextFunction 
 ) => {
   console.error("Unhandled API Error:", err);
 
   let statusCode = 500;
-  let errorResponse: { error: string; details?: any } = {
+  let errorResponse: { error: string } = {
     error: "An unexpected error occurred.",
   };
 
@@ -28,7 +17,6 @@ export const errorHandler = (
     statusCode = 400; 
     errorResponse = {
       error: "Validation error.",
-      details: err.format(),
     };
   }
   else if (err instanceof Error) {
@@ -41,22 +29,19 @@ export const errorHandler = (
       errorResponse = { error: err.message };
     }
     else if (err.message.includes("invalid input") || err.message.includes("bad request")) {
-        statusCode = 400; // Bad Request
+        statusCode = 400;
         errorResponse = { error: err.message };
     }
     else {
       statusCode = 500;
       errorResponse = {
-        error: "Failed operation.",
-        details: err.message, 
+        error: err.message,
       };
     }
   }
   else {
-    statusCode = 500;
     errorResponse = {
       error: "An unknown error occurred.",
-      details: String(err), 
     };
   }
 
