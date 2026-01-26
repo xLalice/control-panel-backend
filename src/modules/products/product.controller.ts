@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import { ProductCreateInput, ProductUpdateInput } from "./product.types";
-import { Category, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { generateSKU } from "./product.utils";
+import { MovementType, Category } from "../../../prisma/generated/prisma/enums";
 
 export class ProductController {
   private transformProduct(product: any) {
@@ -43,6 +44,10 @@ export class ProductController {
       unit: product.unit,
       pickUpPrice: product.pickUpPrice,
       deliveryPrice: product.deliveryPrice,
+
+      quantityOnHand: product.quantityOnHand,
+      reorderLevel: product.reorderLevel,
+
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       ...extendedData,
@@ -222,7 +227,7 @@ export class ProductController {
             additionalAttributes: productData.additionalAttributes
               ? (productData.additionalAttributes as Prisma.InputJsonValue)
               : (existingProduct.steel
-                  .additionalAttributes as Prisma.InputJsonValue),
+                .additionalAttributes as Prisma.InputJsonValue),
           },
         });
       }
@@ -316,4 +321,73 @@ export class ProductController {
 
     res.status(200).json(transformedProducts);
   };
-}
+
+  adjustStock = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { quantity, reason, type } = req.body;
+    const userId = req.user!.id;
+
+    if (!quantity || isNaN(Number(quantity)) || Number(quantity) === 0) {
+      res.status(400).json({ error: "Quantity must be a valid non-zero number" });
+      return;
+    }
+
+    if (!Object.values(MovementType).includes(type)) {
+      res.status(400).json({ error: "Invalid movement type" });
+      return;
+    }
+
+    let adjustmentValue = Number(quantity);
+    const absQuantity = Math.abs(adjustmentValue);
+
+    if (type === MovementType.IN) {
+      adjustmentValue = absQuantity;
+    } else if (type === MovementType.OUT) {
+      adjustmentValue = -absQuantity;
+    }
+
+
+    const result = await prisma.$transaction(async (tx) => {
+
+      if (adjustmentValue < 0) {
+        const currentProduct = await tx.product.findUnique({
+          where: { id },
+          select: { quantityOnHand: true, name: true }
+        });
+
+        if (!currentProduct) throw new Error("Product not found");
+
+        if (currentProduct.quantityOnHand.toNumber() < absQuantity) {
+          throw new Error(`Insufficient stock for ${currentProduct.name}. Current: ${currentProduct.quantityOnHand}, Trying to remove: ${absQuantity}`);
+        }
+      }
+
+      const movement = await tx.stockMovement.create({
+        data: {
+          productId: id,
+          quantity: adjustmentValue,
+          type: type,
+          reason: reason || (adjustmentValue > 0 ? "Stock In" : "Stock Out"),
+          createdById: userId,
+        },
+      });
+
+      const updatedProduct = await tx.product.update({
+        where: { id },
+        data: {
+          quantityOnHand: {
+            increment: adjustmentValue,
+          },
+        },
+      });
+
+      return { movement, updatedProduct };
+    });
+
+    res.status(200).json({
+      message: "Stock adjusted successfully",
+      newBalance: result.updatedProduct.quantityOnHand,
+      movementId: result.movement.id
+    });
+  }
+};

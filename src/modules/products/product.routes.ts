@@ -14,4 +14,6 @@ router.post("/", checkPermission("manage:products"), productController.createPro
 router.put("/:id", checkPermission("manage:products"), productController.updateProduct);
 router.delete("/:id", checkPermission("manage:products"), productController.deleteProduct);
 
+router.post("/:id/stock/adjust", productController.adjustStock);
+
 export default router;
