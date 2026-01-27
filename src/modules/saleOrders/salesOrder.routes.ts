@@ -8,6 +8,7 @@ const router = express.Router();
 const salesOrderService = new SalesOrderService(prisma);
 const salesOrderController = new SalesOrderController(salesOrderService);
 
-router.post("/", isAuthenticated, salesOrderController.createSalesOrder);
+router.get("/", isAuthenticated, salesOrderController.fetch);
+router.post("/", isAuthenticated, salesOrderController.create);
 
 export default router;

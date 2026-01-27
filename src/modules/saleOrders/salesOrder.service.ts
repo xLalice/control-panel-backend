@@ -73,4 +73,10 @@ export class SalesOrderService {
             return salesOrder;
         });
     }
+    
+    fetch = async () => {
+        const salesOrders = await this.prisma.salesOrder.findMany({});
+
+        return salesOrders;
+    }
 }

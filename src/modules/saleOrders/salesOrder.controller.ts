@@ -5,12 +5,16 @@ import { convertToSalesOrderPayload } from "./salesOrder.schema";
 export class SalesOrderController {
   constructor(private salesOrderService: SalesOrderService) {}
 
-  createSalesOrder = async (req: Request, res: Response) => {
-    console.log(req.body);
+  fetch = async (req: Request, res: Response) => {
+    const salesOrders = await this.salesOrderService.fetch();
+    res.status(200).json(salesOrders);
+  }
+
+  create = async (req: Request, res: Response) => {
     const payload = convertToSalesOrderPayload.parse(req.body);
 
     const salesOrder = await this.salesOrderService.create(payload, req.user!.id);
     res.status(201).json(salesOrder);
-  }
+  };
 
 }
