@@ -75,9 +75,39 @@ export class SalesOrderService {
     }
     
     fetch = async () => {
-        const salesOrders = await this.prisma.salesOrder.findMany({});
+        const salesOrders = await this.prisma.salesOrder.findMany({
+            include: {
+                client: true,
+                items: {
+                    include: {
+                        product: true 
+                    }
+                }
+            }
+        });
 
         return salesOrders;
+    }
+
+    fetchById = async (id: string) => {
+        const salesOrder = await this.prisma.salesOrder.findUnique({
+            where: { id },
+            include: {
+                client: true, 
+                quoteReference: true, 
+                items: {
+                    include: {
+                        product: true 
+                    }
+                }
+            }
+        });
+
+        if (!salesOrder) {
+            throw new Error(`Sales Order ${id} not found`);
+        }
+
+        return salesOrder;
     }
 
     update = async (data: {id: string, status: SalesOrderStatus}) => {

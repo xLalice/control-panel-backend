@@ -9,7 +9,9 @@ const salesOrderService = new SalesOrderService(prisma);
 const salesOrderController = new SalesOrderController(salesOrderService);
 
 router.get("/", isAuthenticated, salesOrderController.fetch);
+router.get("/:id", isAuthenticated, salesOrderController.fetchById);
 router.post("/", isAuthenticated, salesOrderController.create);
-router.patch("/", isAuthenticated, salesOrderController.update)
+router.patch("/", isAuthenticated, salesOrderController.update);
+
 
 export default router;

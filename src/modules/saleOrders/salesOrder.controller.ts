@@ -10,6 +10,12 @@ export class SalesOrderController {
     res.status(200).json(salesOrders);
   }
 
+  fetchById = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const salesOrder = await this.salesOrderService.fetchById(id);
+    res.status(200).json(salesOrder);
+  };
+
   create = async (req: Request, res: Response) => {
     const payload = convertToSalesOrderPayload.parse(req.body);
     const salesOrder = await this.salesOrderService.create(payload, req.user!.id);
