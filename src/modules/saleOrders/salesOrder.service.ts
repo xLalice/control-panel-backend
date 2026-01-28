@@ -79,4 +79,15 @@ export class SalesOrderService {
 
         return salesOrders;
     }
+
+    update = async (data: {id: string, status: SalesOrderStatus}) => {
+        const updatedSO = await this.prisma.salesOrder.update({
+            where: {id: data.id},
+            data: {
+                status: data.status
+            }
+        });
+
+        return updatedSO;
+    }
 }

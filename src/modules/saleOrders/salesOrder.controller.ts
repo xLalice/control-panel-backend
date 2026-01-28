@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { SalesOrderService } from "./salesOrder.service";
-import { convertToSalesOrderPayload } from "./salesOrder.schema";
+import { convertToSalesOrderPayload, updateSalesOrderStatusPayload } from "./salesOrder.schema";
 
 export class SalesOrderController {
   constructor(private salesOrderService: SalesOrderService) {}
@@ -12,9 +12,14 @@ export class SalesOrderController {
 
   create = async (req: Request, res: Response) => {
     const payload = convertToSalesOrderPayload.parse(req.body);
-
     const salesOrder = await this.salesOrderService.create(payload, req.user!.id);
     res.status(201).json(salesOrder);
   };
+
+  update = async (req: Request, res: Response) => {
+    const payload = updateSalesOrderStatusPayload.parse(req.body);
+    await this.salesOrderService.update(payload);
+    res.status(201);
+  }
 
 }

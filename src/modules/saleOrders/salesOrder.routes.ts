@@ -10,5 +10,6 @@ const salesOrderController = new SalesOrderController(salesOrderService);
 
 router.get("/", isAuthenticated, salesOrderController.fetch);
 router.post("/", isAuthenticated, salesOrderController.create);
+router.patch("/", isAuthenticated, salesOrderController.update)
 
 export default router;

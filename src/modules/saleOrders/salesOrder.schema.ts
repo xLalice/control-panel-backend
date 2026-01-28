@@ -1,4 +1,5 @@
 import z from "zod";
+import { SalesOrderStatus } from "../../../prisma/generated/prisma/enums";
 
 export const convertToSalesOrderPayload = z.object({
     quotationId: z.string(),
@@ -14,4 +15,10 @@ export const convertToSalesOrderPayload = z.object({
     notes: z.string().optional(),
 });
 
+export const updateSalesOrderStatusPayload = z.object({
+    id: z.string(),
+    status: z.nativeEnum(SalesOrderStatus)
+})
+
+export type UpdateSalesOrderPayload = z.infer<typeof updateSalesOrderStatusPayload>;
 export type ConvertToSalesOrderPayLoadType = z.infer<typeof convertToSalesOrderPayload>;
