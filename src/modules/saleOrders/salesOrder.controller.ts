@@ -1,13 +1,15 @@
 import { Request, Response } from "express";
 import { SalesOrderService } from "./salesOrder.service";
-import { convertToSalesOrderPayload, updateSalesOrderStatusPayload } from "./salesOrder.schema";
+import { convertToSalesOrderPayload, fetchSalesOrdersQuerySchema, updateSalesOrderStatusPayload } from "./salesOrder.schema";
 
 export class SalesOrderController {
   constructor(private salesOrderService: SalesOrderService) {}
 
   fetch = async (req: Request, res: Response) => {
-    const salesOrders = await this.salesOrderService.fetch();
-    res.status(200).json(salesOrders);
+    const query = fetchSalesOrdersQuerySchema.parse(req.query);
+
+    const results = await this.salesOrderService.fetch(query);
+    res.status(200).json(results);
   }
 
   fetchById = async (req: Request, res: Response) => {

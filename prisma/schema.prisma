@@ -225,6 +225,8 @@ model SalesOrder {
   paymentTerms String
   notes   String? 
 
+  createdAt  DateTime  @default(now())
+
   @@index([clientId])
 }
 

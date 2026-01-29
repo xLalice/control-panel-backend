@@ -1,5 +1,5 @@
-import { MovementType, PrismaClient, QuotationStatus, SalesOrderStatus } from "../../../prisma/generated/prisma/client";
-import { ConvertToSalesOrderPayLoadType } from "./salesOrder.schema";
+import { MovementType, Prisma, PrismaClient, QuotationStatus, SalesOrderStatus } from "../../../prisma/generated/prisma/client";
+import { ConvertToSalesOrderPayLoadType, FetchSalesOrdersQuery } from "./salesOrder.schema";
 
 export class SalesOrderService {
     constructor(private prisma: PrismaClient) { }
@@ -73,31 +73,63 @@ export class SalesOrderService {
             return salesOrder;
         });
     }
-    
-    fetch = async () => {
-        const salesOrders = await this.prisma.salesOrder.findMany({
-            include: {
-                client: true,
-                items: {
-                    include: {
-                        product: true 
-                    }
-                }
-            }
-        });
 
-        return salesOrders;
+    fetch = async (params: FetchSalesOrdersQuery) => {
+        const { page, limit, search, status, sortBy, sortOrder } = params;
+        const skip = (page - 1) * limit;
+
+        const whereClause: Prisma.SalesOrderWhereInput = {
+            ...(status ? { status: status } : {}),
+
+            ...(search ? {
+                OR: [
+                    { id: { contains: search, mode: 'insensitive' } },
+                    { client: { clientName: { contains: search, mode: 'insensitive' } } }
+                ]
+            } : {})
+        };
+
+        let orderBy: Prisma.SalesOrderOrderByWithRelationInput = {};
+
+        if (sortBy === "client") {
+            orderBy = { client: { clientName: sortOrder } };
+        } else {
+            orderBy = { [sortBy]: sortOrder };
+        }
+
+        const [salesOrders, total] = await Promise.all([
+            this.prisma.salesOrder.findMany({
+                where: whereClause,
+                include: {
+                    client: true,
+                    items: {
+                        include: { product: true }
+                    }
+                },
+                skip,
+                take: limit,
+                orderBy: orderBy,
+            }),
+            this.prisma.salesOrder.count({ where: whereClause })
+        ]);
+
+        return {
+            orders: salesOrders,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        };
     }
 
     fetchById = async (id: string) => {
         const salesOrder = await this.prisma.salesOrder.findUnique({
             where: { id },
             include: {
-                client: true, 
-                quoteReference: true, 
+                client: true,
+                quoteReference: true,
                 items: {
                     include: {
-                        product: true 
+                        product: true
                     }
                 }
             }
@@ -110,9 +142,9 @@ export class SalesOrderService {
         return salesOrder;
     }
 
-    update = async (data: {id: string, status: SalesOrderStatus}) => {
+    update = async (data: { id: string, status: SalesOrderStatus }) => {
         const updatedSO = await this.prisma.salesOrder.update({
-            where: {id: data.id},
+            where: { id: data.id },
             data: {
                 status: data.status
             }
