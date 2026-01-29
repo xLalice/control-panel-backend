@@ -1,10 +1,11 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod'; 
 
 export const errorHandler = (
   err: unknown, 
   req: Request,
   res: Response,
+  next: NextFunction,
 ) => {
   console.error("Unhandled API Error:", err);
 
