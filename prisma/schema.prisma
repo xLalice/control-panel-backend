@@ -226,6 +226,7 @@ model SalesOrder {
   notes   String? 
 
   createdAt  DateTime  @default(now())
+  totalAmount Decimal @default(0)
 
   @@index([clientId])
 }
