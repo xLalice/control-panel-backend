@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { startOfDay, endOfDay, subDays, subMonths, } from 'date-fns';
+import { startOfDay, endOfDay, subDays, subMonths, format, } from 'date-fns';
 import { prisma } from 'config/prisma';
 
 interface TimeRangeFilter {
@@ -8,18 +8,18 @@ interface TimeRangeFilter {
 }
 
 export class DashboardController {
-  
+
   private convertBigIntToNumber = (obj: any): any => {
     if (obj === null || obj === undefined) return obj;
-    
+
     if (typeof obj === 'bigint') {
       return Number(obj);
     }
-    
+
     if (Array.isArray(obj)) {
       return obj.map(item => this.convertBigIntToNumber(item));
     }
-    
+
     if (typeof obj === 'object') {
       const converted: any = {};
       for (const [key, value] of Object.entries(obj)) {
@@ -27,14 +27,14 @@ export class DashboardController {
       }
       return converted;
     }
-    
+
     return obj;
   }
 
   private getDateRange = (timeRange: string): TimeRangeFilter => {
     const now = new Date();
     let startDate: Date;
-    
+
     switch (timeRange) {
       case '7d':
         startDate = subDays(now, 7);
@@ -51,7 +51,7 @@ export class DashboardController {
       default:
         startDate = subDays(now, 7);
     }
-    
+
     return {
       startDate: startOfDay(startDate),
       endDate: endOfDay(now)
@@ -62,7 +62,7 @@ export class DashboardController {
     try {
       const timeRange = req.query.timeRange as string || '7d';
       const { startDate, endDate } = this.getDateRange(timeRange);
-      
+
       const periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       const prevStartDate = subDays(startDate, periodDays);
       const prevEndDate = subDays(endDate, periodDays);
@@ -84,7 +84,13 @@ export class DashboardController {
         })
       ]);
 
-      const [currentLeads, previousLeads] = await Promise.all([
+      const [totalActiveLeads, newLeadsCurrent, newLeadsPrevious] = await Promise.all([
+        prisma.lead.count({
+          where: {
+            isActive: true,
+            status: { in: ['New', 'Contacted', 'Qualified', 'ProposalSent', 'Negotiation'] },
+          }
+        }),
         prisma.lead.count({
           where: {
             isActive: true,
@@ -101,8 +107,10 @@ export class DashboardController {
         })
       ]);
 
-      // Total Clients
-      const [currentClients, previousClients] = await Promise.all([
+      const [totalClients, newClientsCurrent, newClientsPrevious] = await Promise.all([
+        prisma.client.count({
+          where: { isActive: true }
+        }),
         prisma.client.count({
           where: {
             isActive: true,
@@ -117,8 +125,10 @@ export class DashboardController {
         })
       ]);
 
-      // Pending Quotations
-      const [currentQuotations, previousQuotations] = await Promise.all([
+      const [totalPendingQuotes, newQuotesCurrent, newQuotesPrevious] = await Promise.all([
+        prisma.quotation.count({
+          where: { status: { in: ['Draft', 'Sent'] } }
+        }),
         prisma.quotation.count({
           where: {
             status: { in: ['Draft', 'Sent'] },
@@ -133,7 +143,6 @@ export class DashboardController {
         })
       ]);
 
-      // Calculate percentage changes
       const calculateChange = (current: number, previous: number): string => {
         if (previous === 0) return current > 0 ? '+100%' : '0%';
         const change = ((current - previous) / previous) * 100;
@@ -151,25 +160,25 @@ export class DashboardController {
         },
         {
           title: 'Active Leads',
-          value: currentLeads.toString(),
-          change: calculateChange(currentLeads, previousLeads),
-          trend: currentLeads >= previousLeads ? 'up' : 'down',
+          value: totalActiveLeads.toString(),
+          change: calculateChange(newLeadsCurrent, newLeadsPrevious),
+          trend: newLeadsCurrent >= newLeadsPrevious ? 'up' : 'down',
           icon: 'Target',
           color: 'text-blue-600'
         },
         {
           title: 'Total Clients',
-          value: currentClients.toString(),
-          change: calculateChange(currentClients, previousClients),
-          trend: currentClients >= previousClients ? 'up' : 'down',
+          value: totalClients.toString(),
+          change: calculateChange(newClientsCurrent, newClientsPrevious),
+          trend: newClientsCurrent >= newClientsPrevious ? 'up' : 'down',
           icon: 'Users',
           color: 'text-purple-600'
         },
         {
           title: 'Pending Quotations',
-          value: currentQuotations.toString(),
-          change: calculateChange(currentQuotations, previousQuotations),
-          trend: currentQuotations >= previousQuotations ? 'up' : 'down',
+          value: totalPendingQuotes.toString(),
+          change: calculateChange(newQuotesCurrent, newQuotesPrevious),
+          trend: newQuotesCurrent >= newQuotesPrevious ? 'up' : 'down',
           icon: 'FileText',
           color: 'text-orange-600'
         }
@@ -187,26 +196,39 @@ export class DashboardController {
       const timeRange = req.query.timeRange as string || '7d';
       const { endDate } = this.getDateRange(timeRange);
 
+      const monthsTemplate = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = subMonths(endDate, i);
+        monthsTemplate.push({
+          monthKey: format(d, 'MMM'), 
+          revenue: 0,
+          target: 280000, 
+        });
+      }
+
       const monthlyRevenue = await prisma.$queryRaw`
         SELECT 
           TO_CHAR(DATE_TRUNC('month', "createdAt"), 'Mon') as month,
-          COALESCE(SUM(total), 0) as revenue,
-          COUNT(*) as leads
+          COALESCE(SUM(total), 0) as revenue
         FROM "Quotation"
         WHERE "status" = 'Accepted'
           AND "createdAt" >= ${subMonths(endDate, 6)}
           AND "createdAt" <= ${endDate}
         GROUP BY DATE_TRUNC('month', "createdAt")
-        ORDER BY DATE_TRUNC('month', "createdAt")
-      ` as Array<{ month: string; revenue: number; leads: number }>;
+        ORDER BY DATE_TRUNC('month', "createdAt") ASC
+      ` as Array<{ month: string; revenue: number }>;
 
-      // Add target (could be from SystemSettings or hardcoded)
-      const revenueData = monthlyRevenue.map(item => ({
-        ...item,
-        target: 280000 // This could come from SystemSettings
-      }));
+      const filledData = monthsTemplate.map(template => {
+        const found = monthlyRevenue.find(item => item.month.trim() === template.monthKey);
+        return {
+          month: template.monthKey,
+          revenue: found ? Number(found.revenue) : 0, 
+          target: template.target,
+          leads: 0 
+        };
+      });
 
-      res.json(this.convertBigIntToNumber(revenueData));
+      res.json(this.convertBigIntToNumber(filledData));
     } catch (error) {
       console.error('Error fetching revenue data:', error);
       res.status(500).json({ error: 'Failed to fetch revenue data' });
@@ -381,7 +403,7 @@ export class DashboardController {
       const activities = recentActivities.map(activity => {
         const timeAgo = this.getTimeAgo(activity.createdAt);
         let detail = activity.description;
-        
+
         if (activity.lead) {
           detail += ` - ${activity.lead.name}`;
         }
@@ -419,7 +441,7 @@ export class DashboardController {
         return {
           json: (data: any) => { jsonData = data; },
           getData: () => jsonData,
-          status: () => ({ json: () => {} })
+          status: () => ({ json: () => { } })
         } as any;
       };
 
@@ -489,7 +511,7 @@ export class DashboardController {
   private getTimeAgo = (date: Date): string => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
