@@ -25,12 +25,15 @@ export class SalesOrderService {
             throw new Error("Sales Order creation failed: Missing Client ID");
         }
 
+        const totalAmount = items.reduce((sum, item) => sum + Number(item.lineTotal), 0);
+
         return await this.prisma.$transaction(async (tx) => {
             const salesOrder = await tx.salesOrder.create({
                 data: {
                     clientId: clientId,
                     quoteReferenceId: payload.quotationId,
                     status: SalesOrderStatus.Pending,
+                    totalAmount,
                     items: {
                         create: items.map((item) => ({
                             product: { connect: { id: item.productId } },
@@ -92,9 +95,11 @@ export class SalesOrderService {
         let orderBy: Prisma.SalesOrderOrderByWithRelationInput = {};
 
         if (sortBy === "client") {
-            orderBy = { client: { clientName: sortOrder } };
+             orderBy = { client: { clientName: sortOrder } };
+        } else if (sortBy === "total") {
+             orderBy = { totalAmount: sortOrder };
         } else {
-            orderBy = { [sortBy]: sortOrder };
+             orderBy = { [sortBy]: sortOrder };
         }
 
         const [salesOrders, total] = await Promise.all([

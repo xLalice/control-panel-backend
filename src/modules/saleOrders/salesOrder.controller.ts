@@ -26,8 +26,8 @@ export class SalesOrderController {
 
   update = async (req: Request, res: Response) => {
     const payload = updateSalesOrderStatusPayload.parse(req.body);
-    await this.salesOrderService.update(payload);
-    res.status(201);
+    const updatedSO = await this.salesOrderService.update(payload);
+    res.status(200).json(updatedSO);
   }
 
 }
