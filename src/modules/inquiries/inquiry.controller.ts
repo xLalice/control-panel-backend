@@ -12,7 +12,7 @@ import {
   associateInquiryDataSchema,
 } from "./inquiry.schema";
 import { z } from "zod";
-import { InquiryStatus, Priority } from "@prisma/client";
+import { InquiryStatus, Priority  } from "../../../prisma/generated/prisma/enums";
 
 const inquiryService = new InquiryService();
 
@@ -457,8 +457,7 @@ export class InquiryController {
     const { dueDate } = dueDateValidation.data;
     const updatedInquiry = await inquiryService.updateDueDate(
       id,
-      new Date(dueDate),
-      req.user!.id
+      new Date(dueDate)
     );
 
     res.json(updatedInquiry);

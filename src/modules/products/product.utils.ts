@@ -1,4 +1,4 @@
-import { Category } from "@prisma/client";
+import { Category } from '../../../prisma/generated/prisma/enums';
 
 export function generateSKU(category: Category): string {
   const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase(); 

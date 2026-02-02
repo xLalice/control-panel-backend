@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ClientStatus } from "@prisma/client";
+import { ClientStatus } from "../../../prisma/generated/prisma/enums";
 
 export const CreateClientSchema = z.object({
   companyId: z.string().uuid().optional().nullable(),

@@ -1,4 +1,4 @@
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus } from '../../../prisma/generated/prisma/enums';
 import { z } from 'zod';
 
 export const createLeadSchema = z.object({

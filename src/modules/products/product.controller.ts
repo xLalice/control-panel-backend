@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import { ProductCreateInput, ProductUpdateInput } from "./product.types";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../../prisma/generated/prisma/client";
 import { generateSKU } from "./product.utils";
 import { MovementType, Category } from "../../../prisma/generated/prisma/enums";
 

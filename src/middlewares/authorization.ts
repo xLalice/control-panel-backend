@@ -76,7 +76,7 @@ export const checkPermission = (requiredPermissions: string | string[]) => {
         return next();
       }
 
-      const userPermissions = await getPermissionsForRole(user.roleId);
+      const userPermissions = await getPermissionsForRole(user.role.id);
 
       const hasAllPermissions = permsToCheck.every((rp) =>
         userPermissions.includes(rp)

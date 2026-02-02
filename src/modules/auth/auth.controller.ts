@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../../config/prisma";
 import passport from "../../config/passport";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../../prisma/generated/prisma/client";
 
 type UserWithRole = Prisma.UserGetPayload<{
   include: { role: { include: { permissions: true } } };

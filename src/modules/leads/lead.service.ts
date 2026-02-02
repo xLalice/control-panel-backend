@@ -5,7 +5,8 @@ import {
   ActivityLog,
   Company,
   Client,
-  ContactHistory as PrismaContactHistory
+  ContactHistory as PrismaContactHistory,
+  ClientStatus
 } from "../../../prisma/generated/prisma/client";
 import {
   AssignLeadDto,
@@ -17,20 +18,21 @@ import {
   UpdateLeadDto,
   UpdateLeadStatusDto,
 } from "./lead.schema";
-import { Prisma } from "@prisma/client";
-import { JsonObject, JsonValue } from "@prisma/client/runtime/library";
+import { Prisma } from "../../../prisma/generated/prisma/client";
+import { JsonObject, JsonValue } from "../../../prisma/generated/prisma/internal/prismaNamespace";
 import { getSortingConfig } from "./lead.utils";
 import { AddContactHistoryData, ContactHistory } from "../clients/client.types";
 
+type ChangeValue = string | number | boolean | null | undefined;
+
 export class LeadService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   async createLead(data: CreateLeadDto, userId: string): Promise<Lead> {
     const {
       companyId,
       companyName,
       source,
-      status = "New",
       assignedToId,
       email,
       phone,
@@ -101,12 +103,12 @@ export class LeadService {
     return lead;
   }
 
+
   async updateLead(
     id: string,
     data: UpdateLeadDto,
     userId: string
   ): Promise<Lead> {
-
     const oldLead = await this.prisma.lead.findUnique({
       where: { id },
       include: {
@@ -121,14 +123,13 @@ export class LeadService {
 
     const { companyId, assignedToId, companyName, ...leadData } = data;
 
-    const statusEnumValue = data.status
-      ? LeadStatus[data.status as keyof typeof LeadStatus]
-      : undefined;
-
-    const updateData: Prisma.LeadUpdateInput = {
+    const updateData: any = {
       ...leadData,
-      status: statusEnumValue,
     };
+
+    if (data.status) {
+      updateData.status = data.status;
+    }
 
     if (companyId !== undefined) {
       if (companyId.trim() === "") {
@@ -168,19 +169,19 @@ export class LeadService {
       },
     });
 
-    const changes: { field: string; old: any; new: any }[] = [];
+    const changes: { field: string; old: ChangeValue; new: ChangeValue }[] = [];
     const descriptionParts: string[] = [];
 
     const addChange = (
       field: string,
-      oldVal: string | null | undefined | number,
-      newVal: string | null | undefined | number,
+      oldVal: ChangeValue,
+      newVal: ChangeValue,
       label: string
     ) => {
       if (oldVal !== newVal) {
         changes.push({ field, old: oldVal, new: newVal });
         descriptionParts.push(
-          `${label} changed from '${oldVal || "N/A"}' to '${newVal || "N/A"}'`
+          `${label} changed from '${oldVal ?? "N/A"}' to '${newVal ?? "N/A"}'`
         );
       }
     };
@@ -212,6 +213,7 @@ export class LeadService {
 
     const oldCompanyName = oldLead.company?.name || null;
     const newCompanyName = updatedLead.company?.name || null;
+
     if (oldCompanyName !== newCompanyName) {
       changes.push({
         field: "companyId",
@@ -219,14 +221,14 @@ export class LeadService {
         new: newCompanyName,
       });
       descriptionParts.push(
-        `Company changed from '${oldCompanyName || "N/A"}' to '${
-          newCompanyName || "N/A"
+        `Company changed from '${oldCompanyName || "N/A"}' to '${newCompanyName || "N/A"
         }'`
       );
     }
 
     const oldAssignedToName = oldLead.assignedTo?.name || null;
     const newAssignedToName = updatedLead.assignedTo?.name || null;
+
     if (oldAssignedToName !== newAssignedToName) {
       changes.push({
         field: "assignedToId",
@@ -234,8 +236,7 @@ export class LeadService {
         new: newAssignedToName,
       });
       descriptionParts.push(
-        `Assigned To changed from '${oldAssignedToName || "N/A"}' to '${
-          newAssignedToName || "N/A"
+        `Assigned To changed from '${oldAssignedToName || "N/A"}' to '${newAssignedToName || "N/A"
         }'`
       );
     }
@@ -369,15 +370,15 @@ export class LeadService {
       AND: [
         search
           ? {
-              OR: [
-                { contactPerson: { contains: search, mode: "insensitive" } },
-                { email: { contains: search, mode: "insensitive" } },
-                { name: { contains: search, mode: "insensitive" } },
-                {
-                  company: { name: { contains: search, mode: "insensitive" } },
-                },
-              ],
-            }
+            OR: [
+              { contactPerson: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+              { name: { contains: search, mode: "insensitive" } },
+              {
+                company: { name: { contains: search, mode: "insensitive" } },
+              },
+            ],
+          }
           : {},
         status ? { status } : {},
         assignedTo
@@ -463,7 +464,6 @@ export class LeadService {
           newAssignee: assignedToId,
         },
       },
-      userId
     );
 
     return this.prisma.lead.update({
@@ -486,8 +486,7 @@ export class LeadService {
       metadata?: JsonObject;
       oldStatus?: LeadStatus;
       newStatus?: LeadStatus;
-    },
-    userId: string
+    }
   ): Promise<void> {
     await this.prisma.activityLog.create({
       data: {
@@ -575,7 +574,7 @@ export class LeadService {
     if (lead.status !== "Won") {
       throw new Error(
         "Cannot convert a lead that has not been won. Current status: " +
-          lead.status
+        lead.status
       );
     }
 
@@ -585,11 +584,11 @@ export class LeadService {
       `Client from Lead ${lead.id.substring(0, 8)}`;
 
     return await this.prisma.$transaction(async (tx) => {
-      const clientCreationData: Prisma.ClientCreateInput = {
+      const clientCreationData = {
         clientName: clientName,
         primaryEmail: lead.email,
         primaryPhone: lead.phone,
-        status: "Active",
+        status: ClientStatus.Active,
         notes: `Converted from Lead ID: ${lead.id}. Original lead name: ${lead.name}.`,
         convertedFromLead: { connect: { id: lead.id } },
         ...(lead.companyId && { company: { connect: { id: lead.companyId } } }),

@@ -1,4 +1,4 @@
-import { Client, Lead, Quotation, QuotationItem } from "@prisma/client";
+import { Client, Lead, Quotation, QuotationItem } from "../../../prisma/generated/prisma/client";
 
 export interface QuotationViewModel {
     client: {

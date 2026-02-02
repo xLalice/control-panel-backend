@@ -10,26 +10,25 @@ import {
   InquiryFilterParams,
   PaginatedResponse,
   InquiryStatistics,
-  ConversionResult,
   InquiryContactResponse,
   MonthlyDataRaw,
   ScheduleOptions,
   DailyDataRaw,
 } from "./inquiry.types";
 import {
-  DeliveryMethod,
   InquiryStatus,
   LeadStatus,
-  ReferenceSource,
-  Priority,
+  Priority
+} from "../../../prisma/generated/prisma/enums";
+import {
   Inquiry,
   Product,
   Lead,
   Prisma,
   InquiryItem,
   User,
-  Company,
-} from "@prisma/client";
+  Company
+} from "../../../prisma/generated/prisma/client";
 
 export class InquiryService {
   /**
@@ -43,7 +42,6 @@ export class InquiryService {
       limit = 20,
       status,
       source,
-      productId,
       sortBy = "createdAt",
       sortOrder = "desc",
       search,
@@ -235,8 +233,8 @@ export class InquiryService {
             inquiryBaseData.preferredDate instanceof Date
               ? inquiryBaseData.preferredDate
               : inquiryBaseData.preferredDate
-              ? new Date(inquiryBaseData.preferredDate as string)
-              : null,
+                ? new Date(inquiryBaseData.preferredDate as string)
+                : null,
 
           lead: clientCheck.lead
             ? { connect: { id: clientCheck.lead.id } }
@@ -465,7 +463,7 @@ export class InquiryService {
     data: AssociateInquiryDataDto,
     userId: string
   ): Promise<InquiryWithItemsAndProducts> {
-    return prisma.$transaction(async (tx) => { 
+    return prisma.$transaction(async (tx) => {
       const inquiry = await tx.inquiry.findUnique({
         where: { id: inquiryId },
         select: {
@@ -475,7 +473,7 @@ export class InquiryService {
           clientId: true,
           clientName: true,
           lead: { select: { id: true, status: true, contactPerson: true } },
-          client: { select: { id: true, clientName: true } }, 
+          client: { select: { id: true, clientName: true } },
         },
       });
 
@@ -483,7 +481,7 @@ export class InquiryService {
         throw new Error("Inquiry not found.");
       }
 
-      let updateData: Prisma.InquiryUpdateInput = {}; 
+      let updateData: Prisma.InquiryUpdateInput = {};
       let newInquiryStatus: InquiryStatus;
       let logMessage: string;
       let associatedEntityName: string = "";
@@ -497,26 +495,25 @@ export class InquiryService {
         }
 
         updateData = {
-          client: { connect: { id: data.entityId } }, 
-          lead: { disconnect: true }, 
+          client: { connect: { id: data.entityId } },
+          lead: { disconnect: true },
         };
         newInquiryStatus = InquiryStatus.AssociatedToClient;
         logMessage = `Inquiry associated with existing client: ${client.clientName}`;
         associatedEntityName = client.clientName;
-      } else { 
+      } else {
         const lead = await tx.lead.findUnique({ where: { id: data.entityId } });
         if (!lead) {
           throw new Error(`Lead with ID ${data.entityId} not found.`);
         }
 
         updateData = {
-          lead: { connect: { id: data.entityId } }, 
+          lead: { connect: { id: data.entityId } },
           client: { disconnect: true }
         };
         newInquiryStatus = InquiryStatus.ConvertedToLead;
-        logMessage = `Inquiry associated with existing lead: ${
-          lead.contactPerson || lead.id
-        }`;
+        logMessage = `Inquiry associated with existing lead: ${lead.contactPerson || lead.id
+          }`;
         associatedEntityName = lead.contactPerson || `Lead ID: ${lead.id}`;
       }
 
@@ -622,11 +619,9 @@ export class InquiryService {
             leadId: lead.id,
             userId: userId,
             action: "Delivery Scheduled",
-            description: `Delivery scheduled for ${
-              scheduledDate.toISOString().split("T")[0]
-            }. ${options?.priority ? `Priority: ${options.priority}.` : ""} ${
-              options?.notes ? `Notes: ${options.notes}.` : ""
-            }`,
+            description: `Delivery scheduled for ${scheduledDate.toISOString().split("T")[0]
+              }. ${options?.priority ? `Priority: ${options.priority}.` : ""} ${options?.notes ? `Notes: ${options.notes}.` : ""
+              }`,
             metadata: {
               inquiryId: id,
               scheduledDate: scheduledDate.toISOString(),
@@ -642,9 +637,8 @@ export class InquiryService {
             leadId: lead.id,
             userId: userId,
             method: "System Update",
-            summary: `Delivery scheduled for ${
-              scheduledDate.toISOString().split("T")[0]
-            }. ${options?.notes ? `Notes: ${options.notes}.` : ""}`,
+            summary: `Delivery scheduled for ${scheduledDate.toISOString().split("T")[0]
+              }. ${options?.notes ? `Notes: ${options.notes}.` : ""}`,
             outcome: "Awaiting delivery",
           },
         });
@@ -748,7 +742,6 @@ export class InquiryService {
     includeDailyTrends: boolean = false
   ): Promise<InquiryStatistics> {
     const where: any = {};
-    const dateFilterParams: Date[] = [];
 
     if (startDate) {
       where.createdAt = { gte: new Date(startDate) };
@@ -757,7 +750,6 @@ export class InquiryService {
       where.createdAt = { ...where.createdAt, lte: new Date(endDate) };
     }
 
-    let rawDateFilterClause = "";
     const rawQueryParams: Prisma.Sql[] = [];
 
     const defaultStartDate = new Date("1900-01-01");
@@ -766,7 +758,6 @@ export class InquiryService {
     const filterGte = startDate ? new Date(startDate) : defaultStartDate;
     const filterLte = endDate ? new Date(endDate) : defaultEndDate;
 
-    rawDateFilterClause = `WHERE "createdAt" >= $1 AND "createdAt" <= $2`;
     rawQueryParams.push(Prisma.sql`${filterGte}`);
     rawQueryParams.push(Prisma.sql`${filterLte}`);
 
@@ -824,8 +815,8 @@ export class InquiryService {
         where: {
           inquiry: where.createdAt
             ? {
-                createdAt: where.createdAt,
-              }
+              createdAt: where.createdAt,
+            }
             : {},
         },
       }),
@@ -1174,9 +1165,8 @@ export class InquiryService {
           estimatedValue: null,
           createdById: userId,
           assignedToId: userId,
-          notes: `Converted from inquiry (Product: ${productList}). Original remarks: ${
-            inquiry.remarks || "None"
-          }`,
+          notes: `Converted from inquiry (Product: ${productList}). Original remarks: ${inquiry.remarks || "None"
+            }`,
           followUpDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           originatingInquiryId: inquiry.id,
         },
@@ -1353,9 +1343,8 @@ export class InquiryService {
             leadId: updatedInquiry.lead.id,
             userId: updatedById,
             action: "Priority Change",
-            description: `Inquiry #${inquiryId} priority changed from ${
-              oldPriority || "None"
-            } to ${priority}.`,
+            description: `Inquiry #${inquiryId} priority changed from ${oldPriority || "None"
+              } to ${priority}.`,
             metadata: {
               inquiryId: inquiryId,
               oldPriority: oldPriority,
@@ -1382,9 +1371,8 @@ export class InquiryService {
             inquiryId: inquiryId,
             userId: updatedById,
             action: "Inquiry Priority Change",
-            description: `Inquiry #${inquiryId} priority changed from ${
-              oldPriority || "None"
-            } to ${priority}.`,
+            description: `Inquiry #${inquiryId} priority changed from ${oldPriority || "None"
+              } to ${priority}.`,
             metadata: {
               inquiryId: inquiryId,
               oldPriority: oldPriority,
@@ -1410,8 +1398,7 @@ export class InquiryService {
    */
   async updateDueDate(
     inquiryId: string,
-    dueDate: Date,
-    updatedById: string
+    dueDate: Date
   ): Promise<InquiryWithItemsAndProducts> {
     try {
       const existingInquiry = await prisma.inquiry.findUnique({

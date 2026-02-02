@@ -274,10 +274,6 @@ export const getClientContactHistory = async (req: Request, res: Response) => {
     take: Number(limit),
   });
 
-  const totalCount = await prisma.contactHistory.count({
-    where: { clientId: req.params.id },
-  });
-
   res.status(200).json(contactHistory);
 };
 

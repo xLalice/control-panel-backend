@@ -1,50 +1,48 @@
-import { z } from "zod"; // Using zod directly, not zod
+import { z } from "zod";
 import {
   DeliveryMethod,
   ReferenceSource,
   InquiryStatus,
   InquiryType,
-  Priority,
-  InquiryItem,
-  Product,
-  Inquiry,
-  Prisma,
-} from "@prisma/client";
+  Priority
+} from "../../../prisma/generated/prisma/enums";
+import { Prisma } from "../../../prisma/generated/prisma/client";
+
 
 export const inquiryItemSchema = z.object({
   productId: z.string().uuid("Invalid product ID format"),
   quantity: z.number().int().positive("Quantity must be a positive number for an item"),
-  remarks: z.string().optional().nullable(), 
+  remarks: z.string().optional().nullable(),
 });
 
 const inquiryBaseSchema = z.object({
   clientName: z.string().min(1, "Client name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-  email: z.string().email("Invalid email format"), 
+  email: z.string().email("Invalid email format"),
   isCompany: z.boolean(),
   companyName: z.string().optional().nullable(),
   companyAddress: z.string().optional().nullable(),
-  deliveryMethod: z.nativeEnum(DeliveryMethod, { 
-    errorMap: (issue, ctx) => ({ message: "Invalid delivery method" }),
+  deliveryMethod: z.nativeEnum(DeliveryMethod, {
+    errorMap: () => ({ message: "Invalid delivery method" }),
   }),
   deliveryLocation: z.string().optional().nullable(),
   preferredDate: z.union([z.string().datetime(), z.date()])
     .transform((val) => typeof val === "string" ? new Date(val) : val)
     .optional()
     .nullable(),
-  referenceSource: z.nativeEnum(ReferenceSource, { 
-    errorMap: (issue, ctx) => ({ message: "Invalid reference source" }),
+  referenceSource: z.nativeEnum(ReferenceSource, {
+    errorMap: () => ({ message: "Invalid reference source" }),
   }),
   remarks: z.string().optional().nullable(),
-  priority: z.nativeEnum(Priority).optional().nullable(), 
+  priority: z.nativeEnum(Priority).optional().nullable(),
   dueDate: z.union([z.string().datetime(), z.date()])
     .transform((val) => typeof val === "string" ? new Date(val) : val)
     .optional()
     .nullable(),
-  inquiryType: z.nativeEnum(InquiryType, { 
-    errorMap: (issue, ctx) => ({ message: "Invalid inquiry type" }),
+  inquiryType: z.nativeEnum(InquiryType, {
+    errorMap: () => ({ message: "Invalid inquiry type" }),
   }),
-  status: z.nativeEnum(InquiryStatus).optional(), 
+  status: z.nativeEnum(InquiryStatus).optional(),
 });
 
 export const createInquirySchema = inquiryBaseSchema.extend({
@@ -54,19 +52,19 @@ export type CreateInquiryDto = z.infer<typeof createInquirySchema>;
 
 
 export const updateInquiryItemSchema = inquiryItemSchema.extend({
-  id: z.string().uuid("Invalid inquiry item ID format").optional(), 
+  id: z.string().uuid("Invalid inquiry item ID format").optional(),
 });
 
 export const updateInquirySchema = inquiryBaseSchema.partial().extend({
-  items: z.array(updateInquiryItemSchema).optional(), 
+  items: z.array(updateInquiryItemSchema).optional(),
 });
 export type UpdateInquiryDto = z.infer<typeof updateInquirySchema>;
 
 export type InquiryWithItemsAndProducts = Prisma.InquiryGetPayload<{
   include: {
-    createdBy: true; 
-    assignedTo: true; 
-    lead: true; 
+    createdBy: true;
+    assignedTo: true;
+    lead: true;
     items: {
       include: {
         product: true;
@@ -104,7 +102,7 @@ export const statisticsFilterSchema = z.object({
     .optional()
     .default("MONTHLY"),
   startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),  
+  endDate: z.string().datetime().optional(),
 });
 
 export const filterInquirySchema = z.object({
@@ -117,21 +115,21 @@ export const filterInquirySchema = z.object({
   limit: z.coerce.number().int().min(1, "Limit must be at least 1").default(10),
   status: z
     .union([
-      z.nativeEnum(InquiryStatus, { 
-        errorMap: (issue, ctx) => ({ message: "Invalid status" }),
+      z.nativeEnum(InquiryStatus, {
+        errorMap: () => ({ message: "Invalid status" }),
       }),
       z.literal("all"),
     ])
     .optional(),
   source: z
     .union([
-      z.nativeEnum(ReferenceSource, { 
-        errorMap: (issue, ctx) => ({ message: "Invalid source" }),
+      z.nativeEnum(ReferenceSource, {
+        errorMap: () => ({ message: "Invalid source" }),
       }),
       z.literal("all"),
     ])
     .optional(),
-  productType: z.string().optional(), 
+  productType: z.string().optional(),
   sortBy: z
     .string()
     .refine(
@@ -139,7 +137,7 @@ export const filterInquirySchema = z.object({
         [
           "createdAt",
           "clientName",
-          "status","assignedTo.name",
+          "status", "assignedTo.name",
         ].includes(val),
       "Invalid sortBy field"
     )
@@ -148,8 +146,8 @@ export const filterInquirySchema = z.object({
 
   sortOrder: z.enum(["asc", "desc"]).default("desc").optional(),
   search: z.string().optional(),
-  startDate: z.string().optional(), 
-  endDate: z.string().optional(),   
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   inquiryType: z.nativeEnum(InquiryType).optional(),
 });
 
@@ -164,7 +162,7 @@ export const scheduleInquirySchema = z.object({
       "Invalid date format for scheduled date. Expected ISO 8601 string."
     ),
   priority: z.nativeEnum(Priority).optional().nullable(),
-  notes: z.string().optional().nullable(),                
+  notes: z.string().optional().nullable(),
   reminderMinutes: z.number().int().min(0).optional().nullable(),
 });
 

@@ -1,4 +1,4 @@
-import { LeadStatus } from "@prisma/client";
+import { LeadStatus } from "../../../prisma/generated/prisma/enums";
 
 export interface SearchLeadsParams {
   search?: string;

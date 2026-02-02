@@ -1,4 +1,4 @@
-import { Inquiry, InquiryStatus } from "@prisma/client";
+import { Inquiry, InquiryStatus } from "../../../prisma/generated/prisma/client";
 
 /**
  * Calculates the time an inquiry has been in its current status

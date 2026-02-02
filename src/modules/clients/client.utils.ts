@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../../prisma/generated/prisma/client";
 
 export async function generateNextAccountNumber(prisma: PrismaClient): Promise<string> {
   const lastClient = await prisma.client.findFirst({

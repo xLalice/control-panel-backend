@@ -7,7 +7,7 @@ import {
   updateLeadStatusSchema,
 } from "./lead.schema";
 import { prisma } from "../../config/prisma";
-import { LeadStatus } from "@prisma/client";
+import { LeadStatus } from "../../../prisma/generated/prisma/enums";
 import {
   LogContactHistoryInput,
   LogContactHistorySchema,

@@ -2,17 +2,15 @@ import {
   ReferenceSource,
   LeadStatus,
   InquiryType,
-  Priority,
-  DeliveryMethod,
-  InquiryStatus,
-} from "@prisma/client";
+  Priority
+} from "../../../prisma/generated/prisma/enums";
 
 
 export interface ScheduleOptions {
-    priority?: Priority | null; // Allow null or undefined
-    notes?: string | null;      // Allow null or undefined
-    reminderMinutes?: number | null; // Allow null or undefined
-  }
+  priority?: Priority | null;
+  notes?: string | null;
+  reminderMinutes?: number | null;
+}
 
 export type InquirySortField =
   | "id"
@@ -62,7 +60,7 @@ export interface InquiryStatistics {
     count: number;
     converted: number;
     closed: number;
-    
+
   }>;
   dailyTrends?: Array<{ date: Date; count: number }>;
   averageResponseTime?: number; // in hours

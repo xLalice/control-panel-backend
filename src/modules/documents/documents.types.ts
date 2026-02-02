@@ -1,4 +1,4 @@
-import {  DocumentCategory, User } from '@prisma/client';
+import { DocumentCategory, User} from "../../../prisma/generated/prisma/client";
 
 export interface UploadDocumentDto {
   title: string;

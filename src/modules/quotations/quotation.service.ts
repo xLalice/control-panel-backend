@@ -1,4 +1,4 @@
-import { LeadStatus, Prisma, PrismaClient, QuotationStatus } from "../../../prisma/generated/prisma/client";
+import { LeadStatus, Prisma, PrismaClient, QuotationItem, QuotationStatus } from "../../../prisma/generated/prisma/client";
 import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
 import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
@@ -122,15 +122,15 @@ export class QuotationService {
 
     async createQuotation(data: CreateQuotationDTO, userId: string) {
         const quotationNumber = await this.generateQuotationNumber();
-
+        const { items, ...restData } = data;
 
         return this.prisma.quotation.create({
             data: {
-                ...data,
+                ...restData,
                 status: QuotationStatus.Draft,
                 quotationNumber,
                 items: {
-                    create: data.items
+                    create: items
                 },
                 preparedById: userId
             }
@@ -354,8 +354,10 @@ export class QuotationService {
 
         const logoBase64 = await getBase64Logo();
 
+        const { items, ...restQuotation } = quotation;
+
         const pdfData = {
-            ...quotation,
+            ...restQuotation,
 
             issueDateFormatted: quotation.issueDate.toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric'
@@ -369,7 +371,7 @@ export class QuotationService {
             discountFormatted: quotation.discount ? formatCurrency(Number(quotation.discount)) : "0.00",
             totalFormatted: formatCurrency(Number(quotation.total)),
 
-            items: quotation.items.map(item => ({
+            items: items.map((item: QuotationItem) => ({
                 ...item,
                 unitPriceFormatted: formatCurrency(Number(item.unitPrice)),
                 lineTotalFormatted: formatCurrency(Number(item.lineTotal)),

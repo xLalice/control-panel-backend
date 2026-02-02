@@ -1,4 +1,4 @@
-import { QuotationStatus } from '@prisma/client';
+import { QuotationStatus } from '../../../prisma/generated/prisma/enums';
 import { z } from 'zod';
 
 

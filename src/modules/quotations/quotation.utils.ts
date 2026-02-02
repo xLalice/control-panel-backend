@@ -1,4 +1,4 @@
-import { Client, Lead } from "@prisma/client";
+import { Client, Lead } from "../../../prisma/generated/prisma/client";
 import { QuotationViewModel } from "./quotation.types";
 import * as fs from "fs/promises";
 import * as path from "path";

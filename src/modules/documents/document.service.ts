@@ -1,4 +1,4 @@
-import { Document, DocumentCategory } from "@prisma/client";
+import {  Document, DocumentCategory } from "../../../prisma/generated/prisma/client";
 import { prisma } from "../../config/prisma";
 import {
   UploadDocumentDto,

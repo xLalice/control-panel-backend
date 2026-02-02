@@ -1,4 +1,4 @@
-import { Category, PricingUnit } from "@prisma/client";
+import { Category, PricingUnit } from "../../../prisma/generated/prisma/enums";
 
 export type SourceLocation = 'Batangas' | 'Montalban' | 'Other';
 export type PricingModel = 'PerHour' | 'PerDay' | 'PerUnit';
