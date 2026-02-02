@@ -18,7 +18,7 @@ import dashboardRoutes from "./modules/dashboard/dashboard.routes"
 import salesOrderRoutes from "./modules/saleOrders/salesOrder.routes";
 import { errorHandler } from "./middlewares/errorHandler";
 import "dotenv/config";
-import { prisma } from "config/prisma";
+import { prisma } from "./config/prisma";
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "QWERTY";
 

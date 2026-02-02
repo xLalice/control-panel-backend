@@ -2,7 +2,7 @@ import express from 'express';
 import { isAuthenticated } from 'middlewares/isAuthenticated';
 import { checkPermission } from 'middlewares/authorization';
 import { QuotationService } from './quotation.service';
-import { prisma } from 'config/prisma';
+import { prisma } from '../../config/prisma';
 import QuotationController from './quotation.controllers';
 import { EmailService } from 'modules/email/email.service';
 import { StorageService } from 'modules/storage/storage.service';

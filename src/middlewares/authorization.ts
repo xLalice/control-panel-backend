@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import redisClient from "../config/redis";
-import { prisma } from "config/prisma";
+import { prisma } from "../config/prisma";
 
 const CACHE_PREFIX_ROLE_PERMISSIONS = "role_permissions:";
 const CACHE_TTL = 5 * 60;

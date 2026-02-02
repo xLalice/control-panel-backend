@@ -1,4 +1,4 @@
-import { prisma } from "config/prisma";
+import { prisma } from "../../config/prisma";
 import {AddContactHistoryData, ContactHistory} from "./client.types";
 
 export const addContactHistory = async (

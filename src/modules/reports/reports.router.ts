@@ -2,7 +2,7 @@ import { Router } from "express";
 import { error } from "../../utils/logger";
 import { isAuthenticated } from "../../middlewares/isAuthenticated";
 import { checkPermission } from "../../middlewares/authorization";
-import { prisma } from "config/prisma";
+import { prisma } from "../../config/prisma";
 
 const router = Router();
 
