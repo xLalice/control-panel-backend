@@ -1,6 +1,6 @@
-import { companyInfo } from "config/companyInfo";
-import { env } from "config/env";
-import { compileTemplate } from "modules/quotations/quotation.utils";
+import { companyInfo } from "../../config/companyInfo";
+import { env } from "../../config/env";
+import { compileTemplate } from "../quotations/quotation.utils";
 import { Resend } from "resend";
 
 export class EmailService {

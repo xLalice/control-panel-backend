@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { createQuotationSchema } from "./quotation.schema";
 import { QuotationService } from "./quotation.service";
-import { getAuthUser } from "utils/auth.utils";
-import { convertToSalesOrderPayload } from "modules/saleOrders/salesOrder.schema";
+import { getAuthUser } from "../../utils/auth.utils";
+import { convertToSalesOrderPayload } from "../saleOrders/salesOrder.schema";
 
 class QuotationController {
     constructor(private service: QuotationService) { }

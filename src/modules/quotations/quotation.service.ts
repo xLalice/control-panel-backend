@@ -3,12 +3,12 @@ import { CreateQuotationDTO } from "./quotation.schema";
 import { QuotationViewModel, QuotationWithRelations } from "./quotation.types";
 import { compileTemplate, transformClientToCustomer, transformLeadToCustomer } from "./quotation.utils";
 import puppeteer from "puppeteer";
-import { StorageService } from "modules/storage/storage.service";
-import { EmailService } from "modules/email/email.service";
-import { formatCurrency, getBase64Logo } from "utils/common";
-import { LeadService } from "modules/leads/lead.service";
-import { SalesOrderService } from "modules/saleOrders/salesOrder.service";
-import { ConvertToSalesOrderPayLoadType } from "modules/saleOrders/salesOrder.schema";
+import { StorageService } from "../storage/storage.service";
+import { EmailService } from "../email/email.service";
+import { formatCurrency, getBase64Logo } from "../../utils/common";
+import { LeadService } from "../leads/lead.service";
+import { SalesOrderService } from "../saleOrders/salesOrder.service";
+import { ConvertToSalesOrderPayLoadType } from "../saleOrders/salesOrder.schema";
 
 
 export class QuotationService {

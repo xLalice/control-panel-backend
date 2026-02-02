@@ -1,13 +1,13 @@
 import express from 'express';
-import { isAuthenticated } from 'middlewares/isAuthenticated';
-import { checkPermission } from 'middlewares/authorization';
+import { isAuthenticated } from '../../middlewares/isAuthenticated';
+import { checkPermission } from '../../middlewares/authorization';
 import { QuotationService } from './quotation.service';
 import { prisma } from '../../config/prisma';
 import QuotationController from './quotation.controllers';
-import { EmailService } from 'modules/email/email.service';
-import { StorageService } from 'modules/storage/storage.service';
-import { LeadService } from 'modules/leads/lead.service';
-import { SalesOrderService } from 'modules/saleOrders/salesOrder.service';
+import { EmailService } from '../email/email.service';
+import { StorageService } from '../storage/storage.service';
+import { LeadService } from '../leads/lead.service';
+import { SalesOrderService } from '../saleOrders/salesOrder.service';
 
 
 const router = express.Router();
