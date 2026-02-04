@@ -3,9 +3,13 @@ import { env } from "./env";
 
 const redisClient = createClient({
   url: env.REDIS_URL,
+  socket: {
+    connectTimeout: 10000, 
+    keepAlive: 5000,
+  }
 }) as RedisClientType;
 
-redisClient.on("error", (err: any) => {
+redisClient.on("error", (err: unknown) => {
   console.error("Redis Client Error", err);
 });
 redisClient.on("connect", () => {
