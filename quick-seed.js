@@ -2,8 +2,14 @@ const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
+require("dotenv").config();
 
-const connectionString = "postgresql://postgres.yyrlmqvtedewjdpidtfl:1Two3four5!JLI@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true";
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("DATABASE_URL is not set in environment variables");
+  process.exit(1);
+}
 
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
@@ -103,17 +109,19 @@ async function main() {
   });
 
   console.log("Seeding admin user...");
-  const hashedPassword = await bcrypt.hash("12345678", 10);
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+  const adminPassword = process.env.ADMIN_PASSWORD || "12345678";
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
+    where: { email: adminEmail },
     update: { 
       password: hashedPassword,
       name: 'Admin User',
       roleId: adminRole.id,
     },
     create: {
-      email: 'admin@example.com',
+      email: adminEmail,
       password: hashedPassword,
       name: 'Admin User',
       roleId: adminRole.id,
