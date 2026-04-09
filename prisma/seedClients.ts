@@ -295,10 +295,10 @@ async function seedClients() {
         // Create a sample user if none exists
         const sampleUser = await prisma.user.create({
           data: {
-            // Adjust these fields based on your User model schema
             email: "admin@example.com",
             name: "System Admin",
-            // Add other required fields for your User model here
+            password: await require('bcryptjs').hash("12345678", 10),
+            roleId: 1,
           }
         });
         sampleUserId = sampleUser.id;

@@ -7,7 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model Role {
   id          Int          @id @default(autoincrement())
   name        String       @unique
@@ -208,41 +207,32 @@ model Invoice {
 }
 
 model SalesOrder {
-  id       String @id @default(uuid())
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
-
-  quoteReferenceId String?    @unique
-  quoteReference   Quotation? @relation(fields: [quoteReferenceId], references: [id])
-
-  status SalesOrderStatus @default(Pending)
-
-  items SalesOrderItem[]
-
-  deliveryDate  DateTime
-  deliveryAddress String?
-
-  paymentTerms String
-  notes   String? 
-
-  createdAt  DateTime  @default(now())
-  totalAmount Decimal @default(0)
+  id               String           @id @default(uuid())
+  clientId         String
+  quoteReferenceId String?          @unique
+  status           SalesOrderStatus @default(Pending)
+  deliveryAddress  String?
+  deliveryDate     DateTime
+  notes            String?
+  paymentTerms     String
+  createdAt        DateTime         @default(now())
+  totalAmount      Decimal          @default(0)
+  client           Client           @relation(fields: [clientId], references: [id])
+  quoteReference   Quotation?       @relation(fields: [quoteReferenceId], references: [id])
+  items            SalesOrderItem[]
 
   @@index([clientId])
 }
 
 model SalesOrderItem {
-  id String @id @default(uuid())
-
+  id           String     @id @default(uuid())
   salesOrderId String
+  productId    String
+  quantity     Int
+  unitPrice    Decimal
+  totalPrice   Decimal
+  product      Product    @relation(fields: [productId], references: [id])
   salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
-
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  quantity   Int
-  unitPrice  Decimal
-  totalPrice Decimal
 }
 
 model SystemSettings {
@@ -262,51 +252,44 @@ model Session {
 }
 
 model StockMovement {
-  id String @id @default(uuid())
-
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  type     MovementType
-  quantity Decimal
-
+  id          String       @id @default(uuid())
+  productId   String
+  type        MovementType
+  quantity    Decimal
   reason      String?
   referenceId String?
-
   createdById String
-
-  createdAt DateTime @default(now())
+  createdAt   DateTime     @default(now())
+  product     Product      @relation(fields: [productId], references: [id])
 
   @@index([productId])
   @@index([createdAt])
 }
 
 model Product {
-  id             String      @id @default(uuid())
-  category       Category
-  sku            String      @unique
-  name           String
-  description    String
-  basePrice      Decimal
-  pricingUnit    PricingUnit
-  pricingDetails Json?
-  unit           String?
-  pickUpPrice    Decimal?
-  deliveryPrice  Decimal?
-
+  id              String           @id @default(uuid())
+  category        Category
+  sku             String           @unique
+  name            String
+  description     String
+  basePrice       Decimal
+  pricingUnit     PricingUnit
+  pricingDetails  Json?
+  unit            String?
+  pickUpPrice     Decimal?
+  deliveryPrice   Decimal?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   quantityOnHand  Decimal          @default(0)
   reorderLevel    Decimal          @default(10)
-  stockMovements  StockMovement[]
+  aggregate       Aggregate?
+  heavyEquipment  HeavyEquipment?
+  inquiries       InquiryItem[]
+  quotation       QuotationItem[]
   salesOrderItems SalesOrderItem[]
-
-  isActive       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  aggregate      Aggregate?
-  heavyEquipment HeavyEquipment?
-  inquiries      InquiryItem[]
-  quotation      QuotationItem[]
-  steel          Steel?
+  steel           Steel?
+  stockMovements  StockMovement[]
 }
 
 model Aggregate {

@@ -1,4 +1,4 @@
-import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, ClientStatus, Report, Lead } from '@prisma/client';
+import { PrismaClient, Category, PricingUnit, DeliveryMethod, ReferenceSource, Priority, Inquiry, InquiryType, InquiryStatus, LeadStatus, ContactHistory, ClientStatus, Report, Lead } from './generated/prisma';
 import { faker } from '@faker-js/faker';
 import bcrypt from "bcryptjs"
 import { Decimal } from "decimal.js"
@@ -21,6 +21,7 @@ async function main() {
     await prisma.permission.upsert({
       where: { name: p.name },
       update: { module: p.module },
+      create: {
         name: p.name,
         module: p.module,
       },
@@ -633,6 +634,8 @@ async function main() {
         data: {
           id: faker.string.uuid(),
           clientId: client.id,
+          deliveryDate: faker.date.soon(),
+          paymentTerms: 'Net 30',
         }
       });
     }
